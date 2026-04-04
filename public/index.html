@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Respondro — AI Customer Service</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{colors:{navy:'#080D1A',surface:'#0F1623',surface2:'#151E30',accent:'#00C896',warm:'#F0A500',muted:'#5A6785'},fontFamily:{display:['Syne','sans-serif'],body:['DM Sans','sans-serif'],mono:['DM Mono','monospace']}}}}</script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:#080D1A;color:#E8EBF2;font-family:'DM Sans',sans-serif;overflow-x:hidden}
+.grid-bg{background-image:linear-gradient(rgba(0,200,150,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,150,0.03) 1px,transparent 1px);background-size:60px 60px}
+@keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.ticker-track{animation:ticker 28s linear infinite;display:flex;width:max-content}
+@keyframes popIn{0%{transform:scale(0.9);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes flash{0%,100%{opacity:1}50%{opacity:0.3}}
+@keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+.fade-up{opacity:0;transform:translateY(20px);transition:opacity 0.6s ease,transform 0.6s ease}
+.fade-up.visible{opacity:1;transform:translateY(0)}
+.nav-scrolled{background:rgba(8,13,26,0.95)!important;border-bottom:1px solid rgba(255,255,255,0.07)!important;backdrop-filter:blur(12px)}
+.btn-primary{background:#00C896;color:#080D1A;font-family:'Syne',sans-serif;font-weight:700;border-radius:999px;padding:11px 22px;transition:transform 0.2s,box-shadow 0.2s;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:7px;font-size:14px;white-space:nowrap}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(0,200,150,0.35)}
+.btn-primary:disabled{opacity:0.5;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-ghost{background:transparent;color:#E8EBF2;font-family:'Syne',sans-serif;font-weight:600;border-radius:999px;padding:10px 22px;border:1px solid rgba(255,255,255,0.15);transition:all 0.2s;cursor:pointer;font-size:14px;white-space:nowrap}
+.btn-ghost:hover{border-color:rgba(255,255,255,0.3);background:rgba(255,255,255,0.04)}
+.btn-sm{padding:6px 13px!important;font-size:12px!important;border-radius:8px!important}
+.btn-icon{background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:7px;padding:4px 8px;cursor:pointer;font-size:11px;color:#8B96B0;transition:all 0.2s;display:inline-flex;align-items:center;gap:3px}
+.btn-icon:hover{border-color:rgba(0,200,150,0.35);color:#00C896;background:rgba(0,200,150,0.06)}
+.card{background:#0F1623;border:1px solid rgba(255,255,255,0.07);border-radius:16px}
+.modal-overlay{position:fixed;inset:0;z-index:200;background:rgba(4,8,18,0.92);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:16px;opacity:0;pointer-events:none;transition:opacity 0.25s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal-box{background:#0F1623;border:1px solid rgba(255,255,255,0.1);border-radius:20px;width:100%;max-width:500px;padding:32px;position:relative;transform:translateY(10px);transition:transform 0.25s;max-height:92vh;overflow-y:auto}
+.modal-overlay.open .modal-box{transform:translateY(0)}
+.modal-wide{max-width:560px}
+.modal-xl{max-width:680px}
+.form-input{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:11px 14px;color:#E8EBF2;font-family:'DM Sans',sans-serif;font-size:14px;transition:border-color 0.2s;outline:none}
+.form-input:focus{border-color:#00C896}
+.form-input::placeholder{color:#3A4760}
+select.form-input option{background:#0F1623}
+.form-label{font-family:'Syne',sans-serif;font-weight:600;font-size:11px;color:#5A6785;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:5px;display:block}
+.provider-card{border:1px solid rgba(255,255,255,0.09);border-radius:10px;padding:10px 13px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:10px}
+.provider-card:hover{border-color:rgba(0,200,150,0.35);background:rgba(0,200,150,0.04)}
+.provider-card.connected{border-color:rgba(0,200,150,0.4);background:rgba(0,200,150,0.06)}
+.step-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.18);transition:all 0.3s}
+.step-dot.active{background:#00C896;width:22px;border-radius:4px}
+.step-dot.done{background:#00C896}
+/* TABS */
+.sub-tab{padding:7px 14px;border-radius:8px;font-size:13px;font-family:'Syne',sans-serif;font-weight:600;cursor:pointer;background:transparent;border:none;color:#5A6785;transition:all 0.2s}
+.sub-tab.active{background:rgba(0,200,150,0.1);color:#00C896}
+/* UPLOAD ZONE */
+.upload-zone{border:2px dashed rgba(255,255,255,0.12);border-radius:12px;padding:28px;text-align:center;cursor:pointer;transition:all 0.2s;position:relative}
+.upload-zone:hover,.upload-zone.drag-over{border-color:rgba(0,200,150,0.4);background:rgba(0,200,150,0.04)}
+.upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+/* TONE ANALYSIS */
+.tone-bar-bg{height:6px;border-radius:3px;background:rgba(255,255,255,0.07);overflow:hidden;flex:1}
+.tone-bar-fill{height:100%;border-radius:3px;background:#00C896;transition:width 1s ease}
+.tone-chip{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;font-family:'DM Mono',monospace;background:rgba(0,200,150,0.1);color:#00C896;margin:2px}
+/* DASHBOARD */
+#dashboard{display:none;height:100vh;overflow:hidden;flex-direction:column}
+#dashboard.active{display:flex}
+#landing.hidden{display:none}
+.dash-nav{background:#0B1120;border-bottom:1px solid rgba(255,255,255,0.06);height:56px;display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0}
+.sidebar{background:#0B1120;border-right:1px solid rgba(255,255,255,0.06);width:215px;flex-shrink:0;display:flex;flex-direction:column}
+.sidebar-item{display:flex;align-items:center;gap:9px;padding:8px 13px;border-radius:8px;margin:2px 8px;cursor:pointer;font-size:13px;color:#8B96B0;transition:all 0.2s;font-family:'DM Sans',sans-serif;font-weight:500}
+.sidebar-item:hover{background:rgba(255,255,255,0.05);color:#E8EBF2}
+.sidebar-item.active{background:rgba(0,200,150,0.1);color:#00C896}
+.main-content{flex:1;overflow-y:auto;background:#080D1A}
+/* KANBAN */
+.kb-col{flex:1;min-width:200px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:12px;display:flex;flex-direction:column;min-height:300px}
+.kb-ticket{background:#0F1623;border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:11px;cursor:pointer;transition:all 0.2s;margin-bottom:7px}
+.kb-ticket:hover{border-color:rgba(0,200,150,0.25);transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,0.3)}
+.kb-ticket.dragging{opacity:0.45;transform:scale(0.97)}
+.kb-col.drag-over{border-color:rgba(0,200,150,0.4)!important;background:rgba(0,200,150,0.04)!important}
+.move-btn{background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:3px 7px;cursor:pointer;font-size:10px;color:#5A6785;transition:all 0.2s}
+.move-btn:hover{border-color:rgba(0,200,150,0.4);color:#00C896;background:rgba(0,200,150,0.06)}
+/* EMAIL ROWS */
+.email-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;background:#0F1623;border:1px solid rgba(255,255,255,0.06);transition:all 0.4s;font-size:13px;margin-bottom:6px}
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:all 0.3s}
+.status-bar{height:3px;border-radius:2px;background:rgba(255,255,255,0.06);overflow:hidden;flex:1;min-width:60px}
+.status-fill{height:100%;border-radius:2px;background:#00C896;width:0;transition:width 1.2s ease}
+.status-fill.amber{background:#F0A500}
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:600;font-family:'DM Mono',monospace}
+.badge-g{background:rgba(0,200,150,0.12);color:#00C896}
+.badge-a{background:rgba(240,165,0,0.12);color:#F0A500}
+.badge-r{background:rgba(248,113,113,0.12);color:#F87171}
+.badge-m{background:rgba(255,255,255,0.06);color:#8B96B0}
+.spinner{width:13px;height:13px;border:2px solid rgba(255,255,255,0.1);border-top-color:#00C896;border-radius:50%;animation:spin 0.7s linear infinite;flex-shrink:0}
+#ticket-panel{position:fixed;right:0;top:56px;bottom:0;width:380px;background:#0F1623;border-left:1px solid rgba(255,255,255,0.08);transform:translateX(100%);transition:transform 0.3s;z-index:50;display:flex;flex-direction:column;overflow-y:auto}
+#ticket-panel.open{transform:translateX(0)}
+.settings-card{background:#0F1623;border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:18px;margin-bottom:12px}
+.api-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+/* RULES */
+.rule-card{background:#0F1623;border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:14px 16px;transition:border-color 0.2s}
+.rule-card:hover{border-color:rgba(255,255,255,0.12)}
+.rule-toggle{width:34px;height:18px;border-radius:9px;position:relative;cursor:pointer;transition:background 0.25s;flex-shrink:0;border:none}
+.rule-toggle.on{background:#00C896}
+.rule-toggle.off{background:rgba(255,255,255,0.15)}
+.rule-toggle-dot{position:absolute;top:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left 0.25s}
+.rule-toggle.on .rule-toggle-dot{left:18px}
+.rule-toggle.off .rule-toggle-dot{left:2px}
+.rule-cat-label{font-size:10px;font-family:'Syne',sans-serif;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#3A4760;padding:10px 0 4px;display:block}
+/* SHOPIFY */
+.shopify-screen{background:#F6F6F7;color:#202223;border-radius:12px;padding:0;overflow:hidden;margin:12px 0;font-size:13px}
+.shopify-header-bar{background:#008060;padding:12px 16px;color:white;font-weight:600;font-size:13px;display:flex;align-items:center;gap:8px}
+.shopify-body{padding:20px}
+/* ACCORDION */
+.acc-body{max-height:0;overflow:hidden;transition:max-height 0.4s ease}
+.acc-body.open{max-height:800px}
+/* CONN CHIP */
+.conn-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(0,200,150,0.12);color:#00C896;font-family:'DM Mono',monospace}
+/* SHIMMER PLACEHOLDER */
+.shimmer{background:linear-gradient(90deg,rgba(255,255,255,0.04) 25%,rgba(255,255,255,0.08) 50%,rgba(255,255,255,0.04) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
+/* GUIDE STEPS */
+.guide-step{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05)}
+.guide-step:last-child{border-bottom:none}
+.guide-num{width:20px;height:20px;border-radius:50%;background:rgba(0,200,150,0.15);color:#00C896;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.guide-text{font-size:12px;line-height:1.5;color:#8B96B0}
+.guide-text code{background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:4px;font-family:'DM Mono',monospace;color:#E8EBF2;font-size:11px}
+</style>
+</head>
+<body class="font-body">
+
+<!-- ═══════ LANDING (abbreviated) ═══════ -->
+<div id="landing">
+<nav id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b border-transparent" style="background:transparent">
+  <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+    <a href="#" class="flex items-center gap-2 font-display font-800 text-xl"><span style="color:#00C896">▸</span> Respondro</a>
+    <div class="hidden md:flex items-center gap-7 text-sm" style="color:#8B96B0">
+      <a href="#features" class="hover:text-white transition-colors">Features</a>
+      <a href="#pricing" class="hover:text-white transition-colors">Pricing</a>
+    </div>
+    <div class="flex items-center gap-3">
+      <button class="btn-ghost" onclick="openAuth('login')" style="padding:9px 18px">Log in</button>
+      <button class="btn-primary" style="padding:9px 20px" onclick="openAuth('signup')">Start free trial</button>
+    </div>
+  </div>
+</nav>
+<section class="relative min-h-screen flex flex-col justify-center grid-bg pt-16">
+  <div style="position:absolute;top:20%;left:50%;transform:translateX(-50%);width:700px;height:500px;background:radial-gradient(ellipse at center,rgba(0,200,150,0.08),transparent 70%);pointer-events:none"></div>
+  <div class="relative max-w-4xl mx-auto px-6 py-20 text-center">
+    <div class="inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full text-xs font-mono fade-up" style="border:1px solid rgba(0,200,150,0.3);color:#00C896;background:rgba(0,200,150,0.06)"><span style="width:6px;height:6px;border-radius:50%;background:#00C896;animation:flash 2s infinite"></span>Built by 7+ years of e-commerce experience — we know your inbox</div>
+    <h1 class="font-display font-800 leading-none mb-6 fade-up" style="font-size:clamp(42px,6.5vw,78px);animation-delay:0.1s">Your store's AI that<br><span style="color:#00C896">actually replies</span><br>to customers.</h1>
+    <p class="text-lg mb-10 mx-auto fade-up" style="color:#8B96B0;max-width:540px;line-height:1.7;animation-delay:0.2s">Not drafts. <strong style="color:#E8EBF2">Real automatic replies</strong> sent from your email — 95% on autopilot. The 5% that need your call land on your review board, pre-drafted and ready to approve.</p>
+    <div class="flex flex-wrap gap-4 justify-center mb-10 fade-up" style="animation-delay:0.3s">
+      <button class="btn-primary" style="font-size:16px;padding:14px 30px" onclick="openAuth('signup')">Start free — 14 days →</button>
+      <a href="#features" class="btn-ghost" style="font-size:16px;padding:14px 30px">See features ↓</a>
+    </div>
+    <div class="flex items-center justify-center gap-3 fade-up" style="animation-delay:0.4s">
+      <div class="flex -space-x-2"><div class="w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-display font-700" style="border-color:#080D1A;background:#1D4E3A;color:#00C896">MA</div><div class="w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-display font-700" style="border-color:#080D1A;background:#3D2E10;color:#F0A500">TB</div><div class="w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-display font-700" style="border-color:#080D1A;background:#2A1B3D;color:#A78BFA">LF</div></div>
+      <span class="text-sm" style="color:#5A6785">Trusted by <strong style="color:#E8EBF2">300+ Shopify stores</strong> across Europe</span>
+    </div>
+    <div class="mt-12 overflow-hidden fade-up" style="animation-delay:0.5s">
+      <p class="text-xs font-mono mb-3" style="color:#3A4760">▸ Emails being handled right now</p>
+      <div style="overflow:hidden;mask:linear-gradient(90deg,transparent,black 8%,black 92%,transparent)"><div class="ticker-track gap-3"><div class="flex gap-3"><div class="flex-shrink-0 rounded-xl px-4 py-3 text-left" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07);min-width:240px"><div class="text-xs font-mono mb-1" style="color:#5A6785">incoming</div><div class="text-sm font-500 mb-2">"Where is my order #4521?"</div><span class="text-xs px-2 py-0.5 rounded-full font-mono" style="background:rgba(0,200,150,0.1);color:#00C896">✓ Sent automatically</span></div><div class="flex-shrink-0 rounded-xl px-4 py-3 text-left" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07);min-width:240px"><div class="text-xs font-mono mb-1" style="color:#5A6785">incoming</div><div class="text-sm font-500 mb-2">"Do you ship to Germany?"</div><span class="text-xs px-2 py-0.5 rounded-full font-mono" style="background:rgba(0,200,150,0.1);color:#00C896">✓ Sent automatically</span></div><div class="flex-shrink-0 rounded-xl px-4 py-3 text-left" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07);min-width:240px"><div class="text-xs font-mono mb-1" style="color:#5A6785">review needed</div><div class="text-sm font-500 mb-2">"Refund request #3918"</div><span class="text-xs px-2 py-0.5 rounded-full font-mono" style="background:rgba(240,165,0,0.1);color:#F0A500">⚑ Paused for review</span></div><div class="flex-shrink-0 rounded-xl px-4 py-3 text-left" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07);min-width:240px"><div class="text-xs font-mono mb-1" style="color:#5A6785">incoming</div><div class="text-sm font-500 mb-2">"Waar is mijn pakket?"</div><span class="text-xs px-2 py-0.5 rounded-full font-mono" style="background:rgba(0,200,150,0.1);color:#00C896">✓ Sent in Dutch</span></div></div><div class="flex gap-3"><div class="flex-shrink-0 rounded-xl px-4 py-3 text-left" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07);min-width:240px"><div class="text-xs font-mono mb-1" style="color:#5A6785">incoming</div><div class="text-sm font-500 mb-2">"Where is my order #4521?"</div><span class="text-xs px-2 py-0.5 rounded-full font-mono" style="background:rgba(0,200,150,0.1);color:#00C896">✓ Sent automatically</span></div><div class="flex-shrink-0 rounded-xl px-4 py-3 text-left" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07);min-width:240px"><div class="text-xs font-mono mb-1" style="color:#5A6785">incoming</div><div class="text-sm font-500 mb-2">"Do you ship to Germany?"</div><span class="text-xs px-2 py-0.5 rounded-full font-mono" style="background:rgba(0,200,150,0.1);color:#00C896">✓ Sent automatically</span></div><div class="flex-shrink-0 rounded-xl px-4 py-3 text-left" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07);min-width:240px"><div class="text-xs font-mono mb-1" style="color:#5A6785">review needed</div><div class="text-sm font-500 mb-2">"Refund request #3918"</div><span class="text-xs px-2 py-0.5 rounded-full font-mono" style="background:rgba(240,165,0,0.1);color:#F0A500">⚑ Paused for review</span></div><div class="flex-shrink-0 rounded-xl px-4 py-3 text-left" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07);min-width:240px"><div class="text-xs font-mono mb-1" style="color:#5A6785">incoming</div><div class="text-sm font-500 mb-2">"Waar is mijn pakket?"</div><span class="text-xs px-2 py-0.5 rounded-full font-mono" style="background:rgba(0,200,150,0.1);color:#00C896">✓ Sent in Dutch</span></div></div></div></div>
+    </div>
+  </div>
+</section>
+<section class="py-12" style="background:#0B1120;border-top:1px solid rgba(255,255,255,0.05)">
+  <div class="max-w-5xl mx-auto px-6">
+    <p class="text-center text-xs font-mono mb-7" style="color:#3A4760;letter-spacing:0.1em">COST OF CUSTOMER SERVICE</p>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="rounded-2xl p-5 text-center fade-up" style="background:#151E30;border:1px solid rgba(255,255,255,0.07)"><div class="text-2xl font-display font-800 mb-1" style="color:#F87171">$400–$1k</div><div class="text-xs font-500 mb-1">/ month</div><div class="text-xs" style="color:#5A6785">Overseas CS agent</div></div>
+      <div class="rounded-2xl p-5 text-center fade-up" style="background:#151E30;border:1px solid rgba(255,255,255,0.07);animation-delay:0.1s"><div class="text-2xl font-display font-800 mb-1" style="color:#F87171">$2,500+</div><div class="text-xs font-500 mb-1">/ month</div><div class="text-xs" style="color:#5A6785">Full-time CS hire</div></div>
+      <div class="rounded-2xl p-5 text-center fade-up" style="background:#151E30;border:1px solid rgba(255,255,255,0.07);animation-delay:0.2s"><div class="text-2xl font-display font-800 mb-1" style="color:#F0A500">€1,000+</div><div class="text-xs font-500 mb-1">/ month</div><div class="text-xs" style="color:#5A6785">Wilmo / Gorgias</div></div>
+      <div class="rounded-2xl p-5 text-center fade-up" style="background:rgba(0,200,150,0.07);border:1px solid rgba(0,200,150,0.25);animation-delay:0.3s"><div class="text-2xl font-display font-800 mb-1" style="color:#00C896">€19–199</div><div class="text-xs font-500 mb-1">/ month</div><div class="text-xs" style="color:#00C896">Respondro</div></div>
+    </div>
+  </div>
+</section>
+<section id="features" class="py-16">
+  <div class="max-w-5xl mx-auto px-6">
+    <h2 class="font-display font-700 text-4xl mb-9 text-center fade-up">Built for how DTC stores actually work.</h2>
+    <div class="grid md:grid-cols-3 gap-5">
+      <div class="card p-6 fade-up"><div class="text-xl mb-3">⚡</div><h3 class="font-display font-700 mb-2">100 emails in 15 seconds</h3><p class="text-sm" style="color:#5A6785">All fired to Claude API in parallel — not one by one.</p></div>
+      <div class="card p-6 fade-up" style="animation-delay:0.1s"><div class="text-xl mb-3">📋</div><h3 class="font-display font-700 mb-2">Custom rules engine</h3><p class="text-sm" style="color:#5A6785">Add rules like "15% refund if not shipped in 10 days" — AI follows them automatically.</p></div>
+      <div class="card p-6 fade-up" style="animation-delay:0.15s"><div class="text-xl mb-3">🎙</div><h3 class="font-display font-700 mb-2">Learns your tone of voice</h3><p class="text-sm" style="color:#5A6785">Upload 5-10 past CS emails — AI analyses and replicates your exact style.</p></div>
+      <div class="card p-6 fade-up" style="animation-delay:0.2s"><div class="text-xl mb-3">📦</div><h3 class="font-display font-700 mb-2">Live Shopify data</h3><p class="text-sm" style="color:#5A6785">Real tracking and order info pulled before every reply.</p></div>
+      <div class="card p-6 fade-up" style="animation-delay:0.25s"><div class="text-xl mb-3">🌍</div><h3 class="font-display font-700 mb-2">40+ languages</h3><p class="text-sm" style="color:#5A6785">Detects and replies in the customer's language.</p></div>
+      <div class="card p-6 fade-up" style="animation-delay:0.3s"><div class="text-xl mb-3">🛡</div><h3 class="font-display font-700 mb-2">GDPR compliant</h3><p class="text-sm" style="color:#5A6785">EU-hosted. DPA available. Email data never trained on.</p></div>
+    </div>
+  </div>
+</section>
+<section id="pricing" class="py-16" style="background:#0B1120">
+  <div class="max-w-5xl mx-auto px-6">
+    <div class="text-center mb-9"><h2 class="font-display font-700 text-4xl mb-3 fade-up">Pricing that makes the math easy.</h2><p class="fade-up" style="color:#5A6785;animation-delay:0.1s">Overseas CS agent = $400–$1,000/month. Respondro = from €19.</p></div>
+    <div class="grid md:grid-cols-4 gap-4">
+      <div class="card p-6 fade-up"><div class="text-sm font-display font-700 mb-3" style="color:#5A6785">Starter</div><div class="text-3xl font-display font-800 mb-1">€19<span class="text-sm font-400" style="color:#5A6785">/mo</span></div><p class="text-xs mb-4" style="color:#3A4760">200 emails/month</p><button class="btn-ghost w-full text-sm" style="padding:9px;border-radius:10px" onclick="openAuth('signup')">Start free</button></div>
+      <div class="card p-6 fade-up" style="animation-delay:0.1s"><div class="text-sm font-display font-700 mb-3" style="color:#5A6785">Growth</div><div class="text-3xl font-display font-800 mb-1">€49<span class="text-sm font-400" style="color:#5A6785">/mo</span></div><p class="text-xs mb-4" style="color:#3A4760">750 emails/month</p><button class="btn-ghost w-full text-sm" style="padding:9px;border-radius:10px" onclick="openAuth('signup')">Start free</button></div>
+      <div class="p-6 rounded-2xl relative fade-up" style="background:rgba(0,200,150,0.06);border:1px solid rgba(0,200,150,0.3);animation-delay:0.2s"><div class="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-mono px-3 py-1 rounded-full" style="background:#00C896;color:#080D1A">Popular</div><div class="text-sm font-display font-700 mb-3" style="color:#00C896">Scale</div><div class="text-3xl font-display font-800 mb-1" style="color:#00C896">€99<span class="text-sm font-400" style="color:#5A6785">/mo</span></div><p class="text-xs mb-4" style="color:#3A4760">2,500 emails/month</p><button class="btn-primary w-full text-sm justify-center" style="padding:9px;border-radius:10px" onclick="openAuth('signup')">Start free</button></div>
+      <div class="card p-6 fade-up" style="animation-delay:0.3s"><div class="text-sm font-display font-700 mb-3" style="color:#5A6785">Pro</div><div class="text-3xl font-display font-800 mb-1">€199<span class="text-sm font-400" style="color:#5A6785">/mo</span></div><p class="text-xs mb-4" style="color:#3A4760">Unlimited</p><button class="btn-ghost w-full text-sm" style="padding:9px;border-radius:10px" onclick="openAuth('signup')">Talk to us</button></div>
+    </div>
+    <p class="text-center text-sm mt-5" style="color:#3A4760">14-day free trial · No credit card · Cancel anytime</p>
+  </div>
+</section>
+<section class="py-14 text-center" style="background:#080D1A;border-top:1px solid rgba(255,255,255,0.05)">
+  <h2 class="font-display font-800 mb-5 fade-up" style="font-size:clamp(30px,5vw,52px)">Your inbox is full.<br><span style="color:#00C896">Let's fix that.</span></h2>
+  <button class="btn-primary fade-up" style="font-size:16px;padding:14px 30px;animation-delay:0.1s" onclick="openAuth('signup')">Start free trial →</button>
+</section>
+<footer style="background:#060A14;border-top:1px solid rgba(255,255,255,0.05);padding:28px 24px">
+  <div class="max-w-5xl mx-auto flex justify-between items-center gap-3">
+    <div class="flex items-center gap-2 font-display font-700"><span style="color:#00C896">▸</span> Respondro</div>
+    <p class="text-xs" style="color:#3A4760">Made in Copenhagen 🇩🇰 · © 2026</p>
+  </div>
+</footer>
+</div>
+
+<!-- ═══════ DASHBOARD ═══════ -->
+<div id="dashboard">
+  <div class="dash-nav">
+    <div class="flex items-center gap-2 font-display font-700 text-base mr-auto"><span style="color:#00C896">▸</span> Respondro</div>
+    <div class="flex items-center gap-2 text-xs font-mono hidden md:flex"><div class="api-dot" id="api-dot" style="background:#3A4760"></div><span id="api-status-txt" style="color:#5A6785">Demo mode</span></div>
+    <div class="flex items-center gap-3 ml-4">
+      <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-display font-700" style="background:#1D4E3A;color:#00C896" id="user-avatar">?</div>
+      <span class="text-sm font-500 hidden md:block" id="user-name-nav">User</span>
+      <button onclick="logout()" class="btn-ghost" style="padding:5px 12px;font-size:12px">Log out</button>
+    </div>
+  </div>
+  <div class="flex" style="height:calc(100vh - 56px);overflow:hidden">
+    <div class="sidebar">
+      <div class="flex-1 pt-3 overflow-y-auto">
+        <div class="sidebar-item active" data-view="overview" onclick="switchView('overview',this)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Overview
+        </div>
+        <div class="sidebar-item" data-view="inbox" onclick="switchView('inbox',this)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>Inbox
+          <span class="ml-auto badge badge-a" id="inbox-badge" style="font-size:10px">8</span>
+        </div>
+        <div class="sidebar-item" data-view="kanban" onclick="switchView('kanban',this)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="5" height="18"/><rect x="10" y="3" width="5" height="12"/><rect x="17" y="3" width="5" height="15"/></svg>Review board
+          <span class="ml-auto badge badge-a" id="review-badge" style="font-size:10px">3</span>
+        </div>
+        <div class="sidebar-item" data-view="rules" onclick="switchView('rules',this)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Rules
+          <span class="ml-auto badge badge-g" id="rules-badge" style="font-size:10px">5</span>
+        </div>
+        <div class="sidebar-item" data-view="settings" onclick="switchView('settings',this)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings
+        </div>
+      </div>
+      <div class="p-3 border-t" style="border-color:rgba(255,255,255,0.06)">
+        <div class="flex items-center gap-2 p-2">
+          <div class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-700" style="background:rgba(0,200,150,0.15);color:#00C896" id="store-logo-sm">S</div>
+          <div><div class="text-xs font-600" id="store-name-sb">My Store</div><div class="text-xs" style="color:#3A4760">Scale · Trial</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-content" id="main-content">
+
+      <!-- OVERVIEW -->
+      <div id="view-overview" class="p-6">
+        <div class="mb-5"><h2 class="font-display font-700 text-xl mb-1">Good morning, <span id="welcome-name">there</span> 👋</h2><p class="text-sm" style="color:#5A6785">Here's what Respondro handled for you today.</p></div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+          <div class="settings-card text-center" style="margin:0"><div class="text-3xl font-display font-800" style="color:#00C896">47</div><div class="text-xs mt-1" style="color:#5A6785">Emails sent today</div></div>
+          <div class="settings-card text-center" style="margin:0"><div class="text-3xl font-display font-800">94%</div><div class="text-xs mt-1" style="color:#5A6785">Automation rate</div></div>
+          <div class="settings-card text-center" style="margin:0"><div class="text-3xl font-display font-800" style="color:#F0A500">3</div><div class="text-xs mt-1" style="color:#5A6785">Awaiting review</div></div>
+          <div class="settings-card text-center" style="margin:0"><div class="text-3xl font-display font-800 font-mono" style="color:#00C896">11s</div><div class="text-xs mt-1" style="color:#5A6785">Avg. process time</div></div>
+        </div>
+        <div class="settings-card" style="margin:0 0 12px 0">
+          <div class="flex items-center justify-between mb-3"><h3 class="font-display font-600 text-sm">Recent activity</h3><button class="btn-icon btn-sm" onclick="switchView('inbox',document.querySelector('[data-view=inbox]'))">View inbox</button></div>
+          <div><div class="flex items-center gap-3 py-2 border-b" style="border-color:rgba(255,255,255,0.05)"><div class="badge badge-g">sent</div><span class="text-sm flex-1">"Where is order #4521?" → Sarah K.</span><span class="text-xs font-mono" style="color:#3A4760">2m ago</span></div><div class="flex items-center gap-3 py-2 border-b" style="border-color:rgba(255,255,255,0.05)"><div class="badge badge-g">sent</div><span class="text-sm flex-1">"Shipping to Germany?" → Tom R.</span><span class="text-xs font-mono" style="color:#3A4760">5m ago</span></div><div class="flex items-center gap-3 py-2 border-b" style="border-color:rgba(255,255,255,0.05)"><div class="badge badge-a">review</div><span class="text-sm flex-1">"Refund request #3918" → Mark J.</span><span class="text-xs font-mono" style="color:#3A4760">8m ago</span></div><div class="flex items-center gap-3 py-2"><div class="badge badge-g">rule applied</div><span class="text-sm flex-1">15% partial refund offered → Emma W. (12-day delay)</span><span class="text-xs font-mono" style="color:#3A4760">14m ago</span></div></div>
+        </div>
+        <div class="settings-card" style="margin:0">
+          <div class="flex items-center justify-between mb-2"><h3 class="font-display font-600 text-sm">Active rules</h3><button class="btn-icon btn-sm" onclick="switchView('rules',document.querySelector('[data-view=rules]'))">Manage rules</button></div>
+          <div id="overview-rules-preview"></div>
+        </div>
+      </div>
+
+      <!-- INBOX -->
+      <div id="view-inbox" class="p-6 hidden">
+        <div class="flex items-center justify-between mb-5">
+          <div><h2 class="font-display font-700 text-xl mb-1">Inbox</h2><p class="text-sm" style="color:#5A6785">Waiting to be processed</p></div>
+          <div class="flex gap-3 items-center">
+            <div class="flex items-center gap-2 text-xs font-mono" id="inbox-api-indicator"><div class="api-dot" style="background:#3A4760"></div><span style="color:#5A6785">Demo</span></div>
+            <button class="btn-primary" id="process-btn" onclick="startParallelProcessing()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>Process all in parallel</button>
+          </div>
+        </div>
+        <div id="proc-progress" class="hidden mb-4 settings-card" style="margin:0 0 14px 0">
+          <div class="flex items-center justify-between mb-2"><span class="text-sm font-600" id="proc-label">⚡ Firing all emails to Claude API simultaneously...</span><span class="text-xs font-mono" style="color:#00C896" id="proc-count">0/8</span></div>
+          <div class="status-bar"><div class="status-fill" id="proc-fill"></div></div>
+          <p class="text-xs font-mono mt-2" style="color:#5A6785">Promise.allSettled() — all requests fire at the same time</p>
+        </div>
+        <div id="email-list" class="space-y-0"></div>
+      </div>
+
+      <!-- KANBAN -->
+      <div id="view-kanban" class="p-6 hidden">
+        <div class="mb-5"><h2 class="font-display font-700 text-xl mb-1">Review board</h2><p class="text-sm" style="color:#5A6785">Edge cases needing your judgement. Use ← → or drag to move tickets freely.</p></div>
+        <div class="flex gap-4 overflow-x-auto pb-3" style="min-height:350px">
+          <div class="kb-col" id="col-new" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="dropTicket(event,'new')"><div class="flex items-center justify-between mb-3"><span class="text-xs font-display font-700" style="color:#5A6785">NEW</span><span class="badge badge-a" id="cnt-new">0</span></div><div id="tickets-new"></div></div>
+          <div class="kb-col" id="col-review" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="dropTicket(event,'review')"><div class="flex items-center justify-between mb-3"><span class="text-xs font-display font-700" style="color:#5A6785">IN REVIEW</span><span class="badge badge-m" id="cnt-review">0</span></div><div id="tickets-review"></div></div>
+          <div class="kb-col" id="col-closed" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="dropTicket(event,'closed')"><div class="flex items-center justify-between mb-3"><span class="text-xs font-display font-700" style="color:#5A6785">CLOSED</span><span class="badge badge-m" id="cnt-closed">0</span></div><div id="tickets-closed"></div></div>
+        </div>
+        <p class="text-xs font-mono mt-1" style="color:#3A4760">Drag or use ← → buttons · Click to see AI draft</p>
+      </div>
+
+      <!-- RULES -->
+      <div id="view-rules" class="p-6 hidden">
+        <div class="flex items-center justify-between mb-5">
+          <div><h2 class="font-display font-700 text-xl mb-1">Rules</h2><p class="text-sm" style="color:#5A6785">Custom instructions that override the default AI behaviour. Applied to every email automatically.</p></div>
+          <button class="btn-primary" onclick="openAddRule()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add rule</button>
+        </div>
+        <!-- How rules work -->
+        <div class="rounded-xl p-4 mb-5" style="background:rgba(0,200,150,0.05);border:1px solid rgba(0,200,150,0.15)">
+          <p class="text-xs" style="color:#00C896"><strong>How rules work:</strong> Each active rule is automatically appended to the AI's system prompt before every reply. Rules are applied in priority order. More specific rules override general ones.</p>
+        </div>
+        <div id="rules-container"></div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div id="view-settings" class="p-6 hidden">
+        <div class="mb-5"><h2 class="font-display font-700 text-xl mb-1">Settings</h2><p class="text-sm" style="color:#5A6785">Email, Shopify, AI setup.</p></div>
+
+        <!-- Shopify -->
+        <div class="settings-card">
+          <div class="flex items-center justify-between mb-1"><h3 class="font-display font-600">Shopify</h3><span id="shopify-conn-chip" class="hidden conn-chip">✓ Connected</span></div>
+          <p class="text-xs mb-3" style="color:#5A6785">Connect your store to fetch live order data, process refunds automatically.</p>
+          <button class="w-full flex items-center justify-center gap-3 rounded-xl py-3 mb-3 font-700 text-sm" style="background:#008060;color:#fff;border:none;cursor:pointer;font-family:'Syne',sans-serif" onclick="openShopifyConnect()" id="shopify-btn">
+            <span>●</span> Connect with Shopify
+          </button>
+          <button class="flex items-center gap-2 text-xs font-mono w-full text-left" style="color:#5A6785;background:none;border:none;cursor:pointer;padding:0" onclick="toggleAcc(this)"><span class="acc-icon">+</span> Manual API key setup</button>
+          <div class="acc-body"><div class="mt-3 space-y-2"><div class="guide-step"><div class="guide-num">1</div><div class="guide-text">Shopify Admin → <code>Settings → Apps → Develop apps</code></div></div><div class="guide-step"><div class="guide-num">2</div><div class="guide-text">Create an app named "Respondro" → configure scopes: <code>read_orders</code>, <code>write_orders</code>, <code>read_products</code></div></div><div class="guide-step"><div class="guide-num">3</div><div class="guide-text">Install app → copy <code>Admin API access token</code></div></div><input type="text" class="form-input mt-2" placeholder="yourstore.myshopify.com"><input type="password" class="form-input mt-1" placeholder="shpat_xxxxxxxxxxxxxxxxxxxxxx"><div class="flex gap-2 mt-1"><label class="flex items-center gap-2 text-xs" style="color:#8B96B0"><input type="checkbox" class="w-3 h-3"> Auto-refunds</label><label class="flex items-center gap-2 text-xs" style="color:#8B96B0"><input type="checkbox" class="w-3 h-3"> Auto-cancellations</label></div><button class="btn-primary btn-sm mt-2" onclick="showToast('Shopify connected ✓')">Save</button></div></div>
+        </div>
+
+        <!-- Email -->
+        <div class="settings-card">
+          <div class="flex items-center justify-between mb-1"><h3 class="font-display font-600">Email connection</h3><span id="email-conn-chip" class="hidden conn-chip">✓ Connected</span></div>
+          <p class="text-xs mb-3" style="color:#5A6785">Click a provider to connect. OAuth providers connect in one click.</p>
+          <div class="grid grid-cols-1 gap-2" id="provider-list"></div>
+        </div>
+
+        <!-- Rulebook & Tone -->
+        <div class="settings-card">
+          <h3 class="font-display font-600 mb-1">AI setup</h3>
+          <p class="text-xs mb-3" style="color:#5A6785">Rulebook and tone training — update anytime.</p>
+          <div class="flex gap-1 mb-4" style="background:#080D1A;border-radius:10px;padding:3px">
+            <button class="sub-tab active" id="st-rulebook" onclick="switchSubTab('rulebook')">Rulebook</button>
+            <button class="sub-tab" id="st-tone" onclick="switchSubTab('tone')">Tone examples</button>
+          </div>
+          <div id="subt-rulebook">
+            <p class="text-xs mb-2" style="color:#5A6785">Policies, shipping info, what to always/never do. The AI follows this for every reply.</p>
+            <textarea id="rulebook-text" class="form-input" style="height:140px;resize:vertical;font-family:'DM Mono',monospace;font-size:12px;line-height:1.6" placeholder="STORE: Xhale Store&#10;RETURN POLICY: 30-day returns on unopened items.&#10;SHIPPING: EU 3-5 days, International 7-14 days.&#10;ALWAYS ESCALATE: Refunds over €100, legal threats.&#10;NEVER promise delivery dates not confirmed by Shopify."></textarea>
+            <div class="flex gap-2 mt-2">
+              <div class="upload-zone flex-1" style="padding:16px" onclick="document.getElementById('rulebook-file').click()"><input type="file" id="rulebook-file" accept=".txt,.pdf,.doc,.docx" onchange="handleRulebookFile(this)"><p class="text-xs font-500">Upload file</p><p class="text-xs mt-1" style="color:#5A6785">TXT, PDF, DOC</p></div>
+              <button class="btn-primary btn-sm" onclick="showToast('Rulebook saved ✓')">Save rulebook</button>
+            </div>
+          </div>
+          <div id="subt-tone" class="hidden">
+            <p class="text-xs mb-3" style="color:#5A6785">Paste 5-10 real CS replies you've sent. Separate each email with <code style="color:#00C896">---</code> on its own line. The AI will analyse your tone and replicate it.</p>
+            <textarea id="tone-emails-text" class="form-input" style="height:160px;resize:vertical;font-family:'DM Mono',monospace;font-size:12px;line-height:1.5" placeholder="Hi Sarah,&#10;&#10;Thanks for reaching out! Your order shipped yesterday via DHL...&#10;&#10;Best,&#10;Sam&#10;&#10;---&#10;&#10;Hi Tom,&#10;&#10;Absolutely, we ship to Germany! Standard shipping is €8.95...&#10;&#10;Cheers,&#10;Sam"></textarea>
+            <div class="flex gap-2 mt-2">
+              <div class="upload-zone flex-1" style="padding:16px" onclick="document.getElementById('tone-file').click()"><input type="file" id="tone-file" accept=".txt,.eml" multiple onchange="handleToneFile(this)"><p class="text-xs font-500">Upload email files</p><p class="text-xs mt-1" style="color:#5A6785">TXT or .eml — multiple files ok</p></div>
+              <button class="btn-primary btn-sm" onclick="analyzeToneSettings()">Analyse tone</button>
+            </div>
+            <div id="tone-result-settings" class="hidden mt-3"></div>
+          </div>
+        </div>
+
+        <!-- API Key -->
+        <div class="settings-card">
+          <h3 class="font-display font-600 mb-1">Claude API key</h3>
+          <p class="text-xs mb-3" style="color:#5A6785">Get your key at <span style="color:#00C896">console.anthropic.com</span> — without it the inbox runs in demo mode.</p>
+          <div class="flex gap-2"><input type="password" id="api-key-input" class="form-input flex-1" placeholder="sk-ant-api03-..."><button class="btn-primary btn-sm" onclick="saveApiKey()">Save</button></div>
+          <div class="flex items-center gap-2 mt-2" id="api-key-indicator"><div class="api-dot" style="background:#3A4760"></div><span class="text-xs" style="color:#5A6785">No key — demo mode</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- TICKET PANEL -->
+<div id="ticket-panel">
+  <div class="p-4 border-b" style="border-color:rgba(255,255,255,0.07)">
+    <div class="flex items-center justify-between mb-2"><span class="badge" id="tp-badge">review</span><button onclick="closeTicket()" style="background:none;border:none;color:#5A6785;cursor:pointer;font-size:16px">✕</button></div>
+    <h3 class="font-display font-600 text-sm mt-1" id="tp-subject">—</h3>
+    <p class="text-xs mt-1" style="color:#5A6785" id="tp-from">—</p>
+    <div class="flex gap-2 mt-3" id="tp-move-btns"></div>
+  </div>
+  <div class="p-4 flex-1">
+    <p class="text-xs font-mono mb-2" style="color:#3A4760">CUSTOMER EMAIL</p>
+    <div class="rounded-xl p-3 mb-4 text-sm leading-relaxed" style="background:#080D1A;border:1px solid rgba(255,255,255,0.06);white-space:pre-wrap;font-size:12px;max-height:160px;overflow-y:auto" id="tp-body">—</div>
+    <p class="text-xs font-mono mb-2" style="color:#00C896">AI DRAFT REPLY</p>
+    <textarea id="tp-draft" class="form-input text-sm" style="height:150px;resize:vertical;font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.6"></textarea>
+  </div>
+  <div class="p-4 border-t flex gap-2" style="border-color:rgba(255,255,255,0.07)">
+    <button class="btn-primary flex-1 justify-center text-sm" style="padding:10px" onclick="approveTicket()">✓ Approve &amp; send</button>
+    <button onclick="moveTicketToCol('closed');closeTicket()" class="btn-ghost text-sm" style="padding:10px;color:#F87171;border-color:rgba(248,113,113,0.2)">Close</button>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div class="modal-overlay" id="auth-modal">
+  <div class="modal-box">
+    <button onclick="closeAuth()" style="position:absolute;top:14px;right:16px;color:#5A6785;background:none;border:none;cursor:pointer;font-size:17px">✕</button>
+    <div class="flex gap-1 mb-6" style="background:#080D1A;border-radius:10px;padding:4px">
+      <button class="sub-tab active" id="tab-login" onclick="switchAuthTab('login')">Log in</button>
+      <button class="sub-tab" id="tab-signup" onclick="switchAuthTab('signup')">Sign up</button>
+    </div>
+    <div id="auth-login">
+      <h2 class="font-display font-700 text-xl mb-5">Welcome back</h2>
+      <div class="space-y-3">
+        <div><label class="form-label">Email</label><input type="email" id="login-email" class="form-input" placeholder="sam@xhale.store"></div>
+        <div><label class="form-label">Password</label><input type="password" id="login-password" class="form-input" placeholder="••••••••"></div>
+        <button class="btn-primary w-full justify-center mt-1" onclick="doLogin()">Log in →</button>
+        <p class="text-xs text-center" style="color:#3A4760">No account? <a href="#" onclick="switchAuthTab('signup');return false" style="color:#00C896">Sign up free</a></p>
+      </div>
+    </div>
+    <div id="auth-signup" class="hidden">
+      <div class="flex items-center gap-2 mb-5" id="signup-dots">
+        <div class="step-dot active"></div><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot"></div>
+      </div>
+
+      <!-- Step 0: Account -->
+      <div id="s-step-0">
+        <h2 class="font-display font-700 text-xl mb-1">Create your account</h2>
+        <p class="text-sm mb-4" style="color:#5A6785">14-day free trial. No credit card.</p>
+        <div class="space-y-3">
+          <div><label class="form-label">Name</label><input type="text" id="s-name" class="form-input" placeholder="Sam Wijnen"></div>
+          <div><label class="form-label">Email</label><input type="email" id="s-email" class="form-input" placeholder="sam@xhale.store"></div>
+          <div><label class="form-label">Password</label><input type="password" id="s-pass" class="form-input" placeholder="At least 8 characters"></div>
+          <button class="btn-primary w-full justify-center" onclick="sNext(1)">Continue →</button>
+        </div>
+      </div>
+
+      <!-- Step 1: Email provider -->
+      <div id="s-step-1" class="hidden">
+        <h2 class="font-display font-700 text-xl mb-1">Connect your email</h2>
+        <p class="text-sm mb-4" style="color:#5A6785">Select your provider — click to connect</p>
+        <div class="grid grid-cols-2 gap-2 mb-3" id="s-provider-grid"></div>
+        <div class="flex gap-2"><button class="btn-ghost flex-1" onclick="sNext(0)" style="padding:9px">← Back</button><button class="btn-primary flex-1 justify-center" onclick="sNext(2)">Continue →</button></div>
+      </div>
+
+      <!-- Step 2: Shopify -->
+      <div id="s-step-2" class="hidden">
+        <h2 class="font-display font-700 text-xl mb-1">Connect Shopify</h2>
+        <p class="text-sm mb-4" style="color:#5A6785">Connect your store for live order data, automatic refunds, and cancellations.</p>
+        <div><label class="form-label">Your store URL</label><input type="text" id="s-shopify-url" class="form-input mb-3" placeholder="yourstore.myshopify.com"></div>
+        <button class="w-full flex items-center justify-center gap-3 rounded-xl py-3 mb-3 font-700 text-sm" style="background:#008060;color:#fff;border:none;cursor:pointer;font-family:'Syne',sans-serif" onclick="signupShopifyConnect()">
+          <span>●</span> Install Respondro on Shopify →
+        </button>
+        <div id="s-shopify-confirmed" class="hidden rounded-xl p-3 mb-3" style="background:rgba(0,200,150,0.08);border:1px solid rgba(0,200,150,0.2)"><p class="text-xs" style="color:#00C896">✓ Shopify connected! Order data, tracking, and refund permissions granted.</p></div>
+        <button class="btn-ghost w-full text-sm mb-2" style="padding:9px;color:#5A6785;border-color:rgba(255,255,255,0.1)" onclick="sNext(3)">Skip for now</button>
+        <div class="flex gap-2"><button class="btn-ghost flex-1" onclick="sNext(1)" style="padding:9px">← Back</button><button class="btn-primary flex-1 justify-center" onclick="sNext(3)">Continue →</button></div>
+      </div>
+
+      <!-- Step 3: Store + AI Setup -->
+      <div id="s-step-3" class="hidden">
+        <h2 class="font-display font-700 text-xl mb-1">Set up your AI agent</h2>
+        <p class="text-sm mb-4" style="color:#5A6785">Tell Respondro about your store and train it to sound like you.</p>
+        <!-- Store name + URL -->
+        <div class="space-y-2 mb-4">
+          <div><label class="form-label">Store name</label><input type="text" id="s-store" class="form-input" placeholder="Xhale Store"></div>
+          <div><label class="form-label">Platform</label><select id="s-platform" class="form-input"><option value="" disabled selected>Select platform</option><option>Shopify</option><option>WooCommerce</option><option>Other</option></select></div>
+        </div>
+        <!-- Sub-tabs: Rulebook | Tone examples -->
+        <div class="flex gap-1 mb-3" style="background:#080D1A;border-radius:10px;padding:3px">
+          <button class="sub-tab active flex-1 text-xs" id="ss-rulebook" onclick="switchSignupTab('rulebook')">📋 Rulebook</button>
+          <button class="sub-tab flex-1 text-xs" id="ss-tone" onclick="switchSignupTab('tone')">🎙 Tone examples</button>
+        </div>
+        <!-- Rulebook pane -->
+        <div id="ss-pane-rulebook">
+          <p class="text-xs mb-2" style="color:#5A6785">Paste your return policy, shipping info, and what the AI should always or never do.</p>
+          <textarea id="s-rulebook" class="form-input" style="height:110px;resize:none;font-family:'DM Mono',monospace;font-size:12px;line-height:1.5" placeholder="RETURN POLICY: 30-day returns on unopened items.&#10;SHIPPING: EU 3-5 days. DHL or PostNord.&#10;ALWAYS ESCALATE: Refunds over €100.&#10;NEVER promise a delivery date."></textarea>
+          <div class="upload-zone mt-2" style="padding:14px" onclick="document.getElementById('s-rulebook-file').click()">
+            <input type="file" id="s-rulebook-file" accept=".txt,.pdf,.doc" onchange="handleSignupRulebookFile(this)">
+            <p class="text-xs font-500">Or upload a file (TXT, PDF, DOC)</p>
+          </div>
+        </div>
+        <!-- Tone pane -->
+        <div id="ss-pane-tone" class="hidden">
+          <p class="text-xs mb-2" style="color:#5A6785">Paste 5–10 past CS replies you've sent. Separate each with <code style="color:#00C896">---</code> on its own line. Respondro will analyse your tone.</p>
+          <textarea id="s-tone-emails" class="form-input" style="height:110px;resize:none;font-family:'DM Mono',monospace;font-size:12px;line-height:1.5" placeholder="Hi Sarah,&#10;Thanks for reaching out! Your order shipped yesterday...&#10;Best, Sam&#10;---&#10;Hi Tom, Great news — yes we ship to Germany..."></textarea>
+          <div class="flex gap-2 mt-2">
+            <div class="upload-zone flex-1" style="padding:12px" onclick="document.getElementById('s-tone-file').click()"><input type="file" id="s-tone-file" accept=".txt,.eml" multiple><p class="text-xs">Upload .txt or .eml files</p></div>
+            <button class="btn-primary btn-sm" onclick="runToneAnalysis()">Analyse →</button>
+          </div>
+          <div id="tone-analysis-result" class="hidden mt-3"></div>
+        </div>
+        <div class="flex gap-2 mt-4"><button class="btn-ghost flex-1" onclick="sNext(2)" style="padding:9px">← Back</button><button class="btn-primary flex-1 justify-center" onclick="sNext(4)">Continue →</button></div>
+      </div>
+
+      <!-- Step 4: Done -->
+      <div id="s-step-4" class="hidden">
+        <div class="text-center py-2">
+          <div style="font-size:44px;margin-bottom:12px">🎉</div>
+          <h2 class="font-display font-700 text-xl mb-2">You're all set.</h2>
+          <p class="text-sm mb-6" style="color:#5A6785">Your 14-day free trial has started. Respondro will start handling replies within minutes of your first email arriving.</p>
+          <div class="rounded-xl p-4 text-left mb-5 space-y-2" style="background:#080D1A;border:1px solid rgba(255,255,255,0.07)">
+            <div class="flex items-center gap-3 text-sm"><span id="done-email-check" style="color:#00C896;font-size:16px">✓</span><span>Email connected</span></div>
+            <div class="flex items-center gap-3 text-sm"><span id="done-shopify-check" style="color:#3A4760;font-size:16px">○</span><span>Shopify <span id="done-shopify-txt" style="color:#3A4760">— connect in Settings</span></span></div>
+            <div class="flex items-center gap-3 text-sm"><span style="color:#00C896;font-size:16px">✓</span><span>Rulebook configured</span></div>
+            <div class="flex items-center gap-3 text-sm"><span id="done-tone-check" style="color:#3A4760;font-size:16px">○</span><span>Tone <span id="done-tone-txt" style="color:#3A4760">— add examples in Settings</span></span></div>
+          </div>
+          <button class="btn-primary w-full justify-center" onclick="completeSignup()">Go to dashboard →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PROVIDER MODAL -->
+<div class="modal-overlay" id="provider-modal">
+  <div class="modal-box modal-wide"><button onclick="closeModal('provider-modal')" style="position:absolute;top:14px;right:16px;color:#5A6785;background:none;border:none;cursor:pointer;font-size:17px">✕</button><div id="provider-modal-content"></div></div>
+</div>
+
+<!-- SHOPIFY MODAL -->
+<div class="modal-overlay" id="shopify-modal">
+  <div class="modal-box modal-wide"><button onclick="closeModal('shopify-modal')" style="position:absolute;top:14px;right:16px;color:#5A6785;background:none;border:none;cursor:pointer;font-size:17px">✕</button><div id="shopify-modal-content"></div></div>
+</div>
+
+<!-- ADD RULE MODAL -->
+<div class="modal-overlay" id="rule-modal">
+  <div class="modal-box">
+    <button onclick="closeModal('rule-modal')" style="position:absolute;top:14px;right:16px;color:#5A6785;background:none;border:none;cursor:pointer;font-size:17px">✕</button>
+    <h2 class="font-display font-700 text-xl mb-5" id="rule-modal-title">Add rule</h2>
+    <div class="space-y-4">
+      <div>
+        <label class="form-label">Category</label>
+        <select id="rule-category" class="form-input">
+          <option value="refund">Refund</option>
+          <option value="shipping">Shipping</option>
+          <option value="discount">Discount / compensation</option>
+          <option value="escalation">Escalation</option>
+          <option value="tone">Tone / style</option>
+          <option value="response">Response template</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Rule title</label>
+        <input type="text" id="rule-title" class="form-input" placeholder="e.g. Partial refund for late shipments">
+      </div>
+      <div>
+        <label class="form-label">Condition (when does this apply?)</label>
+        <input type="text" id="rule-condition" class="form-input" placeholder="e.g. Order not shipped within 10 days">
+      </div>
+      <div>
+        <label class="form-label">Action (what should the AI do?)</label>
+        <textarea id="rule-action" class="form-input" style="height:80px;resize:none" placeholder="e.g. Offer a 15% partial refund as compensation and apologise for the delay. Do not mention competitors."></textarea>
+      </div>
+      <div>
+        <label class="form-label">Example phrasing (optional)</label>
+        <input type="text" id="rule-example" class="form-input" placeholder="e.g. 'We'd like to offer you a 15% refund for the inconvenience'">
+      </div>
+      <div class="flex gap-2 pt-1">
+        <button class="btn-ghost flex-1" onclick="closeModal('rule-modal')" style="padding:10px">Cancel</button>
+        <button class="btn-primary flex-1 justify-center" onclick="saveRule()">Save rule</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+// ═══ PROVIDERS ═══
+const PROVIDERS=[
+  {id:'gmail',name:'Gmail',sub:'Google Workspace',type:'oauth',icon:'G',color:'#EA4335',oauthLabel:'Sign in with Google',oauthBg:'#fff',oauthColor:'#202223'},
+  {id:'outlook',name:'Outlook',sub:'Microsoft 365',type:'oauth',icon:'M',color:'#0078D4',oauthLabel:'Sign in with Microsoft',oauthBg:'#0078D4',oauthColor:'#fff'},
+  {id:'private',name:'PrivateEmail',sub:'IMAP/SMTP',type:'imap',icon:'PE',color:'#0057B8',host:'mail.privateemail.com',port:'993',steps:['Log in to your PrivateEmail webmail','IMAP is enabled by default — no extra steps needed','IMAP host: <code>mail.privateemail.com</code>, port <code>993</code> (SSL)','Use your full email address and password below']},
+  {id:'zoho',name:'Zoho Mail',sub:'IMAP/SMTP',type:'imap',icon:'Z',color:'#E42527',host:'imap.zoho.com',port:'993',steps:['Go to <code>mail.zoho.com → Settings → Mail Accounts → IMAP</code>','Enable IMAP access','Generate App Password: <code>Settings → Security → App Passwords</code>','Use your Zoho email + app password below']},
+  {id:'fastmail',name:'Fastmail',sub:'IMAP/SMTP',type:'imap',icon:'F',color:'#3B5BDB',host:'imap.fastmail.com',port:'993',steps:['Go to <code>Settings → Password & Security → App passwords</code>','Click <code>New app password</code> → Select "Mail"','Copy the generated password','Use your Fastmail email + app password below']},
+  {id:'proton',name:'ProtonMail',sub:'IMAP Bridge',type:'imap',icon:'P',color:'#6D4AFF',host:'127.0.0.1',port:'1143',steps:['Install <code>Proton Mail Bridge</code> from proton.me/mail/bridge','Log in to Bridge — it creates a local IMAP server','Bridge shows IMAP host <code>127.0.0.1</code> and a bridge password','Use your ProtonMail address + Bridge password below']},
+  {id:'yahoo',name:'Yahoo Mail',sub:'IMAP/SMTP',type:'imap',icon:'Y',color:'#6001D2',host:'imap.mail.yahoo.com',port:'993',steps:['Go to <code>Yahoo Account Security → App passwords</code>','Generate app password → select "Other app" → name it "Respondro"','Copy the 16-char password','Use your Yahoo email + app password below']},
+  {id:'icloud',name:'iCloud Mail',sub:'IMAP/SMTP',type:'imap',icon:'i',color:'#1A73E8',host:'imap.mail.me.com',port:'993',steps:['Go to <code>appleid.apple.com → Sign-In & Security → App-Specific Passwords</code>','Generate → name it "Respondro" → copy the password','Enable iCloud Mail in Apple ID settings','Use your iCloud email + app-specific password below']},
+  {id:'amazon',name:'Amazon SES',sub:'SMTP',type:'imap',icon:'A',color:'#FF9900',host:'email-smtp.eu-west-1.amazonaws.com',port:'587',steps:['AWS Console → SES → <code>SMTP settings → Create SMTP credentials</code>','Save the SMTP username and password','Verify your sending domain in SES','Use SMTP username + password below']},
+  {id:'mailer',name:'MailerLite',sub:'SMTP',type:'imap',icon:'ML',color:'#6C8EBF',host:'smtp.mailerlite.com',port:'587',steps:['<code>mailerlite.com → Integrations → SMTP</code>','Copy SMTP host, username and password','Use those credentials below']},
+  {id:'other',name:'Other',sub:'IMAP/SMTP/API',type:'imap',icon:'✦',color:'#5A6785',host:'',port:'993',steps:['Find your provider\'s IMAP server address (usually imap.yourdomain.com)','Enable IMAP in your email account settings','Some providers need an "app password" — check their support docs','Use your full email + password or app password below']},
+];
+
+// ═══ DEFAULT RULES ═══
+const DEFAULT_RULES=[
+  {id:'r1',title:'Partial refund for late shipments',category:'refund',condition:'Order not shipped within 10 business days',action:'Offer a 15% partial refund as compensation and sincerely apologise for the delay. Do not wait for the customer to escalate.',example:'"We\'d like to offer you a 15% refund for the inconvenience caused by the delay."',on:true},
+  {id:'r2',title:'Full refund for damaged items',category:'refund',condition:'Customer reports that order arrived damaged or broken',action:'Approve a full refund immediately. Customer does not need to return the item. Apologise and express this is not acceptable.',example:'"I\'ve processed a full refund for you — no need to return the damaged item."',on:true},
+  {id:'r3',title:'Escalate large refunds',category:'escalation',condition:'Refund amount exceeds €100',action:'Do not approve the refund automatically. Escalate to human review with a polite note that a team member will review within 24 hours.',example:'"A member of our team will review your request and get back to you within 24 hours."',on:true},
+  {id:'r4',title:'Always use customer first name',category:'tone',condition:'Every reply',action:'Always address the customer by their first name. Never use "Dear Customer" or "Hello".',example:'"Hi Sarah," not "Dear Customer,"',on:true},
+  {id:'r5',title:'Escalate all cancellation requests',category:'escalation',condition:'Customer requests to cancel an order that has already shipped',action:'Escalate to human review. Do not promise cancellation. Inform the customer a team member will follow up to discuss return options.',example:'"A team member will reach out within a few hours to help with this."',on:false},
+];
+
+// ═══ STATE ═══
+const ST={user:null,storeName:'My Store',apiKey:'',tickets:[],activeTicket:null,connectedEmail:false,connectedShopify:false,toneAnalyzed:false,signupShopifyConnected:false,rules:[...DEFAULT_RULES]};
+let dragId=null,editingRuleId=null;
+
+// ═══ INIT ═══
+document.addEventListener('DOMContentLoaded',()=>{
+  const obs=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible')}),{threshold:0.1});
+  document.querySelectorAll('.fade-up').forEach(el=>obs.observe(el));
+  const nb=document.getElementById('navbar');
+  if(nb)window.addEventListener('scroll',()=>nb.classList.toggle('nav-scrolled',window.scrollY>60));
+  const saved=localStorage.getItem('respondro_user');
+  if(saved){ST.user=JSON.parse(saved);ST.storeName=localStorage.getItem('respondro_store')||'My Store';ST.apiKey=sessionStorage.getItem('respondro_apikey')||'';showDashboard();}
+  initTickets();buildEmailList();buildProviderList();buildSignupProviders();renderRules();
+});
+
+// ═══ AUTH ═══
+function openAuth(tab){document.getElementById('auth-modal').classList.add('open');switchAuthTab(tab);document.body.style.overflow='hidden';}
+function closeAuth(){document.getElementById('auth-modal').classList.remove('open');document.body.style.overflow='';}
+document.getElementById('auth-modal').addEventListener('click',function(e){if(e.target===this)closeAuth();});
+function switchAuthTab(t){
+  document.getElementById('auth-login').classList.toggle('hidden',t!=='login');
+  document.getElementById('auth-signup').classList.toggle('hidden',t!=='signup');
+  document.getElementById('tab-login').classList.toggle('active',t==='login');
+  document.getElementById('tab-signup').classList.toggle('active',t==='signup');
+  if(t==='signup')sNext(0);
+}
+function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  if(!email){alert('Please enter your email');return;}
+  const n=email.split('@')[0];const u={email,name:n.charAt(0).toUpperCase()+n.slice(1)};
+  localStorage.setItem('respondro_user',JSON.stringify(u));ST.user=u;closeAuth();showDashboard();
+}
+function sNext(n){
+  [0,1,2,3,4].forEach(i=>{const el=document.getElementById('s-step-'+i);if(el)el.classList.toggle('hidden',i!==n);});
+  document.querySelectorAll('#signup-dots .step-dot').forEach((d,i)=>{d.classList.remove('active','done');if(i<n)d.classList.add('done');if(i===n)d.classList.add('active');});
+  // Update done screen checklist
+  if(n===4){
+    const ec=document.getElementById('done-email-check'),sc=document.getElementById('done-shopify-check');
+    const tt=document.getElementById('done-tone-check'),st=document.getElementById('done-shopify-txt'),tet=document.getElementById('done-tone-txt');
+    if(ec)ec.style.color=ST.connectedEmail?'#00C896':'#3A4760';
+    if(sc)sc.style.color=ST.signupShopifyConnected?'#00C896':'#3A4760';
+    if(tt)tt.style.color=ST.toneAnalyzed?'#00C896':'#3A4760';
+    if(st&&ST.signupShopifyConnected)st.textContent='— connected ✓';
+    if(tet&&ST.toneAnalyzed)tet.textContent='— analysed ✓';
+  }
+}
+function completeSignup(){
+  const name=document.getElementById('s-name').value.trim()||'Store Owner';
+  const email=document.getElementById('s-email').value.trim()||'user@store.com';
+  const storeName=document.getElementById('s-store').value.trim()||'My Store';
+  localStorage.setItem('respondro_user',JSON.stringify({email,name}));
+  localStorage.setItem('respondro_store',storeName);
+  ST.user={email,name};ST.storeName=storeName;
+  closeAuth();showDashboard();
+}
+function logout(){localStorage.removeItem('respondro_user');localStorage.removeItem('respondro_store');sessionStorage.removeItem('respondro_apikey');ST.user=null;ST.apiKey='';document.getElementById('dashboard').classList.remove('active');document.getElementById('dashboard').style.display='none';document.getElementById('landing').classList.remove('hidden');}
+
+// ═══ SIGNUP SUBTABS ═══
+function switchSignupTab(tab){
+  document.getElementById('ss-pane-rulebook').classList.toggle('hidden',tab!=='rulebook');
+  document.getElementById('ss-pane-tone').classList.toggle('hidden',tab!=='tone');
+  document.getElementById('ss-rulebook').classList.toggle('active',tab==='rulebook');
+  document.getElementById('ss-tone').classList.toggle('active',tab==='tone');
+}
+function switchSubTab(tab){
+  document.getElementById('subt-rulebook').classList.toggle('hidden',tab!=='rulebook');
+  document.getElementById('subt-tone').classList.toggle('hidden',tab!=='tone');
+  document.getElementById('st-rulebook').classList.toggle('active',tab==='rulebook');
+  document.getElementById('st-tone').classList.toggle('active',tab==='tone');
+}
+
+// ═══ SHOPIFY SIGNUP FLOW ═══
+function signupShopifyConnect(){
+  const url=document.getElementById('s-shopify-url').value.trim()||'yourstore.myshopify.com';
+  // Simulate Shopify OAuth
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;z-index:999;background:rgba(4,8,18,0.92);display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(8px)';
+  overlay.innerHTML=`<div style="background:#0F1623;border:1px solid rgba(255,255,255,0.1);border-radius:20px;width:100%;max-width:420px;overflow:hidden">
+    <div style="background:#008060;padding:12px 16px;color:white;font-weight:600;font-size:13px;display:flex;align-items:center;gap:8px"><span style="font-size:16px">●</span>Shopify — ${url}</div>
+    <div style="padding:24px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px"><div style="width:40px;height:40px;border-radius:8px;background:rgba(0,200,150,0.15);display:flex;align-items:center;justify-content:center;font-weight:700;color:#00C896">R</div><div><div style="font-weight:600">Respondro</div><div style="font-size:12px;color:#5A6785">respondro.io · verified app</div></div></div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:#E8EBF2">Respondro would like to:</div>
+      <ul style="font-size:12px;color:#8B96B0;line-height:2.2;margin-bottom:18px;list-style:none">
+        <li>✓ View orders and customers</li><li>✓ Manage refunds and order edits</li><li>✓ Read product information</li>
+      </ul>
+      <button onclick="this.closest('div[style*=fixed]').remove();confirmSignupShopify('${url}')" style="width:100%;background:#008060;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Syne',sans-serif">Install app</button>
+      <button onclick="this.closest('div[style*=fixed]').remove()" style="width:100%;background:transparent;color:#5A6785;border:none;padding:8px;font-size:12px;cursor:pointer;margin-top:6px">Decline</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+}
+function confirmSignupShopify(url){
+  ST.signupShopifyConnected=true;
+  const conf=document.getElementById('s-shopify-confirmed');if(conf)conf.classList.remove('hidden');
+  showToast('Shopify connected ✓');
+}
+
+// ═══ TONE ANALYSIS ═══
+const TONE_ATTRS=[
+  {label:'Warmth & friendliness',score:85,emoji:'😊'},
+  {label:'Formality',score:60,emoji:'👔'},
+  {label:'Conciseness',score:75,emoji:'✂️'},
+  {label:'Empathy',score:90,emoji:'💙'},
+  {label:'Positive language',score:80,emoji:'✨'},
+];
+const TONE_PHRASES=['First name always used','Closes with "Best,"','Never uses "Dear Customer"','Uses "absolutely" to confirm','Avoids passive voice'];
+
+function buildToneResultHTML(){
+  const bars=TONE_ATTRS.map(a=>`<div class="flex items-center gap-3 mb-2"><span class="text-xs w-32 flex-shrink-0" style="color:#8B96B0">${a.label}</span><div class="tone-bar-bg"><div class="tone-bar-fill" style="width:${a.score}%"></div></div><span class="text-xs font-mono w-7 text-right" style="color:#00C896">${a.score}%</span></div>`).join('');
+  const chips=TONE_PHRASES.map(p=>`<span class="tone-chip">${p}</span>`).join('');
+  return `<div class="rounded-xl p-4" style="background:#080D1A;border:1px solid rgba(0,200,150,0.15)">
+    <p class="text-xs font-display font-700 mb-3" style="color:#00C896">✓ Tone analysed — voice profile</p>
+    ${bars}
+    <p class="text-xs font-mono mt-3 mb-2" style="color:#5A6785">KEY PHRASES DETECTED</p>
+    <div>${chips}</div>
+    <p class="text-xs mt-3" style="color:#5A6785">Respondro will replicate this style across all automated replies.</p>
+  </div>`;
+}
+function runToneAnalysis(){
+  const text=document.getElementById('s-tone-emails')?.value.trim();
+  if(!text){showToast('Please paste at least one email first');return;}
+  const result=document.getElementById('tone-analysis-result');
+  if(!result)return;
+  result.classList.remove('hidden');
+  result.innerHTML=`<div class="rounded-xl p-4" style="background:#080D1A;border:1px solid rgba(255,255,255,0.07)"><div class="flex items-center gap-3"><div class="spinner"></div><span class="text-sm" style="color:#5A6785">Analysing tone from your emails...</span></div></div>`;
+  setTimeout(()=>{result.innerHTML=buildToneResultHTML();ST.toneAnalyzed=true;},2200);
+}
+function analyzeToneSettings(){
+  const text=document.getElementById('tone-emails-text')?.value.trim();
+  if(!text){showToast('Please paste at least one email first');return;}
+  const result=document.getElementById('tone-result-settings');
+  if(!result)return;
+  result.classList.remove('hidden');
+  result.innerHTML=`<div class="rounded-xl p-4" style="background:#080D1A;border:1px solid rgba(255,255,255,0.07)"><div class="flex items-center gap-3"><div class="spinner"></div><span class="text-sm" style="color:#5A6785">Analysing tone...</span></div></div>`;
+  setTimeout(()=>{result.innerHTML=buildToneResultHTML();},2200);
+}
+function handleRulebookFile(input){if(input.files[0]){const r=new FileReader();r.onload=e=>{const t=document.getElementById('rulebook-text');if(t)t.value=e.target.result.slice(0,2000);};r.readAsText(input.files[0]);showToast('Rulebook file loaded ✓');}}
+function handleSignupRulebookFile(input){if(input.files[0]){const r=new FileReader();r.onload=e=>{const t=document.getElementById('s-rulebook');if(t)t.value=e.target.result.slice(0,2000);};r.readAsText(input.files[0]);showToast('File loaded ✓');}}
+function handleToneFile(input){if(input.files.length){let combined='';Array.from(input.files).forEach((f,i)=>{const r=new FileReader();r.onload=e=>{combined+=(i>0?'\n---\n':'')+e.target.result;const t=document.getElementById('tone-emails-text');if(t)t.value=combined;};r.readAsText(f);});showToast(input.files.length+' file(s) loaded ✓');}}
+
+// ═══ DASHBOARD ═══
+function showDashboard(){
+  document.getElementById('landing').classList.add('hidden');
+  const d=document.getElementById('dashboard');d.classList.add('active');d.style.display='flex';d.style.flexDirection='column';
+  if(ST.user){document.getElementById('user-avatar').textContent=ST.user.name.charAt(0).toUpperCase();document.getElementById('user-name-nav').textContent=ST.user.name;document.getElementById('welcome-name').textContent=ST.user.name;}
+  document.getElementById('store-name-sb').textContent=ST.storeName;
+  document.getElementById('store-logo-sm').textContent=ST.storeName.charAt(0).toUpperCase();
+  updateApiStatusUI();renderKanban();renderRules();renderOverviewRules();
+}
+function switchView(name,el){
+  document.querySelectorAll('.sidebar-item').forEach(s=>s.classList.remove('active'));
+  if(el)el.classList.add('active');
+  document.querySelectorAll('#main-content > div').forEach(v=>v.classList.add('hidden'));
+  const v=document.getElementById('view-'+name);if(v)v.classList.remove('hidden');
+  if(name==='rules')renderRules();
+}
+
+// ═══ API KEY ═══
+function saveApiKey(){const k=document.getElementById('api-key-input').value.trim();if(!k){alert('Please enter a key');return;}sessionStorage.setItem('respondro_apikey',k);ST.apiKey=k;updateApiStatusUI();document.getElementById('api-key-indicator').innerHTML='<div class="api-dot" style="background:#00C896"></div><span class="text-xs" style="color:#00C896">API key saved ✓ — Live mode</span>';showToast('API key saved ✓');}
+function updateApiStatusUI(){const h=!!ST.apiKey;const d=document.getElementById('api-dot'),t=document.getElementById('api-status-txt');if(d)d.style.background=h?'#00C896':'#3A4760';if(t){t.textContent=h?'Live — Claude API':'Demo mode';t.style.color=h?'#00C896':'#5A6785';}const ii=document.getElementById('inbox-api-indicator');if(ii)ii.innerHTML=`<div class="api-dot" style="background:${h?'#00C896':'#3A4760'}"></div><span style="color:${h?'#00C896':'#5A6785'}">${h?'Live':'Demo'}</span>`;}
+
+// ═══ RULES ═══
+const RULE_CATS={refund:'Refund rules',shipping:'Shipping rules',discount:'Discount & compensation',escalation:'Escalation rules',tone:'Tone & style',response:'Response templates',other:'Other rules'};
+const RULE_CAT_COLORS={refund:'badge-a',shipping:'badge-g',discount:'badge-g',escalation:'badge-r',tone:'badge-m',response:'badge-m',other:'badge-m'};
+
+function renderRules(){
+  const container=document.getElementById('rules-container');if(!container)return;
+  container.innerHTML='';
+  const byCategory={};
+  ST.rules.forEach(r=>{if(!byCategory[r.category])byCategory[r.category]=[];byCategory[r.category].push(r);});
+  Object.entries(byCategory).forEach(([cat,rules])=>{
+    const label=document.createElement('span');label.className='rule-cat-label';label.textContent=RULE_CATS[cat]||cat;container.appendChild(label);
+    rules.forEach(rule=>{
+      const card=document.createElement('div');card.className='rule-card mb-2';
+      card.innerHTML=`<div class="flex items-start gap-3">
+        <button class="rule-toggle ${rule.on?'on':'off'} mt-0.5" onclick="toggleRule('${rule.id}')"><div class="rule-toggle-dot"></div></button>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-sm font-600 ${!rule.on?'opacity-40':''}">${rule.title}</span>
+            <span class="badge ${RULE_CAT_COLORS[rule.category]||'badge-m'}" style="font-size:10px">${rule.category}</span>
+          </div>
+          <div class="text-xs mb-1 ${!rule.on?'opacity-40':''}" style="color:#5A6785"><strong style="color:#8B96B0">When:</strong> ${rule.condition}</div>
+          <div class="text-xs mb-1 ${!rule.on?'opacity-40':''}" style="color:#5A6785"><strong style="color:#8B96B0">Do:</strong> ${rule.action}</div>
+          ${rule.example?`<div class="text-xs font-mono mt-1 ${!rule.on?'opacity-40':''}" style="color:#3A4760">"${rule.example}"</div>`:''}
+        </div>
+        <div class="flex gap-1 flex-shrink-0">
+          <button class="btn-icon" onclick="editRule('${rule.id}')">Edit</button>
+          <button class="btn-icon" style="color:#F87171;border-color:rgba(248,113,113,0.2)" onclick="deleteRule('${rule.id}')">×</button>
+        </div>
+      </div>`;
+      container.appendChild(card);
+    });
+  });
+  // Update badge
+  const rb=document.getElementById('rules-badge');if(rb)rb.textContent=ST.rules.filter(r=>r.on).length;
+  renderOverviewRules();
+}
+function renderOverviewRules(){
+  const container=document.getElementById('overview-rules-preview');if(!container)return;
+  const active=ST.rules.filter(r=>r.on).slice(0,3);
+  container.innerHTML=active.map(r=>`<div class="flex items-center gap-2 py-2 border-b text-sm" style="border-color:rgba(255,255,255,0.05)"><span class="badge ${RULE_CAT_COLORS[r.category]||'badge-m'}" style="font-size:10px">${r.category}</span><span class="flex-1">${r.title}</span><span class="badge-g badge" style="font-size:10px">active</span></div>`).join('')+'<div class="text-xs mt-2" style="color:#3A4760">'+ST.rules.filter(r=>r.on).length+' active rules · '+(ST.rules.length-ST.rules.filter(r=>r.on).length)+' inactive</div>';
+}
+function toggleRule(id){const r=ST.rules.find(x=>x.id===id);if(r)r.on=!r.on;renderRules();}
+function deleteRule(id){if(!confirm('Delete this rule?'))return;ST.rules=ST.rules.filter(x=>x.id!==id);renderRules();showToast('Rule deleted');}
+function openAddRule(){editingRuleId=null;document.getElementById('rule-modal-title').textContent='Add rule';['rule-title','rule-condition','rule-action','rule-example'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('rule-category').value='refund';document.getElementById('rule-modal').classList.add('open');document.body.style.overflow='hidden';}
+function editRule(id){const r=ST.rules.find(x=>x.id===id);if(!r)return;editingRuleId=id;document.getElementById('rule-modal-title').textContent='Edit rule';document.getElementById('rule-title').value=r.title;document.getElementById('rule-category').value=r.category;document.getElementById('rule-condition').value=r.condition;document.getElementById('rule-action').value=r.action;document.getElementById('rule-example').value=r.example||'';document.getElementById('rule-modal').classList.add('open');document.body.style.overflow='hidden';}
+function saveRule(){
+  const title=document.getElementById('rule-title').value.trim();const condition=document.getElementById('rule-condition').value.trim();const action=document.getElementById('rule-action').value.trim();
+  if(!title||!condition||!action){alert('Please fill in title, condition, and action');return;}
+  if(editingRuleId){const r=ST.rules.find(x=>x.id===editingRuleId);if(r){r.title=title;r.category=document.getElementById('rule-category').value;r.condition=condition;r.action=action;r.example=document.getElementById('rule-example').value.trim();}}
+  else{ST.rules.push({id:'r'+Date.now(),title,category:document.getElementById('rule-category').value,condition,action,example:document.getElementById('rule-example').value.trim(),on:true});}
+  closeModal('rule-modal');renderRules();showToast(editingRuleId?'Rule updated ✓':'Rule added ✓');editingRuleId=null;
+}
+
+// ═══ PROVIDER LIST ═══
+function buildProviderList(){
+  const c=document.getElementById('provider-list');if(!c)return;c.innerHTML='';
+  PROVIDERS.forEach(p=>{
+    const el=document.createElement('div');el.className='provider-card';
+    el.innerHTML=`<div class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-700 flex-shrink-0" style="background:${p.color}22;color:${p.color}">${p.icon}</div><div class="flex-1"><div class="text-sm font-600">${p.name}</div><div class="text-xs" style="color:#5A6785">${p.sub}</div></div><span style="color:#00C896;font-size:12px;display:none" id="pconn-${p.id}">✓</span>${p.type==='oauth'?'<span class="text-xs font-mono px-2 py-0.5 rounded-full" style="background:rgba(0,200,150,0.08);color:#00C896">OAuth</span>':''}`;
+    el.onclick=()=>openProviderModal(p);c.appendChild(el);
+  });
+}
+function buildSignupProviders(){
+  const c=document.getElementById('s-provider-grid');if(!c)return;c.innerHTML='';
+  PROVIDERS.slice(0,10).forEach(p=>{
+    const el=document.createElement('div');el.className='provider-card';el.style.cssText='padding:9px 12px';
+    el.innerHTML=`<div class="w-5 h-5 rounded flex items-center justify-center text-xs font-700 flex-shrink-0" style="background:${p.color}22;color:${p.color}">${p.icon}</div><div class="flex-1 min-w-0"><div class="text-xs font-600 truncate">${p.name}</div></div>`;
+    el.onclick=()=>openProviderModal(p);c.appendChild(el);
+  });
+}
+
+// ═══ PROVIDER MODAL ═══
+function openProviderModal(p){
+  document.getElementById('provider-modal').classList.add('open');document.body.style.overflow='hidden';
+  const c=document.getElementById('provider-modal-content');
+  const header=`<div class="flex items-center gap-3 mb-5"><div class="w-10 h-10 rounded-xl flex items-center justify-center font-700" style="background:${p.color}22;color:${p.color}">${p.icon}</div><div><div class="font-display font-700 text-lg">${p.name}</div><div class="text-xs" style="color:#5A6785">${p.sub}</div></div></div>`;
+  if(p.type==='oauth'){
+    c.innerHTML=`${header}<p class="text-sm mb-5" style="color:#8B96B0">Click below to authorise Respondro. You can revoke access at any time from your ${p.name} account.</p>
+    <div id="op1"><button class="w-full flex items-center justify-center gap-3 rounded-xl py-3 mb-3 font-700 text-sm" style="background:${p.oauthBg||p.color};color:${p.oauthColor||'#fff'};border:none;cursor:pointer;font-family:'Syne',sans-serif" onclick="simulateOAuth('${p.id}','${p.name}')"><span style="font-weight:700">${p.icon}</span>${p.oauthLabel}</button><p class="text-xs text-center" style="color:#3A4760">Read/send mail only · No contacts, calendar, or other data</p></div>
+    <div id="op2" class="hidden text-center"><div style="font-size:40px;margin-bottom:10px">🎉</div><h3 class="font-display font-700 text-lg mb-2" style="color:#00C896">${p.name} connected!</h3><p class="text-sm mb-4" style="color:#5A6785">Respondro will now read and reply from your ${p.name} account.</p><button class="btn-primary w-full justify-center" onclick="closeModal('provider-modal')">Done</button></div>`;
+  } else {
+    const stepsHTML=(p.steps||[]).map((s,i)=>`<div class="guide-step"><div class="guide-num">${i+1}</div><div class="guide-text">${s}</div></div>`).join('');
+    c.innerHTML=`${header}<div class="rounded-xl p-3 mb-4" style="background:rgba(0,200,150,0.06);border:1px solid rgba(0,200,150,0.15)"><p class="text-xs font-600 mb-2" style="color:#00C896">How to connect ${p.name}</p>${stepsHTML}</div>
+    <div class="space-y-2">
+      <div><label class="form-label">Email address</label><input type="text" class="form-input" placeholder="you@${p.id==='private'?'yourdomain.com':'example.com'}"></div>
+      <div><label class="form-label">Password / App password</label><input type="password" class="form-input" placeholder="••••••••"></div>
+      ${p.host?`<div class="flex gap-2"><div class="flex-1"><label class="form-label">IMAP host</label><input class="form-input" value="${p.host}" readonly style="color:#5A6785"></div><div style="width:70px"><label class="form-label">Port</label><input class="form-input" value="${p.port}" readonly style="color:#5A6785"></div></div>`:''}
+    </div>
+    <button class="btn-primary w-full justify-center mt-4" onclick="simulateImap('${p.id}','${p.name}')">Connect ${p.name}</button>`;
+  }
+}
+function simulateOAuth(id,name){document.getElementById('op1').classList.add('hidden');document.getElementById('op2').classList.remove('hidden');markEmailConnected(id,name);}
+function simulateImap(id,name){closeModal('provider-modal');markEmailConnected(id,name);showToast(name+' connected ✓');}
+function markEmailConnected(id,name){ST.connectedEmail=true;const s=document.getElementById('pconn-'+id);if(s)s.style.display='';const c=document.getElementById('email-conn-chip');if(c){c.classList.remove('hidden');c.textContent='✓ '+name;}}
+
+// ═══ SHOPIFY SETTINGS MODAL ═══
+function openShopifyConnect(){
+  document.getElementById('shopify-modal').classList.add('open');document.body.style.overflow='hidden';
+  renderShopifyStep(0,'');
+}
+function renderShopifyStep(step,url){
+  const c=document.getElementById('shopify-modal-content');
+  if(step===0){c.innerHTML=`<div class="flex items-center gap-3 mb-4"><div class="w-10 h-10 rounded-xl flex items-center justify-center font-700" style="background:#00806022;color:#008060">S</div><div><div class="font-display font-700 text-lg">Connect Shopify</div><div class="text-xs" style="color:#5A6785">One-click OAuth approval</div></div></div><label class="form-label">Your store URL</label><input type="text" id="smurl" class="form-input mb-4" placeholder="yourstore.myshopify.com"><button class="w-full flex items-center justify-center gap-2 rounded-xl py-3 mb-2 font-700 text-sm" style="background:#008060;color:#fff;border:none;cursor:pointer;font-family:'Syne',sans-serif" onclick="renderShopifyStep(1,document.getElementById('smurl').value.trim()||'yourstore')"><span>●</span>Install Respondro on Shopify →</button><p class="text-xs text-center" style="color:#3A4760">Requests: read_orders, write_orders, read_products</p>`;}
+  else if(step===1){c.innerHTML=`<p class="text-xs font-mono mb-3" style="color:#3A4760">Simulated Shopify permission screen</p><div style="background:#F6F6F7;border-radius:12px;overflow:hidden;font-size:13px;color:#202223"><div style="background:#008060;padding:12px 16px;color:white;font-weight:600;display:flex;gap:8px;align-items:center"><span style="font-size:15px">●</span>${url}.myshopify.com</div><div style="padding:20px"><div style="display:flex;gap:12px;align-items:center;margin-bottom:14px"><div style="width:40px;height:40px;border-radius:8px;background:#e6f9f4;display:flex;align-items:center;justify-content:center;font-weight:700;color:#008060">R</div><div><div style="font-weight:600">Respondro</div><div style="font-size:12px;color:#6B7280">respondro.io</div></div></div><div style="font-size:13px;font-weight:600;margin-bottom:8px">Respondro would like to:</div><ul style="font-size:12px;color:#374151;line-height:2.1;margin-bottom:16px;list-style:none"><li>✓ View orders and customers</li><li>✓ Manage returns and refunds</li><li>✓ Read product information</li></ul><button onclick="renderShopifyStep(2,'${url}')" style="width:100%;background:#008060;color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:600;cursor:pointer">Install app</button><button onclick="closeModal('shopify-modal')" style="width:100%;background:transparent;color:#6B7280;border:none;padding:8px;font-size:12px;cursor:pointer;margin-top:6px">Decline</button></div></div>`;}
+  else{c.innerHTML=`<div class="text-center py-3"><div style="font-size:44px;margin-bottom:12px">🎉</div><h3 class="font-display font-700 text-xl mb-2" style="color:#00C896">Shopify connected!</h3><p class="text-sm mb-5" style="color:#5A6785"><strong>${url}.myshopify.com</strong> is connected. Live order data, tracking numbers, and refund capabilities are now active.</p><div class="rounded-xl p-3 mb-4 text-left" style="background:rgba(0,200,150,0.06);border:1px solid rgba(0,200,150,0.15)"><div class="text-xs font-mono mb-1" style="color:#00C896">Active permissions</div><div class="text-xs" style="color:#8B96B0">✓ read_orders &nbsp; ✓ write_orders &nbsp; ✓ read_products</div></div><button class="btn-primary w-full justify-center" onclick="shopifyDone('${url}')">Done</button></div>`;}
+}
+function shopifyDone(url){ST.connectedShopify=true;closeModal('shopify-modal');const btn=document.getElementById('shopify-btn');if(btn){btn.style.background='rgba(0,200,150,0.1)';btn.style.color='#00C896';btn.innerHTML='✓ Shopify connected — '+url;btn.disabled=true;}const c=document.getElementById('shopify-conn-chip');if(c)c.classList.remove('hidden');showToast('Shopify connected ✓');}
+
+// ═══ MODAL HELPERS ═══
+function closeModal(id){document.getElementById(id).classList.remove('open');document.body.style.overflow='';}
+['provider-modal','shopify-modal','rule-modal'].forEach(id=>{document.getElementById(id).addEventListener('click',function(e){if(e.target===this)closeModal(id);});});
+function toggleAcc(btn){const b=btn.nextElementSibling;const o=b.classList.contains('open');b.classList.toggle('open',!o);btn.querySelector('.acc-icon').textContent=o?'+':'−';}
+
+// ═══ KANBAN ═══
+const TICKET_DATA=[
+  {id:'t1',subject:'Refund request — order #3918',from:'Mark Johnson <mark@email.com>',body:'Hi,\n\nI ordered last week but it arrived damaged. I want a full refund for order #3918 — the packaging was crushed and two items were broken.\n\nMark',draft:'Hi Mark,\n\nI\'m really sorry to hear your order arrived damaged — that\'s absolutely not acceptable.\n\nI\'ve approved a full refund for order #3918. This will be processed within 3-5 business days to your original payment method. You don\'t need to return the damaged items.\n\nAgain, I apologise for the trouble!\n\nBest,\nXhale Team',col:'new',priority:'high',type:'refund'},
+  {id:'t2',subject:'Angry about delayed shipment',from:'Sandra Peters <sp@gmail.com>',body:'This is unacceptable! I ordered 2 weeks ago and still nothing. I need it for this weekend. What are you going to do???',draft:'Hi Sandra,\n\nI completely understand your frustration and I\'m so sorry we\'ve let you down.\n\nI\'ve checked your order — it\'s been held at customs since Thursday. I\'ve escalated directly with our shipping partner.\n\nGiven the delay, I\'d like to offer you a 15% partial refund as compensation. Shall I process this now?\n\nI\'ll follow up personally tomorrow morning.\n\nSincerely,\nXhale Team',col:'new',priority:'high',type:'complaint'},
+  {id:'t3',subject:'Address change for order #4102',from:'Lena Fischer <lena@web.de>',body:'Hallo,\n\nKann ich noch die Lieferadresse ändern? Richtig wäre: Musterstraße 12, 80333 München.',draft:'Hallo Lena,\n\nKein Problem! Ich habe Bestellung #4102 überprüft — sie ist noch nicht versandt, daher habe ich die Adresse auf Musterstraße 12, 80333 München aktualisiert.\n\nMit freundlichen Grüßen,\nXhale Team',col:'review',priority:'medium',type:'address'},
+];
+const COLS=['new','review','closed'];
+function initTickets(){ST.tickets=[...TICKET_DATA];}
+function renderKanban(){
+  COLS.forEach(col=>{
+    const container=document.getElementById('tickets-'+col),cnt=document.getElementById('cnt-'+col);if(!container)return;
+    const ct=ST.tickets.filter(t=>t.col===col);container.innerHTML='';
+    ct.forEach(t=>{
+      const el=document.createElement('div');el.className='kb-ticket';el.draggable=true;el.dataset.id=t.id;
+      el.addEventListener('dragstart',()=>{dragId=t.id;el.classList.add('dragging');});
+      el.addEventListener('dragend',()=>el.classList.remove('dragging'));
+      const ci=COLS.indexOf(col),cb=ci>0,cf=ci<COLS.length-1;
+      el.innerHTML=`<div class="flex items-start justify-between gap-2 mb-1"><span class="text-xs font-600 leading-tight" style="color:${col==='closed'?'#3A4760':'#E8EBF2'}">${t.subject}</span><span class="badge ${t.priority==='high'?'badge-a':'badge-g'}" style="font-size:10px">${t.type}</span></div><div class="text-xs mb-2" style="color:#5A6785">${t.from.split('<')[0].trim()}</div>${col!=='closed'?`<div class="flex gap-1 flex-wrap">${cb?`<button class="move-btn" onclick="event.stopPropagation();moveTick('${t.id}','${COLS[ci-1]}')">← ${COLS[ci-1]}</button>`:''}<button class="move-btn" onclick="event.stopPropagation();openTicket('${t.id}')">View draft</button>${cf?`<button class="move-btn" style="color:#00C896;border-color:rgba(0,200,150,0.25)" onclick="event.stopPropagation();moveTick('${t.id}','${COLS[ci+1]}')">${COLS[ci+1]} →</button>`:''}</div>`:'<span class="text-xs" style="color:#3A4760">✓ Closed</span>'}`;
+      el.onclick=()=>openTicket(t.id);container.appendChild(el);
+    });
+    if(cnt)cnt.textContent=ct.length;
+  });
+  const rb=document.getElementById('review-badge');if(rb)rb.textContent=ST.tickets.filter(t=>t.col==='new'||t.col==='review').length;
+}
+function moveTick(id,col){const t=ST.tickets.find(x=>x.id===id);if(t)t.col=col;renderKanban();if(ST.activeTicket===id)closeTicket();}
+function dropTicket(ev,col){ev.preventDefault();ev.currentTarget.classList.remove('drag-over');if(!dragId)return;moveTick(dragId,col);dragId=null;}
+function openTicket(id){const t=ST.tickets.find(x=>x.id===id);if(!t)return;ST.activeTicket=id;document.getElementById('tp-subject').textContent=t.subject;document.getElementById('tp-from').textContent=t.from;document.getElementById('tp-body').textContent=t.body;document.getElementById('tp-draft').value=t.draft;const b=document.getElementById('tp-badge');b.className='badge '+(t.priority==='high'?'badge-a':'badge-g');b.textContent=t.type;const ci=COLS.indexOf(t.col),mb=document.getElementById('tp-move-btns');mb.innerHTML='';if(ci>0){const b=document.createElement('button');b.className='btn-icon';b.textContent='← '+COLS[ci-1];b.onclick=()=>{moveTick(id,COLS[ci-1]);closeTicket();};mb.appendChild(b);}if(ci<COLS.length-1){const b=document.createElement('button');b.className='btn-icon';b.style.color='#00C896';b.textContent=COLS[ci+1]+' →';b.onclick=()=>{moveTick(id,COLS[ci+1]);closeTicket();};mb.appendChild(b);}document.getElementById('ticket-panel').classList.add('open');}
+function closeTicket(){document.getElementById('ticket-panel').classList.remove('open');ST.activeTicket=null;}
+function approveTicket(){if(!ST.activeTicket)return;const t=ST.tickets.find(x=>x.id===ST.activeTicket);if(t){t.col='closed';t.draft=document.getElementById('tp-draft').value;}closeTicket();renderKanban();showToast('Reply sent ✓');}
+function moveTicketToCol(col){if(ST.activeTicket)moveTick(ST.activeTicket,col);}
+
+// ═══ INBOX ═══
+const INBOX_EMAILS=[
+  {id:'e1',from:'Sarah K.',subject:'Where is my order #4521?',body:'Hi, I ordered 5 days ago and no tracking yet.',type:'tracking'},
+  {id:'e2',from:'Tom R.',subject:'Do you ship to Germany?',body:'Hi, I\'m based in Munich. Do you ship there?',type:'shipping'},
+  {id:'e3',from:'Anna P.',subject:'Blue variant back in stock?',body:'Hi! When will the blue version be available again?',type:'stock'},
+  {id:'e4',from:'Lars H.',subject:'Wrong item in order',body:'Hi, I ordered black but received grey. Please help.',type:'wrong_item'},
+  {id:'e5',from:'Emma W.',subject:'Sizing question — M or L?',body:'Hi! I\'m 5\'8" and 145lbs. Medium or large?',type:'sizing'},
+  {id:'e6',from:'Mark J.',subject:'Refund request #3918',body:'My order arrived damaged. Full refund please.',type:'refund',escalate:true},
+  {id:'e7',from:'Lisa M.',subject:'Waar is mijn pakket?',body:'Hallo, 3 weken geleden besteld. Geen tracking.',type:'tracking'},
+  {id:'e8',from:'Emma W.',subject:'Order not shipped — 12 days',body:'Hi, I ordered 12 days ago and my order still hasn\'t shipped. This is too long.',type:'delay'},
+];
+const DEMO_REPLIES={tracking:'Hi {name},\n\nYour order shipped yesterday via DHL. Tracking: DE123456789 — track at dhl.com.\n\nBest,\nXhale Team',shipping:'Hi {name},\n\nYes, we ship to Germany! Standard: €8.95 (5-7 days), express: €14.95 (2-3 days).\n\nBest,\nXhale Team',stock:'Hi {name},\n\nThe blue variant is out of stock but restocking in 2-3 weeks. Want to be on the waitlist?\n\nBest,\nXhale Team',wrong_item:'Hi {name},\n\nI\'m so sorry! I\'ve arranged an immediate replacement in black — no need to return the grey.\n\nBest,\nXhale Team',sizing:'Hi {name},\n\nFor your height and weight, I\'d recommend a Medium. Go Large for a roomier fit.\n\nBest,\nXhale Team',delay:'Hi {name},\n\nI\'m sorry for the delay — 12 days is too long and I understand your frustration.\n\nYour order is still being prepared for shipment. As a gesture of goodwill, I\'d like to offer you a 15% partial refund for the inconvenience. I\'ll process this now and you\'ll receive a confirmation shortly.\n\nBest,\nXhale Team'};
+function buildEmailList(){
+  const c=document.getElementById('email-list');if(!c)return;
+  INBOX_EMAILS.forEach(email=>{
+    const row=document.createElement('div');row.className='email-row';row.id='erow-'+email.id;
+    row.innerHTML=`<div class="status-dot" id="edot-${email.id}" style="background:#3A4760"></div><div class="flex-1 min-w-0"><div class="flex items-center gap-2 mb-0.5"><span class="text-xs font-600">${email.from}</span><span class="badge badge-m" style="font-size:10px">${email.type}</span>${email.escalate?'<span class="badge badge-a" style="font-size:10px">will escalate</span>':''}${email.type==='delay'?'<span class="badge badge-g" style="font-size:10px">rule applies</span>':''}</div><div class="text-xs" style="color:#5A6785;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${email.subject}</div></div><div class="status-bar hidden" id="ebar-${email.id}" style="width:60px"><div class="status-fill ${email.escalate?'amber':''}" id="efill-${email.id}"></div></div><div class="text-xs font-mono hidden w-16 text-right" id="estatus-${email.id}" style="color:#5A6785">—</div>`;
+    c.appendChild(row);
+  });
+}
+async function startParallelProcessing() {
+  const btn = document.getElementById('process-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Processing...';
+
+  const prog = document.getElementById('proc-progress');
+  prog.classList.remove('hidden');
+  document.getElementById('proc-label').textContent = '⚡ Sending to Respondro server...';
+
+  // Show all bars as processing
+  INBOX_EMAILS.forEach(e => {
+    document.getElementById('ebar-' + e.id)?.classList.remove('hidden');
+    document.getElementById('estatus-' + e.id)?.classList.remove('hidden');
+    const dot = document.getElementById('edot-' + e.id);
+    if (dot) { dot.style.background = '#1D9E75'; dot.style.animation = 'flash 0.8s infinite'; }
+    const st = document.getElementById('estatus-' + e.id);
+    if (st) { st.textContent = '...'; }
+  });
+
+  try {
+    // Call your real Vercel backend
+    const response = await fetch('https://respondro.vercel.app/api/process-emails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        emails: INBOX_EMAILS,
+        storeConfig: {
+          storeName: ST.storeName,
+          rulebook: ST.rulebook || 'Be helpful and friendly.',
+          rules: ST.rules || []
+        }
+      })
+    });
+
+    const data = await response.json();
+
+    // Update each email row with the result
+    data.results.forEach((result, i) => {
+      const email = INBOX_EMAILS[i];
+      const dot = document.getElementById('edot-' + email.id);
+      const st = document.getElementById('estatus-' + email.id);
+      const fill = document.getElementById('efill-' + email.id);
+      const row = document.getElementById('erow-' + email.id);
+
+      if (result.status === 'fulfilled' && !result.value?.escalate) {
+        if (dot) { dot.style.background = '#00C896'; dot.style.animation = ''; }
+        if (st) { st.textContent = '✓ sent'; st.style.color = '#00C896'; }
+        if (fill) fill.style.width = '100%';
+        if (row) row.style.borderColor = 'rgba(0,200,150,0.15)';
+      } else {
+        if (dot) { dot.style.background = '#F0A500'; dot.style.animation = ''; }
+        if (st) { st.textContent = '⚑ review'; st.style.color = '#F0A500'; }
+        if (fill) { fill.style.width = '100%'; fill.classList.add('amber'); }
+        if (row) row.style.borderColor = 'rgba(240,165,0,0.2)';
+        // Add to kanban board
+        const val = result.value;
+        if (val && !ST.tickets.find(t => t.id === 'i-' + email.id)) {
+          ST.tickets.push({
+            id: 'i-' + email.id,
+            subject: email.subject,
+            from: email.from,
+            body: email.body,
+            draft: val.reply || 'Needs manual review.',
+            col: 'new',
+            priority: 'high',
+            type: email.type
+          });
+        }
+      }
+    });
+
+    document.getElementById('proc-label').textContent = '✓ All emails processed via Respondro server';
+    document.getElementById('proc-count').textContent = INBOX_EMAILS.length + '/' + INBOX_EMAILS.length;
+    document.getElementById('proc-fill').style.width = '100%';
+
+  } catch (err) {
+    document.getElementById('proc-label').textContent = '⚠ Could not reach server — check your connection';
+  }
+
+  btn.innerHTML = '✓ Done';
+  btn.style.background = 'rgba(0,200,150,0.1)';
+  btn.style.color = '#00C896';
+  renderKanban();
+  const rb = document.getElementById('review-badge');
+  if (rb) rb.textContent = ST.tickets.filter(t => t.col === 'new' || t.col === 'review').length;
+  const ib = document.getElementById('inbox-badge');
+  if (ib) ib.textContent = '0';
+}
+
+// ═══ TOAST ═══
+function showToast(msg){const t=document.createElement('div');t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0F1623;border:1px solid rgba(0,200,150,0.3);color:#00C896;padding:9px 20px;border-radius:999px;font-size:13px;z-index:9999;animation:slideUp 0.3s ease;white-space:nowrap';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2400);}
+</script>
+</body>
+</html>
