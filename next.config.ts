@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/',
-        destination: '/index.html',
+        destination: '/respondro.html',
         permanent: false,
       },
     ]
