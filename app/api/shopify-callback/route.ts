@@ -12,10 +12,11 @@ export async function GET(request: Request) {
   const code = searchParams.get('code')
 
   if (!shop || !code) {
-    return NextResponse.json({ error: 'Missing shop or code' }, { status: 400 })
+    return NextResponse.redirect(
+      `https://respondro.vercel.app/respondro.html`
+    )
   }
 
-  // Exchange code for permanent token
   const tokenResponse = await fetch(
     `https://${shop}/admin/oauth/access_token`,
     {
@@ -33,28 +34,22 @@ export async function GET(request: Request) {
   const access_token = tokenData.access_token
 
   if (!access_token) {
-    return NextResponse.json({ 
-      error: 'No token received', 
-      details: tokenData 
-    }, { status: 400 })
+    return NextResponse.redirect(
+      `https://respondro.vercel.app/respondro.html`
+    )
   }
 
-  // Save to Supabase
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
-  
-  const { error } = await supabase.from('stores').insert({
+
+  // upsert = update if exists, insert if new — no more duplicates
+  await supabase.from('stores').upsert({
     shopify_url: shop,
     shopify_token: access_token,
     store_name: shop,
     plan: 'trial',
+  }, {
+    onConflict: 'shopify_url'
   })
-
-  if (error) {
-    return NextResponse.json({ 
-      error: 'Database save failed', 
-      details: error 
-    }, { status: 500 })
-  }
 
   return NextResponse.redirect(
     `https://respondro.vercel.app/respondro.html?shop=${shop}&connected=true`
