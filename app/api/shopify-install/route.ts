@@ -12,14 +12,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Missing shop' }, { status: 400 })
   }
 
-  // Extract just the store handle e.g. "xhale" from "xhale.myshopify.com"
-  const storeHandle = shop.replace('.myshopify.com', '')
-
-  // Use admin.shopify.com format — bypasses storefront password
-  const authUrl = `https://admin.shopify.com/store/${storeHandle}/oauth/authorize?` +
+  const authUrl = `https://${shop}/admin/oauth/authorize?` +
     `client_id=${SHOPIFY_CLIENT_ID}&` +
     `scope=${SCOPES}&` +
-    `redirect_uri=${REDIRECT_URI}`
+    `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
+    `grant_options[]=per-user`
 
   return NextResponse.redirect(authUrl)
 }
