@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import crypto from 'crypto'
 
 const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_CLIENT_ID!
 const SCOPES = 'read_orders,read_customers,read_fulfillments,read_products'
@@ -13,13 +12,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Missing shop' }, { status: 400 })
   }
 
-  const state = crypto.randomBytes(16).toString('hex')
+  // Extract just the store handle e.g. "xhale" from "xhale.myshopify.com"
+  const storeHandle = shop.replace('.myshopify.com', '')
 
-  const authUrl = `https://${shop}/admin/oauth/authorize?` +
+  // Use admin.shopify.com format — bypasses storefront password
+  const authUrl = `https://admin.shopify.com/store/${storeHandle}/oauth/authorize?` +
     `client_id=${SHOPIFY_CLIENT_ID}&` +
     `scope=${SCOPES}&` +
-    `redirect_uri=${REDIRECT_URI}&` +
-    `state=${state}`
+    `redirect_uri=${REDIRECT_URI}`
 
   return NextResponse.redirect(authUrl)
 }
