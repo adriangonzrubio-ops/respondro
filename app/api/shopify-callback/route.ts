@@ -3,11 +3,8 @@ import { createClient } from '@supabase/supabase-js'
 
 const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_CLIENT_ID!
 const SHOPIFY_CLIENT_SECRET = process.env.SHOPIFY_CLIENT_SECRET!
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_KEY!
-)
+const SUPABASE_URL = process.env.SUPABASE_URL!
+const SUPABASE_KEY = process.env.SUPABASE_KEY!
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -15,10 +12,10 @@ export async function GET(request: Request) {
   const code = searchParams.get('code')
 
   if (!shop || !code) {
-    return NextResponse.json({ error: 'Missing params' }, { status: 400 })
+    return NextResponse.json({ error: 'Missing shop or code' }, { status: 400 })
   }
 
-  // Exchange temporary code for permanent access token
+  // Exchange code for permanent token
   const tokenResponse = await fetch(
     `https://${shop}/admin/oauth/access_token`,
     {
@@ -32,19 +29,33 @@ export async function GET(request: Request) {
     }
   )
 
-  const { access_token } = await tokenResponse.json()
+  const tokenData = await tokenResponse.json()
+  const access_token = tokenData.access_token
 
-  // Save store and token to Supabase
-  await supabase.from('stores').upsert({
+  if (!access_token) {
+    return NextResponse.json({ 
+      error: 'No token received', 
+      details: tokenData 
+    }, { status: 400 })
+  }
+
+  // Save to Supabase
+  const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
+  
+  const { error } = await supabase.from('stores').insert({
     shopify_url: shop,
     shopify_token: access_token,
+    store_name: shop,
     plan: 'trial',
-    created_at: new Date().toISOString(),
-  }, {
-    onConflict: 'shopify_url'
   })
 
-  // Redirect to Respondro with shop connected
+  if (error) {
+    return NextResponse.json({ 
+      error: 'Database save failed', 
+      details: error 
+    }, { status: 500 })
+  }
+
   return NextResponse.redirect(
     `https://respondro.vercel.app/respondro.html?shop=${shop}&connected=true`
   )
