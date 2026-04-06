@@ -12,17 +12,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
+    // 🛠️ THE FIX: Use Uint8Array directly instead of Buffer.from()
     const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const data = new Uint8Array(arrayBuffer);
     
     let extractedText = '';
 
     if (file.name.toLowerCase().endsWith('.pdf')) {
-      // unpdf handles the serverless environment perfectly
-      const result = await extractText(buffer, { mergePages: true });
+      // unpdf will now accept this data format perfectly
+      const result = await extractText(data, { mergePages: true });
       extractedText = result.text;
     } else {
-      extractedText = buffer.toString('utf-8');
+      // Fallback for .txt files
+      const decoder = new TextDecoder();
+      extractedText = decoder.decode(data);
     }
 
     return NextResponse.json({ text: extractedText });
