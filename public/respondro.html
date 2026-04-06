@@ -580,27 +580,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     const obs = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible') }), { threshold: 0.1 });
     document.querySelectorAll('.fade-up').forEach(el => obs.observe(el));
     
-    // 2. Memory: Check URL for a saved tab (e.g., ?tab=settings)
+    // 2. Memory: Check URL
     const params = new URLSearchParams(window.location.search);
     const activeTab = params.get('tab');
+    const isShopifyReturn = params.get('connected') === 'true';
 
     // 3. Auth & State Loading
     const saved = localStorage.getItem('respondro_user');
     if (saved) {
         ST.user = JSON.parse(saved);
         ST.storeName = localStorage.getItem('respondro_store') || 'My Store';
-        const savedShopify = localStorage.getItem('respondro_shopify');
-        if (savedShopify) { ST.connectedShopify = true; ST.shopURL = savedShopify; }
         
+        // Restore Shopify state from storage
+        const savedShopify = localStorage.getItem('respondro_shopify');
+        if (savedShopify) { 
+            ST.connectedShopify = true; 
+            ST.shopURL = savedShopify; 
+        }
+        
+        // Check if we are CURRENTLY returning from a successful install
+        if (isShopifyReturn) {
+            ST.connectedShopify = true;
+            ST.shopURL = params.get('shop');
+            localStorage.setItem('respondro_shopify', ST.shopURL);
+        }
+
         showDashboard();
         
-        // Open the tab from the URL if it exists
-        if (activeTab) {
+        // 🎯 SMART REDIRECT:
+        // If we just connected Shopify, force the view to 'settings'
+        // Otherwise, use the saved tab or default to 'overview'
+        if (isShopifyReturn) {
+            switchView('settings', document.getElementById('link-settings'));
+            showToast('Shopify connected ✓ — store data is syncing');
+        } else if (activeTab) {
             switchView(activeTab, document.getElementById('link-' + activeTab));
+        } else {
+            switchView('overview', document.getElementById('link-overview'));
         }
     }
 
-    // 4. Load Supabase Settings (Rulebook/Branding)
+    // 4. Load Supabase Settings
     try {
         const res = await fetch('/api/settings');
         const settings = await res.json();
@@ -611,21 +631,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     } catch (err) { console.error("Database load error:", err); }
 
-    // 5. Detect Shopify OAuth return
-    if (params.get('connected') === 'true') {
-        const shop = params.get('shop');
-        ST.connectedShopify = true;
-        ST.shopURL = shop; 
-        localStorage.setItem('respondro_shopify', shop); 
-        showDashboard();
+    // 5. Clean up the URL (Remove 'connected=true' so it doesn't trigger on every refresh)
+    if (isShopifyReturn) {
         setTimeout(() => {
-            syncShopifyUI();
-            // Keep the tab in the URL after Shopify connects
-            window.history.replaceState({}, '', '/respondro.html' + (activeTab ? '?tab='+activeTab : ''));
-        }, 500);
+            window.history.replaceState({}, '', '/respondro.html?tab=settings');
+        }, 1000);
     }
 
-    // 6. Original UI Init (Keep these!)
+    // 6. Original UI Init
     initTickets(); buildEmailList(); buildProviderList(); buildSignupProviders(); renderRules();
 });
 
@@ -1115,12 +1128,19 @@ function renderShopifyStep(step, url){
   }
 }
 
-function triggerShopifyOAuth(){
-  const shop = document.getElementById('shopify-url-flow').value.trim();
-  if(!shop){alert('Please enter your store URL');return;}
-  const cleanShop = shop.replace('https://','').replace('http://','').replace('/','');
-  window.location.href = `https://respondro.vercel.app/api/shopify-install?shop=${cleanShop}`;
-}function shopifyDone(url){ST.connectedShopify=true;closeModal('shopify-modal');const btn=document.getElementById('shopify-btn');if(btn){btn.style.background='rgba(0,200,150,0.1)';btn.style.color='#00C896';btn.innerHTML='✓ Shopify connected — '+url;btn.disabled=true;}const c=document.getElementById('shopify-conn-chip');if(c)c.classList.remove('hidden');showToast('Shopify connected ✓');}
+function triggerShopifyOAuth() {
+    const shopInput = document.getElementById('shopify-url-flow');
+    const shop = shopInput ? shopInput.value.trim() : "";
+    
+    if (!shop) { alert('Please enter your store URL'); return; }
+    
+    const cleanShop = shop.replace('https://', '').replace('http://', '').split('/')[0];
+    
+    // This makes the link work on both localhost and your live site automatically
+    const apiBase = window.location.origin; 
+    window.location.href = `${apiBase}/api/shopify-install?shop=${cleanShop}`;
+}
+function shopifyDone(url){ST.connectedShopify=true;closeModal('shopify-modal');const btn=document.getElementById('shopify-btn');if(btn){btn.style.background='rgba(0,200,150,0.1)';btn.style.color='#00C896';btn.innerHTML='✓ Shopify connected — '+url;btn.disabled=true;}const c=document.getElementById('shopify-conn-chip');if(c)c.classList.remove('hidden');showToast('Shopify connected ✓');}
 
 // ═══ MODAL HELPERS ═══
 function closeModal(id){document.getElementById(id).classList.remove('open');document.body.style.overflow='';document.body.style.pointerEvents='';}
