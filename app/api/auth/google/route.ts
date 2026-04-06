@@ -4,10 +4,10 @@ export async function GET() {
   const rootUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
 
   const options = {
-    // This uses your Vercel URL + the callback path we set in Google Cloud
+    // This looks for your Vercel URL in your Environment Variables
     redirect_uri: process.env.NEXT_PUBLIC_BASE_URL + '/api/auth/callback/google',
     client_id: process.env.GOOGLE_CLIENT_ID!,
-    access_type: 'offline', // Crucial: gets a Refresh Token so the AI stays logged in
+    access_type: 'offline', 
     response_type: 'code',
     prompt: 'consent',
     scope: [
