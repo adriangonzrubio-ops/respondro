@@ -346,8 +346,7 @@ select.form-input option{background:#0F1623}
             <textarea id="rulebook-text" class="form-input" style="height:140px;resize:vertical;font-family:'DM Mono',monospace;font-size:12px;line-height:1.6" placeholder="STORE: Xhale Store&#10;RETURN POLICY: 30-day returns on unopened items.&#10;SHIPPING: EU 3-5 days, International 7-14 days.&#10;ALWAYS ESCALATE: Refunds over €100, legal threats.&#10;NEVER promise delivery dates not confirmed by Shopify."></textarea>
             <div class="flex gap-2 mt-2">
               <div class="upload-zone flex-1" style="padding:16px" onclick="document.getElementById('rulebook-file').click()"><input type="file" id="rulebook-file" accept=".txt,.pdf,.doc,.docx" onchange="handleRulebookFile(this)"><p class="text-xs font-500">Upload file</p><p class="text-xs mt-1" style="color:#5A6785">TXT, PDF, DOC</p></div>
-              <button class="btn-primary btn-sm" onclick="showToast('Rulebook saved ✓')">Save rulebook</button>
-            </div>
+<button class="btn-primary btn-sm" onclick="saveRulebook()">Save rulebook</button>            </div>
           </div>
           <div id="subt-tone" class="hidden">
             <p class="text-xs mb-3" style="color:#5A6785">Paste 5-10 real CS replies you've sent. Separate each email with <code style="color:#00C896">---</code> on its own line. The AI will analyse your tone and replicate it.</p>
@@ -359,15 +358,6 @@ select.form-input option{background:#0F1623}
             <div id="tone-result-settings" class="hidden mt-3"></div>
           </div>
         </div>
-
-        <!-- API Key -->
-        <div class="settings-card">
-          <h3 class="font-display font-600 mb-1">Claude API key</h3>
-          <p class="text-xs mb-3" style="color:#5A6785">Get your key at <span style="color:#00C896">console.anthropic.com</span> — without it the inbox runs in demo mode.</p>
-          <div class="flex gap-2"><input type="password" id="api-key-input" class="form-input flex-1" placeholder="sk-ant-api03-..."><button class="btn-primary btn-sm" onclick="saveApiKey()">Save</button></div>
-          <div class="flex items-center gap-2 mt-2" id="api-key-indicator"><div class="api-dot" style="background:#3A4760"></div><span class="text-xs" style="color:#5A6785">No key — demo mode</span></div>
-        </div>
-      </div>
 
     </div>
   </div>
@@ -715,8 +705,28 @@ function analyzeToneSettings(){
   result.innerHTML=`<div class="rounded-xl p-4" style="background:#080D1A;border:1px solid rgba(255,255,255,0.07)"><div class="flex items-center gap-3"><div class="spinner"></div><span class="text-sm" style="color:#5A6785">Analysing tone...</span></div></div>`;
   setTimeout(()=>{result.innerHTML=buildToneResultHTML();},2200);
 }
-function handleRulebookFile(input){if(input.files[0]){const r=new FileReader();r.onload=e=>{const t=document.getElementById('rulebook-text');if(t)t.value=e.target.result.slice(0,2000);};r.readAsText(input.files[0]);showToast('Rulebook file loaded ✓');}}
-function handleSignupRulebookFile(input){if(input.files[0]){const r=new FileReader();r.onload=e=>{const t=document.getElementById('s-rulebook');if(t)t.value=e.target.result.slice(0,2000);};r.readAsText(input.files[0]);showToast('File loaded ✓');}}
+function handleRulebookFile(input){
+  if(!input.files[0])return;
+  const file=input.files[0];
+  const reader=new FileReader();
+  reader.onload=async(e)=>{
+    const text=e.target.result;
+    const t=document.getElementById('rulebook-text');
+    if(t)t.value=text.slice(0,3000);
+    showToast('Rulebook file loaded ✓ — click Save rulebook to apply');
+  };
+  reader.readAsText(file);
+}
+function handleSignupRulebookFile(input){
+  if(!input.files[0])return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const t=document.getElementById('s-rulebook');
+    if(t)t.value=e.target.result.slice(0,3000);
+  };
+  reader.readAsText(input.files[0]);
+  showToast('File loaded ✓');
+}
 function handleToneFile(input){if(input.files.length){let combined='';Array.from(input.files).forEach((f,i)=>{const r=new FileReader();r.onload=e=>{combined+=(i>0?'\n---\n':'')+e.target.result;const t=document.getElementById('tone-emails-text');if(t)t.value=combined;};r.readAsText(f);});showToast(input.files.length+' file(s) loaded ✓');}}
 
 // ═══ DASHBOARD ═══
@@ -739,6 +749,11 @@ function switchView(name,el){
 // ═══ API KEY ═══
 function saveApiKey(){const k=document.getElementById('api-key-input').value.trim();if(!k){alert('Please enter a key');return;}sessionStorage.setItem('respondro_apikey',k);ST.apiKey=k;updateApiStatusUI();document.getElementById('api-key-indicator').innerHTML='<div class="api-dot" style="background:#00C896"></div><span class="text-xs" style="color:#00C896">API key saved ✓ — Live mode</span>';showToast('API key saved ✓');}
 function updateApiStatusUI(){const h=!!ST.apiKey;const d=document.getElementById('api-dot'),t=document.getElementById('api-status-txt');if(d)d.style.background=h?'#00C896':'#3A4760';if(t){t.textContent=h?'Live — Claude API':'Demo mode';t.style.color=h?'#00C896':'#5A6785';}const ii=document.getElementById('inbox-api-indicator');if(ii)ii.innerHTML=`<div class="api-dot" style="background:${h?'#00C896':'#3A4760'}"></div><span style="color:${h?'#00C896':'#5A6785'}">${h?'Live':'Demo'}</span>`;}
+async function saveRulebook(){
+  const text=document.getElementById('rulebook-text')?.value.trim();
+  if(!text){showToast('Please add rulebook content first');return;}
+  showToast('Rulebook saved ✓');
+}
 
 // ═══ RULES ═══
 const RULE_CATS={refund:'Refund rules',shipping:'Shipping rules',discount:'Discount & compensation',escalation:'Escalation rules',tone:'Tone & style',response:'Response templates',other:'Other rules'};
@@ -837,16 +852,34 @@ function markEmailConnected(id,name){ST.connectedEmail=true;const s=document.get
 
 // ═══ SHOPIFY SETTINGS MODAL ═══
 function openShopifyConnect(){
-  document.getElementById('shopify-modal').classList.add('open');document.body.style.overflow='hidden';
+  document.getElementById('shopify-modal').classList.add('open');
+  document.body.style.overflow='hidden';
   renderShopifyStep(0,'');
 }
-function renderShopifyStep(step,url){
+
+function renderShopifyStep(step, url){
   const c=document.getElementById('shopify-modal-content');
-  if(step===0){c.innerHTML=`<div class="flex items-center gap-3 mb-4"><div class="w-10 h-10 rounded-xl flex items-center justify-center font-700" style="background:#00806022;color:#008060">S</div><div><div class="font-display font-700 text-lg">Connect Shopify</div><div class="text-xs" style="color:#5A6785">One-click OAuth approval</div></div></div><label class="form-label">Your store URL</label><input type="text" id="smurl" class="form-input mb-4" placeholder="yourstore.myshopify.com"><button class="w-full flex items-center justify-center gap-2 rounded-xl py-3 mb-2 font-700 text-sm" style="background:#008060;color:#fff;border:none;cursor:pointer;font-family:'Syne',sans-serif" onclick="renderShopifyStep(1,document.getElementById('smurl').value.trim()||'yourstore')"><span>●</span>Install Respondro on Shopify →</button><p class="text-xs text-center" style="color:#3A4760">Requests: read_orders, write_orders, read_products</p>`;}
-  else if(step===1){c.innerHTML=`<p class="text-xs font-mono mb-3" style="color:#3A4760">Simulated Shopify permission screen</p><div style="background:#F6F6F7;border-radius:12px;overflow:hidden;font-size:13px;color:#202223"><div style="background:#008060;padding:12px 16px;color:white;font-weight:600;display:flex;gap:8px;align-items:center"><span style="font-size:15px">●</span>${url}.myshopify.com</div><div style="padding:20px"><div style="display:flex;gap:12px;align-items:center;margin-bottom:14px"><div style="width:40px;height:40px;border-radius:8px;background:#e6f9f4;display:flex;align-items:center;justify-content:center;font-weight:700;color:#008060">R</div><div><div style="font-weight:600">Respondro</div><div style="font-size:12px;color:#6B7280">respondro.io</div></div></div><div style="font-size:13px;font-weight:600;margin-bottom:8px">Respondro would like to:</div><ul style="font-size:12px;color:#374151;line-height:2.1;margin-bottom:16px;list-style:none"><li>✓ View orders and customers</li><li>✓ Manage returns and refunds</li><li>✓ Read product information</li></ul><button onclick="renderShopifyStep(2,'${url}')" style="width:100%;background:#008060;color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:600;cursor:pointer">Install app</button><button onclick="closeModal('shopify-modal')" style="width:100%;background:transparent;color:#6B7280;border:none;padding:8px;font-size:12px;cursor:pointer;margin-top:6px">Decline</button></div></div>`;}
-  else{c.innerHTML=`<div class="text-center py-3"><div style="font-size:44px;margin-bottom:12px">🎉</div><h3 class="font-display font-700 text-xl mb-2" style="color:#00C896">Shopify connected!</h3><p class="text-sm mb-5" style="color:#5A6785"><strong>${url}.myshopify.com</strong> is connected. Live order data, tracking numbers, and refund capabilities are now active.</p><div class="rounded-xl p-3 mb-4 text-left" style="background:rgba(0,200,150,0.06);border:1px solid rgba(0,200,150,0.15)"><div class="text-xs font-mono mb-1" style="color:#00C896">Active permissions</div><div class="text-xs" style="color:#8B96B0">✓ read_orders &nbsp; ✓ write_orders &nbsp; ✓ read_products</div></div><button class="btn-primary w-full justify-center" onclick="shopifyDone('${url}')">Done</button></div>`;}
+  if(step===0){
+    c.innerHTML=`
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center font-700" style="background:#00806022;color:#008060">S</div>
+        <div><div class="font-display font-700 text-lg">Connect Shopify</div><div class="text-xs" style="color:#5A6785">One-click OAuth — approve in Shopify, that's it</div></div>
+      </div>
+      <label class="form-label">Your store URL</label>
+      <input type="text" id="shopify-url-flow" class="form-input mb-4" placeholder="yourstore.myshopify.com">
+      <button class="w-full flex items-center justify-center gap-3 rounded-xl py-3 mb-2 font-700 text-sm" style="background:#008060;color:#fff;border:none;cursor:pointer;font-family:'Syne',sans-serif" onclick="triggerShopifyOAuth()">
+        <span>●</span> Install Respondro on Shopify →
+      </button>
+      <p class="text-xs text-center" style="color:#3A4760">You'll be redirected to Shopify to approve — takes 30 seconds</p>`;
+  }
 }
-function shopifyDone(url){ST.connectedShopify=true;closeModal('shopify-modal');const btn=document.getElementById('shopify-btn');if(btn){btn.style.background='rgba(0,200,150,0.1)';btn.style.color='#00C896';btn.innerHTML='✓ Shopify connected — '+url;btn.disabled=true;}const c=document.getElementById('shopify-conn-chip');if(c)c.classList.remove('hidden');showToast('Shopify connected ✓');}
+
+function triggerShopifyOAuth(){
+  const shop = document.getElementById('shopify-url-flow').value.trim();
+  if(!shop){alert('Please enter your store URL');return;}
+  const cleanShop = shop.replace('https://','').replace('http://','').replace('/','');
+  window.location.href = `https://respondro.vercel.app/api/shopify-install?shop=${cleanShop}`;
+}function shopifyDone(url){ST.connectedShopify=true;closeModal('shopify-modal');const btn=document.getElementById('shopify-btn');if(btn){btn.style.background='rgba(0,200,150,0.1)';btn.style.color='#00C896';btn.innerHTML='✓ Shopify connected — '+url;btn.disabled=true;}const c=document.getElementById('shopify-conn-chip');if(c)c.classList.remove('hidden');showToast('Shopify connected ✓');}
 
 // ═══ MODAL HELPERS ═══
 function closeModal(id){document.getElementById(id).classList.remove('open');document.body.style.overflow='';}
