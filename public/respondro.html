@@ -582,6 +582,21 @@ document.addEventListener('DOMContentLoaded',()=>{
   const saved=localStorage.getItem('respondro_user');
   if(saved){ST.user=JSON.parse(saved);ST.storeName=localStorage.getItem('respondro_store')||'My Store';ST.apiKey=sessionStorage.getItem('respondro_apikey')||'';showDashboard();}
   initTickets();buildEmailList();buildProviderList();buildSignupProviders();renderRules();
+  // Detect Shopify OAuth return
+const urlParams = new URLSearchParams(window.location.search);
+if(urlParams.get('connected')==='true'){
+  const shop=urlParams.get('shop');
+  ST.connectedShopify=true;
+  showDashboard();
+  setTimeout(()=>{
+    const btn=document.getElementById('shopify-btn');
+    if(btn){btn.textContent='✓ Shopify connected';btn.style.background='#00C896';}
+    const chip=document.getElementById('shopify-conn-chip');
+    if(chip)chip.classList.remove('hidden');
+    showToast('Shopify connected ✓ — store data is syncing');
+    window.history.replaceState({},'','/respondro.html');
+  },500);
+}
 });
 
 // ═══ AUTH ═══
