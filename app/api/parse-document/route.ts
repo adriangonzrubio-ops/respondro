@@ -24,7 +24,8 @@ export async function POST(request: Request) {
 
     if (file.name.toLowerCase().endsWith('.pdf')) {
       // 2. NOW dynamically load the untouched package safely AFTER the polyfills exist
-      const pdfModule = await import('pdf-parse');
+// Cast the imported module as 'any' to stop TypeScript from complaining
+      const pdfModule = (await import('pdf-parse')) as any;
       // Safely unwrap it just in case Next.js packaged it weirdly
       const parsePdf = pdfModule.default || pdfModule;
       
