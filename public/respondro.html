@@ -915,7 +915,18 @@ function openProviderModal(p){
     <button class="btn-primary w-full justify-center mt-4" onclick="simulateImap('${p.id}','${p.name}')">Connect ${p.name}</button>`;
   }
 }
-function simulateOAuth(id,name){document.getElementById('op1').classList.add('hidden');document.getElementById('op2').classList.remove('hidden');markEmailConnected(id,name);}
+function simulateOAuth(id, name) {
+  if (id === 'gmail') {
+    // This sends the user to the real backend route we built
+    window.location.href = '/api/auth/google';
+    return;
+  }
+  
+  // Keep the "fake" logic for other providers like Outlook/Apple for now
+  document.getElementById('op1').classList.add('hidden');
+  document.getElementById('op2').classList.remove('hidden');
+  markEmailConnected(id, name);
+}
 function simulateImap(id,name){closeModal('provider-modal');markEmailConnected(id,name);showToast(name+' connected ✓');}
 function markEmailConnected(id,name){ST.connectedEmail=true;const s=document.getElementById('pconn-'+id);if(s)s.style.display='';const c=document.getElementById('email-conn-chip');if(c){c.classList.remove('hidden');c.textContent='✓ '+name;}}
 
