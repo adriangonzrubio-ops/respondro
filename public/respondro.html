@@ -603,7 +603,14 @@ document.getElementById('auth-modal').style.display='none';
 });
 
 // ═══ AUTH ═══
-function openAuth(tab){const m=document.getElementById('auth-modal');m.style.display='flex';switchAuthTab(tab);document.body.style.overflow='hidden';}
+function openAuth(tab){
+  const m=document.getElementById('auth-modal');
+  const box=m.querySelector('.modal-box');
+  m.style.cssText='display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center;';
+  if(box)box.style.cssText='background:#0F1623;border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:32px;width:100%;max-width:440px;position:relative;';
+  switchAuthTab(tab);
+  document.body.style.overflow='hidden';
+}
 function closeAuth(){const m=document.getElementById('auth-modal');m.style.display='none';document.body.style.overflow='';}
 function switchAuthTab(t){
 document.getElementById('auth-login').classList.toggle('hidden',t!=='login');
