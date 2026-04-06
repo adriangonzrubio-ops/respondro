@@ -295,7 +295,7 @@ select.form-input option{background:#0F1623}
       </div>
 
       <!-- KANBAN -->
-      <div id="view-kanban" class="p-6 hidden">
+<div id="view-review-board" class="p-6 hidden"></div>
         <div class="mb-5"><h2 class="font-display font-700 text-xl mb-1">Review board</h2><p class="text-sm" style="color:#5A6785">Edge cases needing your judgement. Use ← → or drag to move tickets freely.</p></div>
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-4">
       <div class="space-y-4">
@@ -418,6 +418,7 @@ select.form-input option{background:#0F1623}
               <button id="analyze-tone-btn" class="btn-primary btn-sm" onclick="analyzeTone()">Analyse tone</button>
             </div>
             <div id="tone-result-settings" class="hidden mt-3"></div>
+</div>
 </div>
   </div>
 </div>
@@ -1502,6 +1503,38 @@ async function sendSettings(settings) {
         alert("Failed to connect to the server.");
     }
 }
+// 1. The Navigation Function
+function showView(viewId) {
+    // Hide all main view containers
+    // (Ensure your views have IDs like 'view-overview', 'view-settings', etc.)
+    const views = ['overview', 'inbox', 'review-board', 'rules', 'settings'];
+    
+    views.forEach(v => {
+        const el = document.getElementById('view-' + v);
+        if (el) el.classList.add('hidden');
+    });
+
+    // Show the selected view
+    const targetView = document.getElementById('view-' + viewId);
+    if (targetView) targetView.classList.remove('hidden');
+
+    // Update the URL without reloading the page
+    const url = new URL(window.location);
+    url.searchParams.set('tab', viewId);
+    window.history.pushState({}, '', url);
+}
+
+// 2. Updated Load Logic (Update your existing DOMContentLoaded listener)
+document.addEventListener('DOMContentLoaded', async () => {
+    // Check URL for saved tab
+    const params = new URLSearchParams(window.location.search);
+    const activeTab = params.get('tab') || 'overview'; // Default to overview
+    
+    // Switch to the correct tab immediately
+    showView(activeTab);
+
+    // ... existing fetch('/api/settings') code ...
+});
 
 </script>
 <div id="review-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
