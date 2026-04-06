@@ -604,15 +604,32 @@ document.body.appendChild(document.getElementById('auth-modal'));
 });
 
 // ═══ AUTH ═══
-function openAuth(tab){
-  const m=document.getElementById('auth-modal');
-  const box=m.querySelector('.modal-box');
-  m.style.cssText='display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center;';
-  if(box)box.style.cssText='background:#0F1623;border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:32px;width:100%;max-width:440px;position:relative;';
-  switchAuthTab(tab);
-  document.body.style.overflow='hidden';
+function openAuth(tab) {
+    const m = document.getElementById('auth-modal');
+    
+    // Show the flex container, then trigger the fade-in class
+    m.style.display = 'flex'; 
+    setTimeout(() => {
+        m.classList.add('open');
+    }, 10);
+
+    switchAuthTab(tab);
+    document.body.style.overflow = 'hidden';
 }
-function closeAuth(){const m=document.getElementById('auth-modal');m.style.display='none';document.body.style.overflow='';}
+
+function closeAuth() {
+    const m = document.getElementById('auth-modal');
+    
+    // Remove the class so it fades out, then hide it after the transition
+    m.classList.remove('open');
+    document.body.style.overflow = '';
+
+    setTimeout(() => {
+        if (!m.classList.contains('open')) {
+            m.style.display = 'none';
+        }
+    }, 250);
+}
 function switchAuthTab(t){
 document.getElementById('auth-login').classList.toggle('hidden',t!=='login');
   document.getElementById('auth-signup').classList.toggle('hidden',t!=='signup');
