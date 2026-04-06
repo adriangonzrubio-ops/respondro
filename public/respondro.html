@@ -408,9 +408,10 @@ select.form-input option{background:#0F1623}
               <button id="analyze-tone-btn" class="btn-primary btn-sm" onclick="analyzeTone()">Analyse tone</button>
             </div>
             <div id="tone-result-settings" class="hidden mt-3"></div>
-          </div>
-        </div>
-
+</div>
+  </div>
+</div>
+</div>
 <!-- TICKET PANEL -->
 <div id="ticket-panel">
   <div class="p-4 border-b" style="border-color:rgba(255,255,255,0.07)">
@@ -1355,7 +1356,7 @@ async function handleRulebookUpload(event) {
     btnText.innerHTML = originalHTML;
   }
   }
-}
+
 
 async function handleToneScreenshot(event) {
   const file = event.target.files[0];
