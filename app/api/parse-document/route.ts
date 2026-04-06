@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
 
-// 1. Tell Next.js NOT to pre-build this specific route
 export const dynamic = 'force-dynamic';
+
+// 🛠️ THE FIX: Trick the server into thinking browser features exist
+if (typeof global !== 'undefined') {
+  if (!global.DOMMatrix) global.DOMMatrix = class DOMMatrix {} as any;
+  if (!global.Path2D) global.Path2D = class Path2D {} as any;
+}
 
 export async function POST(request: Request) {
   try {
-    // 2. Move the import INSIDE the function so it only runs on the actual server request
     const pdf = require('pdf-parse');
 
     const formData = await request.formData();
@@ -33,8 +37,9 @@ export async function POST(request: Request) {
     // Send the extracted text back to the frontend
     return NextResponse.json({ text: extractedText });
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error parsing document:', error);
-    return NextResponse.json({ error: 'Failed to parse document' }, { status: 500 });
+    // Let's also send the exact error message back just in case!
+    return NextResponse.json({ error: error.message || 'Failed to parse document' }, { status: 500 });
   }
 }
