@@ -327,7 +327,19 @@ select.form-input option{background:#0F1623}
                 <button onclick="saveSignature()" class="btn-primary w-full justify-center">Save Branding</button>
             </div>
         </div>
-
+<div class="settings-card mb-6">
+    <div class="flex items-center justify-between mb-3">
+        <h3 class="font-display font-600">Shopify</h3>
+        <span id="shopify-conn-chip" class="hidden bg-emerald-500/10 text-emerald-500 text-[10px] font-bold px-2 py-1 rounded-full border border-emerald-500/20">
+            ✓ Connected
+        </span>
+    </div>
+    <p class="text-xs mb-4" style="color: #5A6785;">Connect your store to fetch live order data and automate refunds.</p>
+    
+    <button id="shopify-btn" class="btn-primary w-full" onclick="connectShopify()">
+        Connect with Shopify
+    </button>
+</div>
         <div class="settings-card">
             <h3 class="font-display font-600 mb-1">AI setup</h3>
             <p class="text-xs mb-3" style="color: #5A6785;">Rulebook and tone training - update anytime.</p>
@@ -1080,7 +1092,7 @@ function closeReviewModal() {
 }
 window.addEventListener('load', syncDashboardData);
 // ═══ SHOPIFY SETTINGS MODAL ═══
-function openShopifyConnect(){
+function connectShopify(){
   document.getElementById('shopify-modal').classList.add('open');
   document.body.style.overflow='hidden';
   renderShopifyStep(0,'');
