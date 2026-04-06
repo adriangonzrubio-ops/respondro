@@ -359,36 +359,57 @@ select.form-input option{background:#0F1623}
           <p class="text-xs mb-3" style="color:#5A6785">Click a provider to connect. OAuth providers connect in one click.</p>
           <div class="grid grid-cols-1 gap-2" id="provider-list"></div>
         </div>
-
-        <!-- Rulebook & Tone -->
-        <div class="settings-card">
+<div class="settings-card mt-6">
+      <h3 class="font-display font-600 mb-4 text-white">Email Branding & Signature</h3>
+      <div class="space-y-4">
+        <div>
+          <label class="form-label">Store Logo URL</label>
+          <input type="text" id="sig-logo-url" class="form-input" placeholder="https://yourstore.com/logo.png">
+        </div>
+        <div>
+          <label class="form-label">Logo Width (px)</label>
+          <input type="number" id="sig-logo-width" class="form-input" placeholder="120" value="120">
+        </div>
+        <div>
+          <label class="form-label">Default Email Signature</label>
+          <textarea id="sig-text" class="form-input min-h-[100px]" placeholder="Best regards,&#10;The Xhale Support Team"></textarea>
+        </div>
+        <button onclick="saveSignature()" class="btn-primary w-full justify-center">Save Branding</button>
+      </div>
+    </div>
+<div class="settings-card">
           <h3 class="font-display font-600 mb-1">AI setup</h3>
-          <p class="text-xs mb-3" style="color:#5A6785">Rulebook and tone training — update anytime.</p>
+          <p class="text-xs mb-3" style="color:#5A6785">Rulebook and tone training - update anytime.</p>
           <div class="flex gap-1 mb-4" style="background:#080D1A;border-radius:10px;padding:3px">
             <button class="sub-tab active" id="st-rulebook" onclick="switchSubTab('rulebook')">Rulebook</button>
             <button class="sub-tab" id="st-tone" onclick="switchSubTab('tone')">Tone examples</button>
           </div>
+          
           <div id="subt-rulebook">
             <p class="text-xs mb-2" style="color:#5A6785">Policies, shipping info, what to always/never do. The AI follows this for every reply.</p>
-            <textarea id="rulebook-text" class="form-input" style="height:140px;resize:vertical;font-family:'DM Mono',monospace;font-size:12px;line-height:1.6" placeholder="STORE: Xhale Store&#10;RETURN POLICY: 30-day returns on unopened items.&#10;SHIPPING: EU 3-5 days, International 7-14 days.&#10;ALWAYS ESCALATE: Refunds over €100, legal threats.&#10;NEVER promise delivery dates not confirmed by Shopify."></textarea>
+            <textarea id="rulebook-text" class="form-input" style="height:140px;resize:vertical;font-family:'DM Mono',monospace;font-size:12px;"></textarea>
             <div class="flex gap-2 mt-2">
-              <div class="upload-zone flex-1" style="padding:16px" onclick="document.getElementById('rulebook-file').click()"><input type="file" id="rulebook-file" accept=".txt,.pdf,.doc,.docx" onchange="handleRulebookFile(this)"><p class="text-xs font-500">Upload file</p><p class="text-xs mt-1" style="color:#5A6785">TXT, PDF, DOC</p></div>
-<button class="btn-primary btn-sm" onclick="saveRulebook()">Save rulebook</button>            </div>
+              <div class="upload-zone flex-1" style="padding:16px; cursor:pointer;" onclick="document.getElementById('rulebook-file').click()">
+                <span class="text-xs text-gray-400">Upload file (TXT, PDF, DOC)</span>
+                <input type="file" id="rulebook-file" class="hidden" onchange="handleRulebookUpload(event)" accept=".pdf,.txt,.docx">
+              </div>
+              <button class="btn-primary btn-sm" onclick="saveRulebook()">Save rulebook</button>
+            </div>
           </div>
+
           <div id="subt-tone" class="hidden">
-            <p class="text-xs mb-3" style="color:#5A6785">Paste 5-10 real CS replies you've sent. Separate each email with <code style="color:#00C896">---</code> on its own line. The AI will analyse your tone and replicate it.</p>
-            <textarea id="tone-emails-text" class="form-input" style="height:160px;resize:vertical;font-family:'DM Mono',monospace;font-size:12px;line-height:1.5" placeholder="Hi Sarah,&#10;&#10;Thanks for reaching out! Your order shipped yesterday via DHL...&#10;&#10;Best,&#10;Sam&#10;&#10;---&#10;&#10;Hi Tom,&#10;&#10;Absolutely, we ship to Germany! Standard shipping is €8.95...&#10;&#10;Cheers,&#10;Sam"></textarea>
+            <p class="text-xs mb-3" style="color:#5A6785">Paste 5-10 real CS replies you've sent. The AI will analyse your tone and replicate it.</p>
+            <textarea id="tone-textarea" class="form-input" style="height:160px;resize:vertical;font-family:'DM Mono',monospace;font-size:12px;"></textarea>
             <div class="flex gap-2 mt-2">
-              <div class="upload-zone flex-1" style="padding:16px" onclick="document.getElementById('tone-file').click()"><input type="file" id="tone-file" accept=".txt,.eml" multiple onchange="handleToneFile(this)"><p class="text-xs font-500">Upload email files</p><p class="text-xs mt-1" style="color:#5A6785">TXT or .eml — multiple files ok</p></div>
-              <button class="btn-primary btn-sm" onclick="analyzeToneSettings()">Analyse tone</button>
+              <div class="upload-zone flex-1" style="padding:16px; cursor:pointer;" onclick="document.getElementById('tone-file').click()">
+                <span class="text-xs text-gray-400">Upload image screenshot</span>
+                <input type="file" id="tone-file" class="hidden" onchange="handleToneScreenshot(event)" accept="image/*">
+              </div>
+              <button id="analyze-tone-btn" class="btn-primary btn-sm" onclick="analyzeTone()">Analyse tone</button>
             </div>
             <div id="tone-result-settings" class="hidden mt-3"></div>
           </div>
         </div>
-
-    </div>
-  </div>
-</div>
 
 <!-- TICKET PANEL -->
 <div id="ticket-panel">
@@ -1287,6 +1308,99 @@ function syncShopifyUI() {
     }
   }
 }
+
+// --- SIGNATURE SETTINGS ---
+function saveSignature() {
+  const url = document.getElementById('sig-logo-url').value;
+  const width = document.getElementById('sig-logo-width').value;
+  const text = document.getElementById('sig-text').value;
+  
+  localStorage.setItem('respondro_signature', JSON.stringify({ url, width, text }));
+  
+  const btn = event.target;
+  const originalText = btn.innerText;
+  btn.innerText = "Saved!";
+  btn.classList.add('bg-emerald-500');
+  setTimeout(() => { btn.innerText = originalText; btn.classList.remove('bg-emerald-500'); }, 2000);
+}
+
+// --- AI SETUP: RULEBOOK & TONE ---
+async function handleRulebookUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const btnText = event.target.parentElement.querySelector('span');
+  const originalHTML = btnText.innerHTML;
+  btnText.innerHTML = `<span class="text-emerald-400 animate-pulse">Parsing ${file.name}...</span>`;
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch('/api/parse-document', { method: 'POST', body: formData });
+    const data = await res.json();
+    
+    if (data.text) {
+      const textarea = document.getElementById('rulebook-text');
+      textarea.value += `\n\n--- Rules extracted from ${file.name} ---\n` + data.text;
+      btnText.innerHTML = `<span class="text-emerald-400">Successfully added!</span>`;
+    } else {
+      alert("Frontend wired! Need backend API route.");
+      btnText.innerHTML = originalHTML;
+    }
+  } catch(e) {
+    console.error(e);
+    alert("Frontend wired! Need to build the /api/parse-document route.");
+    btnText.innerHTML = originalHTML;
+  }
+}
+
+async function handleToneScreenshot(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const btnText = event.target.parentElement.querySelector('span');
+  btnText.innerText = `Image selected: ${file.name}`;
+
+  const reader = new FileReader();
+  reader.readAsDataURL(file);
+  reader.onload = async () => {
+    window.lastUploadedScreenshot = reader.result;
+  };
+}
+
+async function analyzeTone() {
+  if (!window.lastUploadedScreenshot) {
+    alert("Please upload a screenshot first!");
+    return;
+  }
+
+  const btn = document.getElementById('analyze-tone-btn');
+  const originalText = btn.innerText;
+  btn.innerText = "Claude is analyzing...";
+  btn.classList.add('animate-pulse');
+
+  try {
+    const res = await fetch('/api/analyze-tone', { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: window.lastUploadedScreenshot }) 
+    });
+    
+    const data = await res.json();
+    if (data.tone) {
+      document.getElementById('tone-textarea').value = data.tone;
+    } else {
+      alert('Frontend wired! Need to build the /api/analyze-tone route next.');
+    }
+  } catch(e) {
+    console.error(e);
+  }
+  
+  btn.innerText = originalText;
+  btn.classList.remove('animate-pulse');
+}
+
 </script>
 <div id="review-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
   <div class="bg-[#0A0A0A] border border-white/10 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
