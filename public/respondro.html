@@ -563,43 +563,60 @@ const ST={user:null,storeName:'My Store',apiKey:'',tickets:[],activeTicket:null,
 let dragId=null,editingRuleId=null;
 
 // ═══ INIT ═══
-document.addEventListener('DOMContentLoaded',()=>{
-  const obs=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible')}),{threshold:0.1});
-  document.querySelectorAll('.fade-up').forEach(el=>obs.observe(el));
-  const nb=document.getElementById('navbar');
-  if(nb)window.addEventListener('scroll',()=>nb.classList.toggle('nav-scrolled',window.scrollY>60));
-// 1. Check for saved user AND saved Shopify store
-  const saved = localStorage.getItem('respondro_user');
-  if (saved) {
-    ST.user = JSON.parse(saved);
-    ST.storeName = localStorage.getItem('respondro_store') || 'My Store';
-    ST.apiKey = sessionStorage.getItem('respondro_apikey') || '';
+document.addEventListener('DOMContentLoaded', async () => {
+    // 1. UI Animations
+    const obs = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible') }), { threshold: 0.1 });
+    document.querySelectorAll('.fade-up').forEach(el => obs.observe(el));
     
-    const savedShopify = localStorage.getItem('respondro_shopify');
-    if (savedShopify) {
-      ST.connectedShopify = true;
-      ST.shopURL = savedShopify;
+    // 2. Memory: Check URL for a saved tab (e.g., ?tab=settings)
+    const params = new URLSearchParams(window.location.search);
+    const activeTab = params.get('tab');
+
+    // 3. Auth & State Loading
+    const saved = localStorage.getItem('respondro_user');
+    if (saved) {
+        ST.user = JSON.parse(saved);
+        ST.storeName = localStorage.getItem('respondro_store') || 'My Store';
+        const savedShopify = localStorage.getItem('respondro_shopify');
+        if (savedShopify) { ST.connectedShopify = true; ST.shopURL = savedShopify; }
+        
+        showDashboard();
+        
+        // This is the magic part: if the URL has a tab, switch to it!
+        if (activeTab) {
+            switchView(activeTab, document.getElementById('link-' + activeTab));
+        }
     }
-    showDashboard();
-  }
 
-  // 2. Initialize the UI lists
-  initTickets(); buildEmailList(); buildProviderList(); buildSignupProviders(); renderRules();
+    // 4. Load Supabase Settings (Logo/Rulebook)
+    try {
+        const res = await fetch('/api/settings');
+        const settings = await res.json();
+        if (settings) {
+            if (document.getElementById('rulebook-text')) document.getElementById('rulebook-text').value = settings.rulebook || '';
+            if (document.getElementById('sig-logo-url')) document.getElementById('sig-logo-url').value = settings.logo_url || '';
+            if (document.getElementById('sig-logo-width')) document.getElementById('sig-logo-width').value = settings.logo_width || '120';
+            if (document.getElementById('sig-text')) document.getElementById('sig-text').value = settings.signature || '';
+        }
+    } catch (err) { console.error("Database load error:", err); }
 
-  // 3. Detect Shopify OAuth return
-  const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('connected') === 'true') {
-    const shop = urlParams.get('shop');
-    ST.connectedShopify = true;
-    ST.shopURL = shop; 
-    localStorage.setItem('respondro_shopify', shop); 
-    
-    showDashboard();
-    
-    setTimeout(() => {
-      syncShopifyUI(); // We will add this function next
-      showToast('Shopify connected ✓ — store data is syncing');
-      window.history.replaceState({}, '', '/respondro.html');
+    // 5. Detect Shopify OAuth return (Your existing logic)
+    if (params.get('connected') === 'true') {
+        const shop = params.get('shop');
+        ST.connectedShopify = true;
+        ST.shopURL = shop; 
+        localStorage.setItem('respondro_shopify', shop); 
+        showDashboard();
+        setTimeout(() => {
+            syncShopifyUI();
+            window.history.replaceState({}, '', '/respondro.html' + (activeTab ? '?tab='+activeTab : ''));
+        }, 500);
+    }
+
+    // 6. Original UI Init
+    initTickets(); buildEmailList(); buildProviderList(); buildSignupProviders(); renderRules();
+});
+
     }, 500);
   }
 document.getElementById('auth-modal').addEventListener('click',function(e){if(e.target===this)closeAuth();});
@@ -796,12 +813,25 @@ function showDashboard(){
   renderRules();
   renderOverviewRules();
 }
-function switchView(name,el){
-  document.querySelectorAll('.sidebar-item').forEach(s=>s.classList.remove('active'));
-  if(el)el.classList.add('active');
-  document.querySelectorAll('#main-content > div').forEach(v=>v.classList.add('hidden'));
-  const v=document.getElementById('view-'+name);if(v)v.classList.remove('hidden');
-  if(name==='rules')renderRules();
+function switchView(name, el) {
+    // 1. Handle Sidebar Highlighting
+    document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active', 'bg-white/10', 'text-white'));
+    
+    // Find the link either by the clicked element or by its ID (crucial for refresh!)
+    const targetLink = el || document.getElementById('link-' + name);
+    if (targetLink) targetLink.classList.add('active', 'bg-white/10', 'text-white');
+
+    // 2. Switch the Views
+    document.querySelectorAll('#main-content > div').forEach(v => v.classList.add('hidden'));
+    const v = document.getElementById('view-' + name);
+    if (v) v.classList.remove('hidden');
+
+    // 3. Update the URL Memory (This fixes the refresh reset)
+    const url = new URL(window.location);
+    url.searchParams.set('tab', name);
+    window.history.pushState({}, '', url);
+
+    if (name === 'rules') renderRules();
 }
 
 // ═══ API KEY ═══
