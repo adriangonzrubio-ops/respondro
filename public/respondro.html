@@ -582,25 +582,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         showDashboard();
         
-        // This is the magic part: if the URL has a tab, switch to it!
+        // Open the tab from the URL if it exists
         if (activeTab) {
             switchView(activeTab, document.getElementById('link-' + activeTab));
         }
     }
 
-    // 4. Load Supabase Settings (Logo/Rulebook)
+    // 4. Load Supabase Settings (Rulebook/Branding)
     try {
         const res = await fetch('/api/settings');
         const settings = await res.json();
         if (settings) {
             if (document.getElementById('rulebook-text')) document.getElementById('rulebook-text').value = settings.rulebook || '';
             if (document.getElementById('sig-logo-url')) document.getElementById('sig-logo-url').value = settings.logo_url || '';
-            if (document.getElementById('sig-logo-width')) document.getElementById('sig-logo-width').value = settings.logo_width || '120';
             if (document.getElementById('sig-text')) document.getElementById('sig-text').value = settings.signature || '';
         }
     } catch (err) { console.error("Database load error:", err); }
 
-    // 5. Detect Shopify OAuth return (Your existing logic)
+    // 5. Detect Shopify OAuth return
     if (params.get('connected') === 'true') {
         const shop = params.get('shop');
         ST.connectedShopify = true;
@@ -609,21 +608,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         showDashboard();
         setTimeout(() => {
             syncShopifyUI();
+            // Keep the tab in the URL after Shopify connects
             window.history.replaceState({}, '', '/respondro.html' + (activeTab ? '?tab='+activeTab : ''));
         }, 500);
     }
 
-    // 6. Original UI Init
+    // 6. Original UI Init (Keep these!)
     initTickets(); buildEmailList(); buildProviderList(); buildSignupProviders(); renderRules();
 });
 
-    }, 500);
-  }
 document.getElementById('auth-modal').addEventListener('click',function(e){if(e.target===this)closeAuth();});
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeAuth();});
 document.getElementById('auth-modal').style.display='none';
 document.body.appendChild(document.getElementById('auth-modal'));
-});
 
 // ═══ AUTH ═══
 function openAuth(tab) {
@@ -817,7 +814,6 @@ function switchView(name, el) {
     // 1. Handle Sidebar Highlighting
     document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active', 'bg-white/10', 'text-white'));
     
-    // Find the link either by the clicked element or by its ID (crucial for refresh!)
     const targetLink = el || document.getElementById('link-' + name);
     if (targetLink) targetLink.classList.add('active', 'bg-white/10', 'text-white');
 
@@ -826,14 +822,13 @@ function switchView(name, el) {
     const v = document.getElementById('view-' + name);
     if (v) v.classList.remove('hidden');
 
-    // 3. Update the URL Memory (This fixes the refresh reset)
+    // 3. Update the URL Memory
     const url = new URL(window.location);
     url.searchParams.set('tab', name);
     window.history.pushState({}, '', url);
 
     if (name === 'rules') renderRules();
 }
-
 // ═══ API KEY ═══
 function saveApiKey(){const k=document.getElementById('api-key-input').value.trim();if(!k){alert('Please enter a key');return;}sessionStorage.setItem('respondro_apikey',k);ST.apiKey=k;updateApiStatusUI();document.getElementById('api-key-indicator').innerHTML='<div class="api-dot" style="background:#00C896"></div><span class="text-xs" style="color:#00C896">API key saved ✓ — Live mode</span>';showToast('API key saved ✓');}
 function updateApiStatusUI(){const h=!!ST.apiKey;const d=document.getElementById('api-dot'),t=document.getElementById('api-status-txt');if(d)d.style.background=h?'#00C896':'#3A4760';if(t){t.textContent=h?'Live — Claude API':'Demo mode';t.style.color=h?'#00C896':'#5A6785';}const ii=document.getElementById('inbox-api-indicator');if(ii)ii.innerHTML=`<div class="api-dot" style="background:${h?'#00C896':'#3A4760'}"></div><span style="color:${h?'#00C896':'#5A6785'}">${h?'Live':'Demo'}</span>`;}
