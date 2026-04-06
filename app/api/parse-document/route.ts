@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
-const pdf = require('pdf-parse');
+
+// 1. Tell Next.js NOT to pre-build this specific route
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   try {
+    // 2. Move the import INSIDE the function so it only runs on the actual server request
+    const pdf = require('pdf-parse');
+
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
 
