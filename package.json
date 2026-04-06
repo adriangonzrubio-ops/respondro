@@ -11,6 +11,9 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.82.0",
     "@supabase/supabase-js": "^2.101.1",
+    "googleapis": "^171.4.0",
+    "imapflow": "^1.2.18",
+    "mailparser": "^3.9.6",
     "next": "16.2.2",
     "react": "19.2.4",
     "react-dom": "19.2.4"
