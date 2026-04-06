@@ -1340,18 +1340,20 @@ async function handleRulebookUpload(event) {
     const res = await fetch('/api/parse-document', { method: 'POST', body: formData });
     const data = await res.json();
     
-    if (data.text) {
+    if (res.ok && data.text) {
       const textarea = document.getElementById('rulebook-text');
       textarea.value += `\n\n--- Rules extracted from ${file.name} ---\n` + data.text;
       btnText.innerHTML = `<span class="text-emerald-400">Successfully added!</span>`;
     } else {
-      alert("Frontend wired! Need backend API route.");
+      // THIS WILL NOW SHOW THE REAL BACKEND ERROR
+      alert("Server Error: " + (data.error || "Unknown error parsing PDF"));
       btnText.innerHTML = originalHTML;
     }
   } catch(e) {
     console.error(e);
-    alert("Frontend wired! Need to build the /api/parse-document route.");
+    alert("Network Error: Could not reach the API.");
     btnText.innerHTML = originalHTML;
+  }
   }
 }
 
