@@ -360,25 +360,33 @@ select.form-input option{background:#0F1623}
           <div class="grid grid-cols-1 gap-2" id="provider-list"></div>
         </div>
 <div class="settings-card mt-6">
-      <h3 class="font-display font-600 mb-4 text-white">Email Branding & Signature</h3>
-      <div class="space-y-4">
-<label class="form-label">Store Logo URL</label>
-<div class="flex gap-2 mb-4">
-  <input type="text" id="sig-logo-url" class="form-input flex-1" placeholder="https://yourstore.com/logo.png">
-  <div class="upload-zone" style="padding: 10px 15px; cursor: pointer; border: 1px dashed #3A4760; border-radius: 8px; display: flex; align-items: center; background: rgba(255,255,255,0.03);" onclick="document.getElementById('logo-file').click()">
-    <span id="logo-btn-text" class="text-xs" style="color: #888;">Upload PNG</span>
-    <input type="file" id="logo-file" class="hidden" accept="image/png, image/jpeg" onchange="handleLogoUpload(event)">
-  </div>
-          <label class="form-label">Logo Width (px)</label>
-          <label class="form-label">Logo Width (px)</label>
-<input type="number" id="sig-logo-width" class="form-input mb-4" placeholder="120" value="120">
-        <div>
-          <label class="form-label">Default Email Signature</label>
-          <textarea id="sig-text" class="form-input min-h-[100px]" placeholder="Best regards,&#10;The Xhale Support Team"></textarea>
+  <h3 class="font-display font-600 mb-4 text-white">Email Branding & Signature</h3>
+  <div class="space-y-4">
+    
+    <div class="flex flex-col gap-1">
+      <label class="form-label">Store Logo URL</label>
+      <div class="flex gap-2">
+        <input type="text" id="sig-logo-url" class="form-input flex-1" placeholder="https://yourstore.com/logo.png">
+        <div class="upload-zone" style="padding: 0 15px; cursor: pointer; border: 1px dashed #3A4760; border-radius: 8px; display: flex; align-items: center; background: rgba(255,255,255,0.03);" onclick="document.getElementById('logo-file').click()">
+          <span id="logo-btn-text" class="text-xs" style="color: #888;">Upload PNG</span>
+          <input type="file" id="logo-file" class="hidden" accept="image/png, image/jpeg" onchange="handleLogoUpload(event)">
         </div>
-        <button onclick="saveSignature()" class="btn-primary w-full justify-center">Save Branding</button>
       </div>
     </div>
+
+    <div class="flex flex-col gap-1">
+      <label class="form-label">Logo Width (px)</label>
+      <input type="number" id="sig-logo-width" class="form-input" style="max-width: 120px;" placeholder="120" value="120">
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <label class="form-label">Default Email Signature</label>
+      <textarea id="sig-text" class="form-input min-h-[100px]" placeholder="Best regards, The Xhale Support Team"></textarea>
+    </div>
+
+    <button onclick="saveSignature()" class="btn-primary w-full justify-center">Save Branding</button>
+  </div>
+</div>
 <div class="settings-card">
           <h3 class="font-display font-600 mb-1">AI setup</h3>
           <p class="text-xs mb-3" style="color:#5A6785">Rulebook and tone training - update anytime.</p>
@@ -1429,6 +1437,29 @@ function handleLogoUpload(event) {
 
   reader.readAsDataURL(file);
 }
+// This runs automatically the second the page is finished loading
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log("Fetching your saved settings...");
+
+    try {
+        const response = await fetch('/api/settings'); // This route fetches your data from Supabase/DB
+        const settings = await response.json();
+
+        if (settings) {
+            // Fill the Branding fields
+            if (settings.logo_url) document.getElementById('sig-logo-url').value = settings.logo_url;
+            if (settings.logo_width) document.getElementById('sig-logo-width').value = settings.logo_width;
+            if (settings.signature) document.getElementById('sig-text').value = settings.signature;
+
+            // Fill the Rulebook field!
+            if (settings.rulebook) document.getElementById('rulebook-text').value = settings.rulebook;
+            
+            console.log("Settings loaded successfully!");
+        }
+    } catch (err) {
+        console.error("Could not load settings:", err);
+    }
+});
 
 </script>
 <div id="review-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
