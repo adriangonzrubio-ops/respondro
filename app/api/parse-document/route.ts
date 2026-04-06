@@ -23,12 +23,19 @@ export async function POST(request: Request) {
     let extractedText = '';
 
     if (file.name.toLowerCase().endsWith('.pdf')) {
-      // 2. NOW dynamically load the untouched package safely AFTER the polyfills exist
-// Cast the imported module as 'any' to stop TypeScript from complaining
-      const pdfModule = (await import('pdf-parse')) as any;
-      // Safely unwrap it just in case Next.js packaged it weirdly
-      const parsePdf = pdfModule.default || pdfModule;
+      // 🛑 THE ULTIMATE UNWRAPPER: Find the function no matter how deeply Vercel hid it!
+      const rawModule = require('pdf-parse');
+      let parsePdf = rawModule;
       
+      // Dig through the minified object until we hit the actual function
+      if (typeof parsePdf !== 'function') parsePdf = rawModule.default;
+      if (typeof parsePdf !== 'function') parsePdf = rawModule.default?.default;
+      
+      // Safety net so we never get an "r is not a function" crash again
+      if (typeof parsePdf !== 'function') {
+        throw new Error('Vercel completely mangled the PDF parser. Could not find function.');
+      }
+
       const data = await parsePdf(buffer);
       extractedText = data.text;
     } else {
