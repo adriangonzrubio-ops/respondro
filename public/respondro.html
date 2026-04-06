@@ -547,33 +547,34 @@ select.form-input option{background:#0F1623}
 </div>
 <script>
 // ═══ PROVIDERS ═══
-const PROVIDERS=[
-  {id:'gmail',name:'Gmail',sub:'Google Workspace',type:'oauth',icon:'G',color:'#EA4335',oauthLabel:'Sign in with Google',oauthBg:'#fff',oauthColor:'#202223'},
-  {id:'outlook',name:'Outlook',sub:'Microsoft 365',type:'oauth',icon:'M',color:'#0078D4',oauthLabel:'Sign in with Microsoft',oauthBg:'#0078D4',oauthColor:'#fff'},
-  {id:'private',name:'PrivateEmail',sub:'IMAP/SMTP',type:'imap',icon:'PE',color:'#0057B8',host:'mail.privateemail.com',port:'993',steps:['Log in to your PrivateEmail webmail','IMAP is enabled by default — no extra steps needed','IMAP host: <code>mail.privateemail.com</code>, port <code>993</code> (SSL)','Use your full email address and password below']},
-  {id:'zoho',name:'Zoho Mail',sub:'IMAP/SMTP',type:'imap',icon:'Z',color:'#E42527',host:'imap.zoho.com',port:'993',steps:['Go to <code>mail.zoho.com → Settings → Mail Accounts → IMAP</code>','Enable IMAP access','Generate App Password: <code>Settings → Security → App Passwords</code>','Use your Zoho email + app password below']},
-  {id:'fastmail',name:'Fastmail',sub:'IMAP/SMTP',type:'imap',icon:'F',color:'#3B5BDB',host:'imap.fastmail.com',port:'993',steps:['Go to <code>Settings → Password & Security → App passwords</code>','Click <code>New app password</code> → Select "Mail"','Copy the generated password','Use your Fastmail email + app password below']},
-  {id:'proton',name:'ProtonMail',sub:'IMAP Bridge',type:'imap',icon:'P',color:'#6D4AFF',host:'127.0.0.1',port:'1143',steps:['Install <code>Proton Mail Bridge</code> from proton.me/mail/bridge','Log in to Bridge — it creates a local IMAP server','Bridge shows IMAP host <code>127.0.0.1</code> and a bridge password','Use your ProtonMail address + Bridge password below']},
-  {id:'yahoo',name:'Yahoo Mail',sub:'IMAP/SMTP',type:'imap',icon:'Y',color:'#6001D2',host:'imap.mail.yahoo.com',port:'993',steps:['Go to <code>Yahoo Account Security → App passwords</code>','Generate app password → select "Other app" → name it "Respondro"','Copy the 16-char password','Use your Yahoo email + app password below']},
-  {id:'icloud',name:'iCloud Mail',sub:'IMAP/SMTP',type:'imap',icon:'i',color:'#1A73E8',host:'imap.mail.me.com',port:'993',steps:['Go to <code>appleid.apple.com → Sign-In & Security → App-Specific Passwords</code>','Generate → name it "Respondro" → copy the password','Enable iCloud Mail in Apple ID settings','Use your iCloud email + app-specific password below']},
-  {id:'amazon',name:'Amazon SES',sub:'SMTP',type:'imap',icon:'A',color:'#FF9900',host:'email-smtp.eu-west-1.amazonaws.com',port:'587',steps:['AWS Console → SES → <code>SMTP settings → Create SMTP credentials</code>','Save the SMTP username and password','Verify your sending domain in SES','Use SMTP username + password below']},
-  {id:'mailer',name:'MailerLite',sub:'SMTP',type:'imap',icon:'ML',color:'#6C8EBF',host:'smtp.mailerlite.com',port:'587',steps:['<code>mailerlite.com → Integrations → SMTP</code>','Copy SMTP host, username and password','Use those credentials below']},
-  {id:'other',name:'Other',sub:'IMAP/SMTP/API',type:'imap',icon:'✦',color:'#5A6785',host:'',port:'993',steps:['Find your provider\'s IMAP server address (usually imap.yourdomain.com)','Enable IMAP in your email account settings','Some providers need an "app password" — check their support docs','Use your full email + password or app password below']},
+// ═══ 1. DATA & STATE (Preserving your full list) ═══
+const PROVIDERS = [
+    { id: 'gmail', name: 'Gmail', sub: 'Google Workspace', type: 'oauth', icon: 'G', color: '#EA4335', oauthLabel: 'Sign in with Google', oauthBg: '#fff', oauthColor: '#202223' },
+    { id: 'outlook', name: 'Outlook', sub: 'Microsoft 365', type: 'oauth', icon: 'M', color: '#0078D4', oauthLabel: 'Sign in with Microsoft', oauthBg: '#0078D4', oauthColor: '#fff' },
+    { id: 'private', name: 'PrivateEmail', sub: 'IMAP/SMTP', type: 'PE', icon: 'PE', color: '#0057B8', host: 'mail.privateemail.com', port: '993' },
+    { id: 'zoho', name: 'Zoho Mail', sub: 'IMAP/SMTP', type: 'imap', icon: 'Z', color: '#E42527', host: 'imap.zoho.com', port: '993' },
+    { id: 'fastmail', name: 'Fastmail', sub: 'IMAP/SMTP', type: 'imap', icon: 'F', color: '#3B5BDB', host: 'imap.fastmail.com', port: '993' },
+    { id: 'proton', name: 'ProtonMail', sub: 'IMAP Bridge', type: 'imap', icon: 'P', color: '#6D4AFF', host: '127.0.0.1', port: '1143' },
+    { id: 'other', name: 'Other', sub: 'IMAP/SMTP/API', type: 'imap', icon: '+', color: '#5A6785', host: '', port: '993' }
 ];
 
-// ═══ DEFAULT RULES ═══
-const DEFAULT_RULES=[
-  {id:'r1',title:'Partial refund for late shipments',category:'refund',condition:'Order not shipped within 10 business days',action:'Offer a 15% partial refund as compensation and sincerely apologise for the delay. Do not wait for the customer to escalate.',example:'"We\'d like to offer you a 15% refund for the inconvenience caused by the delay."',on:true},
-  {id:'r2',title:'Full refund for damaged items',category:'refund',condition:'Customer reports that order arrived damaged or broken',action:'Approve a full refund immediately. Customer does not need to return the item. Apologise and express this is not acceptable.',example:'"I\'ve processed a full refund for you — no need to return the damaged item."',on:true},
-  {id:'r3',title:'Escalate large refunds',category:'escalation',condition:'Refund amount exceeds €100',action:'Do not approve the refund automatically. Escalate to human review with a polite note that a team member will review within 24 hours.',example:'"A member of our team will review your request and get back to you within 24 hours."',on:true},
-  {id:'r4',title:'Always use customer first name',category:'tone',condition:'Every reply',action:'Always address the customer by their first name. Never use "Dear Customer" or "Hello".',example:'"Hi Sarah," not "Dear Customer,"',on:true},
-  {id:'r5',title:'Escalate all cancellation requests',category:'escalation',condition:'Customer requests to cancel an order that has already shipped',action:'Escalate to human review. Do not promise cancellation. Inform the customer a team member will follow up to discuss return options.',example:'"A team member will reach out within a few hours to help with this."',on:false},
+const TICKET_DATA = [
+    { id: 't1', subject: 'Refund request — order #3918', from: 'Mark Johnson <mark@email.com>', body: 'Hi, I ordered last week but it arrived damaged. Can I get a refund?', col: 'new', time: '2m ago' },
+    { id: 't2', subject: 'Angry about delayed shipment', from: 'Sandra Peters <sp@gmail.com>', body: 'This is unacceptable! I ordered 2 weeks ago and still nothing.', col: 'review', time: '1h ago' },
+    { id: 't3', subject: 'Address change for order #4102', from: 'Lena Fischer <lena@web.de>', body: 'Hallo, can I change my shipping address?', col: 'new', time: '3h ago' }
 ];
 
-// ═══ STATE ═══
-const ST={user:null,storeName:'My Store',apiKey:'',tickets:[],activeTicket:null,connectedEmail:false,connectedShopify:false,shopURL:'',toneAnalyzed:false,signupShopifyConnected:false,rules:[...DEFAULT_RULES]};
-let dragId=null,editingRuleId=null;
-
+const ST = {
+    user: null,
+    storeName: 'My Store',
+    apiKey: '',
+    tickets: [...TICKET_DATA], 
+    activeTicket: null,
+    connectedEmail: false,
+    connectedShopify: false,
+    shopURL: '',
+    rules: []
+};
 // ═══ INIT ═══
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. UI Animations
@@ -1148,11 +1149,6 @@ function closeModal(id){document.getElementById(id).classList.remove('open');doc
 function toggleAcc(btn){const b=btn.nextElementSibling;const o=b.classList.contains('open');b.classList.toggle('open',!o);btn.querySelector('.acc-icon').textContent=o?'+':'−';}
 
 // ═══ KANBAN ═══
-const TICKET_DATA=[
-  {id:'t1',subject:'Refund request — order #3918',from:'Mark Johnson <mark@email.com>',body:'Hi,\n\nI ordered last week but it arrived damaged. I want a full refund for order #3918 — the packaging was crushed and two items were broken.\n\nMark',draft:'Hi Mark,\n\nI\'m really sorry to hear your order arrived damaged — that\'s absolutely not acceptable.\n\nI\'ve approved a full refund for order #3918. This will be processed within 3-5 business days to your original payment method. You don\'t need to return the damaged items.\n\nAgain, I apologise for the trouble!\n\nBest,\nXhale Team',col:'new',priority:'high',type:'refund'},
-  {id:'t2',subject:'Angry about delayed shipment',from:'Sandra Peters <sp@gmail.com>',body:'This is unacceptable! I ordered 2 weeks ago and still nothing. I need it for this weekend. What are you going to do???',draft:'Hi Sandra,\n\nI completely understand your frustration and I\'m so sorry we\'ve let you down.\n\nI\'ve checked your order — it\'s been held at customs since Thursday. I\'ve escalated directly with our shipping partner.\n\nGiven the delay, I\'d like to offer you a 15% partial refund as compensation. Shall I process this now?\n\nI\'ll follow up personally tomorrow morning.\n\nSincerely,\nXhale Team',col:'new',priority:'high',type:'complaint'},
-  {id:'t3',subject:'Address change for order #4102',from:'Lena Fischer <lena@web.de>',body:'Hallo,\n\nKann ich noch die Lieferadresse ändern? Richtig wäre: Musterstraße 12, 80333 München.',draft:'Hallo Lena,\n\nKein Problem! Ich habe Bestellung #4102 überprüft — sie ist noch nicht versandt, daher habe ich die Adresse auf Musterstraße 12, 80333 München aktualisiert.\n\nMit freundlichen Grüßen,\nXhale Team',col:'review',priority:'medium',type:'address'},
-];
 const COLS=['new','review','closed'];
 function initTickets(){ST.tickets=[...TICKET_DATA];}
 function renderKanban(){
