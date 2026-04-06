@@ -599,11 +599,12 @@ if(urlParams.get('connected')==='true'){
 }
 document.getElementById('auth-modal').addEventListener('click',function(e){if(e.target===this)closeAuth();});
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeAuth();});
+document.getElementById('auth-modal').style.display='none';
 });
 
 // ═══ AUTH ═══
-function openAuth(tab){document.getElementById('auth-modal').classList.add('open');switchAuthTab(tab);document.body.style.overflow='hidden';document.documentElement.style.overflow='hidden';}
-function closeAuth(){document.getElementById('auth-modal').classList.remove('open');document.body.style.overflow='';document.documentElement.style.overflow='';}
+function openAuth(tab){const m=document.getElementById('auth-modal');m.style.display='flex';switchAuthTab(tab);document.body.style.overflow='hidden';}
+function closeAuth(){const m=document.getElementById('auth-modal');m.style.display='none';document.body.style.overflow='';}
 function switchAuthTab(t){
 document.getElementById('auth-login').classList.toggle('hidden',t!=='login');
   document.getElementById('auth-signup').classList.toggle('hidden',t!=='signup');
