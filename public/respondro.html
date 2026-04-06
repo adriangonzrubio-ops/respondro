@@ -928,10 +928,14 @@ function simulateOAuth(id, name) {
   markEmailConnected(id, name);
 }
 async function simulateImap(id, name) {
-  // 1. Grab the inputs from the popup
-  const emailInput = document.querySelector('input[placeholder*="yourdomain.com"]');
-  const passInput = document.querySelector('input[type="password"]');
+  // 🎯 Target the modal specifically so we don't grab hidden inputs from the background
+  const modal = document.getElementById('provider-modal');
+  const emailInput = modal.querySelector('input[type="text"]');
+  const passInput = modal.querySelector('input[type="password"]');
   
+  // This helps you see in the "Inspect > Console" if the data is being captured
+  console.log("Attempting to connect:", emailInput?.value);
+
   if (!emailInput?.value || !passInput?.value) {
     alert("Please enter both email and password.");
     return;
@@ -949,7 +953,7 @@ async function simulateImap(id, name) {
   };
 
   try {
-    // 3. Send it to your new backend route
+    // 3. Send it to your backend route
     const response = await fetch('/api/auth/imap', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -960,6 +964,8 @@ async function simulateImap(id, name) {
       closeModal('provider-modal');
       markEmailConnected(id, name);
       showToast(name + ' connected! ✓');
+    } else {
+      alert("Database error. Check Vercel logs.");
     }
   } catch (err) {
     console.error('Connection Error:', err);
