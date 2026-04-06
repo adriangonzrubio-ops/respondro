@@ -597,6 +597,7 @@ if(urlParams.get('connected')==='true'){
     window.history.replaceState({},'','/respondro.html');
   },500);
 }
+document.getElementById('auth-modal').addEventListener('click',function(e){if(e.target===this)closeAuth();});
 });
 
 // ═══ AUTH ═══
