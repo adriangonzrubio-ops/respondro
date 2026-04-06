@@ -602,6 +602,7 @@ if(urlParams.get('connected')==='true'){
 // ═══ AUTH ═══
 function openAuth(tab){document.getElementById('auth-modal').classList.add('open');switchAuthTab(tab);document.body.style.overflow='hidden';}
 function closeAuth(){document.getElementById('auth-modal').classList.remove('open');document.body.style.overflow='';}
+function switchAuthTab(t){
 document.getElementById('auth-login').classList.toggle('hidden',t!=='login');
   document.getElementById('auth-signup').classList.toggle('hidden',t!=='signup');
   document.getElementById('tab-login').classList.toggle('active',t==='login');
