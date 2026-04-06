@@ -897,7 +897,7 @@ function triggerShopifyOAuth(){
 }function shopifyDone(url){ST.connectedShopify=true;closeModal('shopify-modal');const btn=document.getElementById('shopify-btn');if(btn){btn.style.background='rgba(0,200,150,0.1)';btn.style.color='#00C896';btn.innerHTML='✓ Shopify connected — '+url;btn.disabled=true;}const c=document.getElementById('shopify-conn-chip');if(c)c.classList.remove('hidden');showToast('Shopify connected ✓');}
 
 // ═══ MODAL HELPERS ═══
-function closeModal(id){document.getElementById(id).classList.remove('open');document.body.style.overflow='';}
+function closeModal(id){document.getElementById(id).classList.remove('open');document.body.style.overflow='';document.body.style.pointerEvents='';}
 ['provider-modal','shopify-modal','rule-modal'].forEach(id=>{document.getElementById(id).addEventListener('click',function(e){if(e.target===this)closeModal(id);});});
 function toggleAcc(btn){const b=btn.nextElementSibling;const o=b.classList.contains('open');b.classList.toggle('open',!o);btn.querySelector('.acc-icon').textContent=o?'+':'−';}
 
