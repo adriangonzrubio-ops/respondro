@@ -270,22 +270,13 @@ select.form-input option{background:#0F1623}
         </div>
       </div>
 <div class="mt-8">
-    <div class="flex justify-between items-center mb-6">
-      <h2 class="text-2xl font-bold text-white">Review Board</h2>
-      <div class="flex gap-2">
-        <span id="unread-count" class="bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-full">0 NEW</span>
-        <button onclick="loadReviewBoard()" class="text-gray-400 hover:text-white transition">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-        </button>
-      </div>
-    </div>
-    
-    <div id="review-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <div class="col-span-full py-12 text-center border-2 border-dashed border-white/5 rounded-2xl">
-        <p class="text-gray-500 italic">Connecting to Respondro AI brain...</p>
-      </div>
-    </div>
+  <div class="flex justify-between items-center mb-4">
+    <h3 class="font-display font-600 text-sm">Urgent Review Needed</h3>
+    <span class="badge badge-r" id="urgent-count">0</span>
   </div>
+  <div id="urgent-list" class="space-y-2">
+    </div>
+</div>
       <!-- INBOX -->
       <div id="view-inbox" class="p-6 hidden">
         <div class="flex items-center justify-between mb-5">
@@ -306,11 +297,31 @@ select.form-input option{background:#0F1623}
       <!-- KANBAN -->
       <div id="view-kanban" class="p-6 hidden">
         <div class="mb-5"><h2 class="font-display font-700 text-xl mb-1">Review board</h2><p class="text-sm" style="color:#5A6785">Edge cases needing your judgement. Use ← → or drag to move tickets freely.</p></div>
-        <div class="flex gap-4 overflow-x-auto pb-3" style="min-height:350px">
-          <div class="kb-col" id="col-new" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="dropTicket(event,'new')"><div class="flex items-center justify-between mb-3"><span class="text-xs font-display font-700" style="color:#5A6785">NEW</span><span class="badge badge-a" id="cnt-new">0</span></div><div id="tickets-new"></div></div>
-          <div class="kb-col" id="col-review" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="dropTicket(event,'review')"><div class="flex items-center justify-between mb-3"><span class="text-xs font-display font-700" style="color:#5A6785">IN REVIEW</span><span class="badge badge-m" id="cnt-review">0</span></div><div id="tickets-review"></div></div>
-          <div class="kb-col" id="col-closed" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="dropTicket(event,'closed')"><div class="flex items-center justify-between mb-3"><span class="text-xs font-display font-700" style="color:#5A6785">CLOSED</span><span class="badge badge-m" id="cnt-closed">0</span></div><div id="tickets-closed"></div></div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-4">
+      <div class="space-y-4">
+        <div class="flex justify-between items-center px-1">
+          <span class="text-[10px] font-bold uppercase text-gray-500">Needs Review</span>
+          <span class="w-5 h-5 flex items-center justify-center bg-white/5 rounded text-[10px]" id="count-new">0</span>
         </div>
+        <div id="col-new" class="space-y-3 min-h-[350px]"></div>
+      </div>
+
+      <div class="space-y-4">
+        <div class="flex justify-between items-center px-1">
+          <span class="text-[10px] font-bold uppercase text-gray-500">In Progress</span>
+          <span class="w-5 h-5 flex items-center justify-center bg-white/5 rounded text-[10px]" id="count-progress">0</span>
+        </div>
+        <div id="col-progress" class="space-y-3 min-h-[350px]"></div>
+      </div>
+
+      <div class="space-y-4">
+        <div class="flex justify-between items-center px-1">
+          <span class="text-[10px] font-bold uppercase text-gray-500">Closed</span>
+          <span class="w-5 h-5 flex items-center justify-center bg-white/5 rounded text-[10px]" id="count-closed">0</span>
+        </div>
+        <div id="col-closed" class="space-y-3 min-h-[350px]"></div>
+      </div>
+    </div>
         <p class="text-xs font-mono mt-1" style="color:#3A4760">Drag or use ← → buttons · Click to see AI draft</p>
       </div>
 
@@ -989,54 +1000,70 @@ async function simulateImap(id, name) {
   }
 }
 function markEmailConnected(id,name){ST.connectedEmail=true;const s=document.getElementById('pconn-'+id);if(s)s.style.display='';const c=document.getElementById('email-conn-chip');if(c){c.classList.remove('hidden');c.textContent='✓ '+name;}}
-// --- Review Board Logic ---
-async function loadReviewBoard() {
+// --- MASTER DASHBOARD SYNC ---
+async function syncDashboardData() {
   try {
     const res = await fetch('/api/messages');
     const messages = await res.json();
-    const list = document.getElementById('review-list');
-    
-    if (!messages || messages.length === 0) {
-      list.innerHTML = `<div class="col-span-full py-12 text-center text-gray-500 italic border border-white/5 rounded-2xl">No emails found yet. Send a test email to your connected inbox!</div>`;
-      return;
+
+    // 1. Update Overview "Urgent" List
+    const urgentList = document.getElementById('urgent-list');
+    const urgentItems = messages.filter(m => m.status === 'needs_review');
+    if (urgentList) {
+      urgentList.innerHTML = urgentItems.slice(0, 3).map(msg => `
+        <div class="flex items-center justify-between p-3 bg-white/5 border border-white/5 rounded-xl">
+          <div class="flex items-center gap-3">
+            <div class="w-1.5 h-1.5 rounded-full bg-red-500"></div>
+            <span class="text-xs text-white font-medium">${msg.sender ? msg.sender.split('<')[0] : 'Unknown'}</span>
+            <span class="text-[10px] text-gray-500 truncate max-w-[150px]">${msg.subject}</span>
+          </div>
+          <button onclick="switchView('kanban')" class="text-[10px] font-bold uppercase text-emerald-400">Review</button>
+        </div>
+      `).join('');
+    }
+    if (document.getElementById('urgent-count')) {
+      document.getElementById('urgent-count').innerText = urgentItems.length;
     }
 
-    list.innerHTML = messages.map(msg => {
-      const isUrgent = ['refund_request', 'customer_complaint', 'cancellation'].includes(msg.category);
-      const badgeColor = isUrgent ? 'bg-red-500/20 text-red-400 border-red-500/20' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/20';
+    // 2. Update Kanban Board Columns
+    renderKanbanColumn(messages, 'needs_review', 'col-new', 'count-new');
+    renderKanbanColumn(messages, 'processing', 'col-progress', 'count-progress');
+    renderKanbanColumn(messages, 'replied', 'col-closed', 'count-closed');
 
-      return `
-        <div class="bg-card border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-all group">
-          <div class="flex justify-between items-start mb-3">
-            <span class="px-2 py-1 rounded-md text-[10px] font-bold uppercase border ${badgeColor}">
-              ${msg.category ? msg.category.replace('_', ' ') : 'uncategorized'}
-            </span>
-            <span class="text-[10px] text-gray-500">${new Date(msg.received_at).toLocaleDateString()}</span>
-          </div>
-          
-          <h3 class="font-semibold text-white text-sm mb-1 line-clamp-1">${msg.subject || 'No Subject'}</h3>
-          <p class="text-xs text-gray-400 mb-4 line-clamp-2">${msg.body_text || 'No content...'}</p>
-          
-          <div class="pt-4 border-t border-white/5 flex justify-between items-center">
-            <span class="text-[11px] text-gray-500 truncate max-w-[120px]">${msg.sender}</span>
-            <button class="text-xs bg-white text-black px-4 py-1.5 rounded-lg font-bold hover:bg-emerald-400 transition-colors">
-              Review
-            </button>
-          </div>
-        </div>
-      `;
-    }).join('');
+    // 3. Update Global Sidebar Badge
+    const badge = document.getElementById('review-badge');
+    if (badge) badge.innerText = urgentItems.length;
 
-    const countEl = document.getElementById('unread-count');
-    if (countEl) countEl.innerText = `${messages.length} EMAILS`;
-    
   } catch (err) {
-    console.error("Error loading board:", err);
+    console.error("Dashboard sync error:", err);
   }
 }
 
-// Fire on load
-window.addEventListener('load', loadReviewBoard);
+function renderKanbanColumn(allMessages, status, columnId, countId) {
+  const col = document.getElementById(columnId);
+  if (!col) return;
+  
+  const filtered = allMessages.filter(m => m.status === status || (status === 'needs_review' && m.status === 'pending'));
+  document.getElementById(countId).innerText = filtered.length;
+  
+  col.innerHTML = filtered.map(msg => `
+    <div class="bg-card border border-white/5 p-4 rounded-xl hover:border-white/20 transition-all cursor-pointer group">
+      <div class="flex justify-between mb-2">
+        <span class="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">${msg.category || 'general'}</span>
+        <span class="text-[9px] text-gray-600">${new Date(msg.received_at).toLocaleDateString()}</span>
+      </div>
+      <div class="text-xs font-semibold text-white mb-1 line-clamp-1">${msg.subject}</div>
+      <div class="text-[10px] text-gray-500 line-clamp-2 mb-3">${msg.body_text}</div>
+      <div class="flex justify-between items-center">
+        <span class="text-[10px] text-gray-400">${msg.sender ? msg.sender.split('<')[0] : 'Customer'}</span>
+        <div class="w-4 h-4 rounded-full bg-emerald-500 border border-black text-[8px] flex items-center justify-center text-black font-bold">AI</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// 🚀 Fire off the sync when the page loads
+window.addEventListener('load', syncDashboardData);
 // ═══ SHOPIFY SETTINGS MODAL ═══
 function openShopifyConnect(){
   document.getElementById('shopify-modal').classList.add('open');
