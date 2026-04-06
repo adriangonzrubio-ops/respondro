@@ -570,7 +570,7 @@ const DEFAULT_RULES=[
 ];
 
 // ═══ STATE ═══
-const ST={user:null,storeName:'My Store',apiKey:'',tickets:[],activeTicket:null,connectedEmail:false,connectedShopify:false,toneAnalyzed:false,signupShopifyConnected:false,rules:[...DEFAULT_RULES]};
+const ST={user:null,storeName:'My Store',apiKey:'',tickets:[],activeTicket:null,connectedEmail:false,connectedShopify:false,shopURL:'',toneAnalyzed:false,signupShopifyConnected:false,rules:[...DEFAULT_RULES]};
 let dragId=null,editingRuleId=null;
 
 // ═══ INIT ═══
@@ -579,24 +579,40 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.querySelectorAll('.fade-up').forEach(el=>obs.observe(el));
   const nb=document.getElementById('navbar');
   if(nb)window.addEventListener('scroll',()=>nb.classList.toggle('nav-scrolled',window.scrollY>60));
-  const saved=localStorage.getItem('respondro_user');
-  if(saved){ST.user=JSON.parse(saved);ST.storeName=localStorage.getItem('respondro_store')||'My Store';ST.apiKey=sessionStorage.getItem('respondro_apikey')||'';showDashboard();}
-  initTickets();buildEmailList();buildProviderList();buildSignupProviders();renderRules();
-  // Detect Shopify OAuth return
-const urlParams = new URLSearchParams(window.location.search);
-if(urlParams.get('connected')==='true'){
-  const shop=urlParams.get('shop');
-  ST.connectedShopify=true;
-  showDashboard();
-  setTimeout(()=>{
-    const btn=document.getElementById('shopify-btn');
-    if(btn){btn.textContent='✓ Shopify connected';btn.style.background='#00C896';}
-    const chip=document.getElementById('shopify-conn-chip');
-    if(chip)chip.classList.remove('hidden');
-    showToast('Shopify connected ✓ — store data is syncing');
-    window.history.replaceState({},'','/respondro.html');
-  },500);
-}
+// 1. Check for saved user AND saved Shopify store
+  const saved = localStorage.getItem('respondro_user');
+  if (saved) {
+    ST.user = JSON.parse(saved);
+    ST.storeName = localStorage.getItem('respondro_store') || 'My Store';
+    ST.apiKey = sessionStorage.getItem('respondro_apikey') || '';
+    
+    const savedShopify = localStorage.getItem('respondro_shopify');
+    if (savedShopify) {
+      ST.connectedShopify = true;
+      ST.shopURL = savedShopify;
+    }
+    showDashboard();
+  }
+
+  // 2. Initialize the UI lists
+  initTickets(); buildEmailList(); buildProviderList(); buildSignupProviders(); renderRules();
+
+  // 3. Detect Shopify OAuth return
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('connected') === 'true') {
+    const shop = urlParams.get('shop');
+    ST.connectedShopify = true;
+    ST.shopURL = shop; 
+    localStorage.setItem('respondro_shopify', shop); 
+    
+    showDashboard();
+    
+    setTimeout(() => {
+      syncShopifyUI(); // We will add this function next
+      showToast('Shopify connected ✓ — store data is syncing');
+      window.history.replaceState({}, '', '/respondro.html');
+    }, 500);
+  }
 document.getElementById('auth-modal').addEventListener('click',function(e){if(e.target===this)closeAuth();});
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeAuth();});
 document.getElementById('auth-modal').style.display='none';
@@ -775,10 +791,21 @@ function handleToneFile(input){if(input.files.length){let combined='';Array.from
 function showDashboard(){
   document.getElementById('landing').classList.add('hidden');
   const d=document.getElementById('dashboard');d.classList.add('active');d.style.display='flex';d.style.flexDirection='column';
-  if(ST.user){document.getElementById('user-avatar').textContent=ST.user.name.charAt(0).toUpperCase();document.getElementById('user-name-nav').textContent=ST.user.name;document.getElementById('welcome-name').textContent=ST.user.name;}
+  
+  if(ST.user){
+    document.getElementById('user-avatar').textContent=ST.user.name.charAt(0).toUpperCase();
+    document.getElementById('user-name-nav').textContent=ST.user.name;
+    document.getElementById('welcome-name').textContent=ST.user.name;
+  }
+  
   document.getElementById('store-name-sb').textContent=ST.storeName;
   document.getElementById('store-logo-sm').textContent=ST.storeName.charAt(0).toUpperCase();
-  updateApiStatusUI();renderKanban();renderRules();renderOverviewRules();
+  
+  updateApiStatusUI();
+  syncShopifyUI(); // This is the magic line that fixes the button colors
+  renderKanban();
+  renderRules();
+  renderOverviewRules();
 }
 function switchView(name,el){
   document.querySelectorAll('.sidebar-item').forEach(s=>s.classList.remove('active'));
@@ -1070,6 +1097,23 @@ async function startParallelProcessing() {
 
 // ═══ TOAST ═══
 function showToast(msg){const t=document.createElement('div');t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0F1623;border:1px solid rgba(0,200,150,0.3);color:#00C896;padding:9px 20px;border-radius:999px;font-size:13px;z-index:9999;animation:slideUp 0.3s ease;white-space:nowrap';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2400);}
+// ═══ UI HELPERS ═══
+function syncShopifyUI() {
+  if (ST.connectedShopify) {
+    const btn = document.getElementById('shopify-btn');
+    const chip = document.getElementById('shopify-conn-chip');
+    
+    if (btn) {
+      btn.style.background = 'rgba(0, 200, 150, 0.1)';
+      btn.style.color = '#00C896';
+      btn.innerHTML = `✓ Shopify connected — ${ST.shopURL || 'Active'}`;
+      btn.disabled = true;
+    }
+    if (chip) {
+      chip.classList.remove('hidden');
+    }
+  }
+}
 </script>
 </body>
 </html>
