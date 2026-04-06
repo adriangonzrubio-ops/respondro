@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 
+// 1. Tell TypeScript to ignore the missing types, and import it normally at the TOP!
+// @ts-ignore
+import pdf from 'pdf-parse';
+
 export const dynamic = 'force-dynamic';
 
-// Trick the server into thinking browser features exist
+// 2. Trick the server into thinking browser features exist
 if (typeof global !== 'undefined') {
   if (!global.DOMMatrix) global.DOMMatrix = class DOMMatrix {} as any;
   if (!global.Path2D) global.Path2D = class Path2D {} as any;
@@ -10,10 +14,6 @@ if (typeof global !== 'undefined') {
 
 export async function POST(request: Request) {
   try {
-    // 🛠️ THE FIX: Safely unwrap the imported module whether Vercel minifies it or not
-    const pdfLib = require('pdf-parse');
-    const parsePdf = pdfLib.default || pdfLib;
-
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
 
@@ -29,8 +29,8 @@ export async function POST(request: Request) {
 
     // Route logic based on file type
     if (file.name.toLowerCase().endsWith('.pdf')) {
-      // Use the safely unwrapped function here
-      const data = await parsePdf(buffer);
+      // 3. Run the clean, un-minified parser!
+      const data = await pdf(buffer);
       extractedText = data.text;
     } else {
       // Fallback for standard .txt files
