@@ -1460,6 +1460,48 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error("Could not load settings:", err);
     }
 });
+// Function for the Branding "Save" button
+async function saveSignature() {
+    const settings = {
+        logo_url: document.getElementById('sig-logo-url').value,
+        logo_width: document.getElementById('sig-logo-width').value,
+        signature: document.getElementById('sig-text').value,
+        rulebook: document.getElementById('rulebook-text').value // Keep the current rulebook text too
+    };
+    await sendSettings(settings);
+}
+
+// Function for the Rulebook "Save" button
+async function saveRulebook() {
+    const settings = {
+        rulebook: document.getElementById('rulebook-text').value,
+        logo_url: document.getElementById('sig-logo-url').value,
+        logo_width: document.getElementById('sig-logo-width').value,
+        signature: document.getElementById('sig-text').value
+    };
+    await sendSettings(settings);
+}
+
+// Helper function to talk to your new API
+async function sendSettings(settings) {
+    try {
+        const res = await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings)
+        });
+        
+        if (res.ok) {
+            alert("Settings saved successfully!");
+        } else {
+            const err = await res.json();
+            alert("Error saving: " + err.error);
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Failed to connect to the server.");
+    }
+}
 
 </script>
 <div id="review-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
