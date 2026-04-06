@@ -600,6 +600,7 @@ if(urlParams.get('connected')==='true'){
 document.getElementById('auth-modal').addEventListener('click',function(e){if(e.target===this)closeAuth();});
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeAuth();});
 document.getElementById('auth-modal').style.display='none';
+document.body.appendChild(document.getElementById('auth-modal'));
 });
 
 // ═══ AUTH ═══
