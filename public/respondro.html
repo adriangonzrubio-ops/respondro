@@ -1013,50 +1013,52 @@ async function simulateImap(id, name) {
   } catch (err) {
     console.error('Connection Error:', err);
     alert('Failed to save settings.');
-  }
+} // This closes the catch block
+} // <--- ADD THIS EXTRA BRACKET HERE to close simulateImap
+
+function markEmailConnected(id, name) {
+    ST.connectedEmail = true;
+    const s = document.getElementById('pconn-' + id);
+    if (s) s.style.display = 'none';
+    const c = document.getElementById('email-conn-chip');
+    if (c) {
+        c.innerText = name + ' Connected!';
+        c.classList.remove('hidden');
+    }
 }
-function markEmailConnected(id,name){ST.connectedEmail=true;const s=document.getElementById('pconn-'+id);if(s)s.style.display='';const c=document.getElementById('email-conn-chip');if(c){c.classList.remove('hidden');c.textContent='✓ '+name;}}
+
 // --- MASTER DASHBOARD SYNC ---
 async function syncDashboardData() {
-  try {
-    const res = await fetch('/api/messages');
-    const messages = await res.json();
+    console.log("Fetching messages from Supabase...");
+    
+    try {
+        const { data, error } = await supabase
+            .from('messages')
+            .select('*')
+            .order('created_at', { ascending: false });
 
-    // 1. Update Overview "Urgent" List
-    const urgentList = document.getElementById('urgent-list');
-    const urgentItems = messages.filter(m => m.status === 'needs_review');
-    if (urgentList) {
-      urgentList.innerHTML = urgentItems.slice(0, 3).map(msg => `
-        <div class="flex items-center justify-between p-3 bg-white/5 border border-white/5 rounded-xl">
-          <div class="flex items-center gap-3">
-            <div class="w-1.5 h-1.5 rounded-full bg-red-500"></div>
-            <span class="text-xs text-white font-medium">${msg.sender ? msg.sender.split('<')[0] : 'Unknown'}</span>
-            <span class="text-[10px] text-gray-500 truncate max-w-[150px]">${msg.subject}</span>
-          </div>
-          <button onclick="switchView('kanban')" class="text-[10px] font-bold uppercase text-emerald-400">Review</button>
-        </div>
-      `).join('');
+        if (error) throw error;
+
+        console.log("Database Check: Found", data?.length, "messages.");
+
+        if (data) {
+            allMessages = data;
+            // 1. Update the three Kanban columns
+            renderKanbanColumn(data, 'needs_review', 'col-review', 'review-badge');
+            renderKanbanColumn(data, 'in_progress', 'col-progress', 'progress-badge');
+            renderKanbanColumn(data, 'done', 'col-done', 'done-badge');
+            
+            // 2. Update the Sidebar Badge
+            const pendingCount = data.filter(m => m.status === 'needs_review' || m.status === 'pending' || !m.status).length;
+            const badge = document.getElementById('review-badge');
+            if (badge) badge.innerText = pendingCount;
+        }
+    } catch (err) {
+        console.error("Dashboard sync error:", err);
+        showToast('Error loading board data');
     }
-    if (document.getElementById('urgent-count')) {
-      document.getElementById('urgent-count').innerText = urgentItems.length;
-    }
-
-    // 2. Update Kanban Board Columns
-// 2. Update Kanban Board Columns
-            renderKanbanColumn(messages, 'needs_review', 'col-review', 'review-badge');
-            renderKanbanColumn(messages, 'in_progress', 'col-progress', 'progress-badge');
-            renderKanbanColumn(messages, 'done', 'col-done', null); // Done column doesn't need a numeric badge if using the history button
-
-    // 3. Update Global Sidebar Badge
-    const badge = document.getElementById('review-badge');
-    if (badge) badge.innerText = urgentItems.length;
-
-  } catch (err) {
-    console.error("Dashboard sync error:", err);
-  }
 }
 let showFullHistory = false;
-
 function renderKanbanColumn(allMessages, status, columnId, countId) {
     const col = document.getElementById(columnId);
     const badge = countId ? document.getElementById(countId) : null;
@@ -1510,23 +1512,36 @@ function handleLogoUpload(event) {
 }
 // This runs automatically the second the page is finished loading
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log("Fetching your saved settings...");
-
+    console.log("Fetching your saved settings directly from Supabase...");
     try {
-        const response = await fetch('/api/settings'); // This route fetches your data from Supabase/DB
-        const settings = await response.json();
+        // Direct database pull to bypass the 404 error
+        const { data: settings, error } = await supabase
+            .from('settings')
+            .select('*')
+            .single();
+
+        if (error) throw error;
 
         if (settings) {
+            console.log("Settings loaded successfully!");
+            
             // Fill the Branding fields
             if (settings.logo_url) document.getElementById('sig-logo-url').value = settings.logo_url;
             if (settings.logo_width) document.getElementById('sig-logo-width').value = settings.logo_width;
             if (settings.signature) document.getElementById('sig-text').value = settings.signature;
-
-            // Fill the Rulebook field!
+            
+            // Fill the Rulebook field
             if (settings.rulebook) document.getElementById('rulebook-text').value = settings.rulebook;
             
-            console.log("Settings loaded successfully!");
+            // If you have a global state, sync it
+            if (typeof ST !== 'undefined') ST.settings = settings;
         }
+
+        // Also trigger the email sync once settings are ready
+        if (typeof syncDashboardData === 'function') {
+            await syncDashboardData();
+        }
+
     } catch (err) {
         console.error("Could not load settings:", err);
     }
