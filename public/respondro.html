@@ -1039,11 +1039,10 @@ async function syncDashboardData() {
     console.log("Fetching messages from Supabase...");
     
     try {
-        // Use 'sb' here to talk to your database
+        // We removed the .order() line to fix the "created_at" error
         const { data, error } = await sb
             .from('messages')
-            .select('*')
-            .order('created_at', { ascending: false });
+            .select('*');
 
         if (error) throw error;
 
@@ -1051,12 +1050,10 @@ async function syncDashboardData() {
 
         if (data) {
             allMessages = data;
-            // 1. Update the three Kanban columns
             renderKanbanColumn(data, 'needs_review', 'col-review', 'review-badge');
             renderKanbanColumn(data, 'in_progress', 'col-progress', 'progress-badge');
             renderKanbanColumn(data, 'done', 'col-done', 'done-badge');
             
-            // 2. Update the Sidebar Badge
             const pendingCount = data.filter(m => m.status === 'needs_review' || m.status === 'pending' || !m.status).length;
             const badge = document.getElementById('review-badge');
             if (badge) badge.innerText = pendingCount;
