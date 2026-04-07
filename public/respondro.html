@@ -1152,24 +1152,32 @@ async function manualSync() {
 let currentEditingId = null;
 
 function openReviewModal(msg) {
+    console.log("Opening review modal for message:", msg.id);
     ST.activeTicket = msg;
     
-    // 1. Clean the name (remove quotes and trim)
+    // 1. Clean the name
     const cleanName = (msg.sender ? msg.sender.split('<')[0] : 'Customer').replace(/"/g, '').trim();
     
-    // 2. Set the Modal Title/Name
-    document.getElementById('modal-customer-name').innerText = cleanName;
-    document.getElementById('modal-subject').innerText = msg.subject || 'No Subject';
-    
-    // 3. Update the Draft area (Make sure this ID matches your HTML!)
+    // 2. Safe Updates: Only update if the ID exists in your HTML
+    const nameEl = document.getElementById('modal-customer-name');
+    if (nameEl) nameEl.innerText = cleanName;
+
+    const subjectEl = document.getElementById('modal-subject');
+    if (subjectEl) subjectEl.innerText = msg.subject || 'No Subject';
+
+    // 3. Update the Draft box
     const draftArea = document.getElementById('draft-content') || document.getElementById('ai-draft-response');
     if (draftArea) {
-        // Clean the initial draft name if it has quotes too
         draftArea.value = (msg.ai_draft || "").replace(/Hi\s+"([^"]+)"/g, `Hi ${cleanName}`);
     }
 
-    // ... (rest of your modal opening logic)
-    document.getElementById('review-modal').classList.remove('hidden');
+    // 4. Show the Modal
+    const modal = document.getElementById('review-modal') || document.getElementById('review-nodal');
+    if (modal) {
+        modal.classList.remove('hidden');
+    } else {
+        console.error("Error: Could not find modal element. Check your HTML for id='review-modal'");
+    }
 }
 
 function closeReviewModal() {
