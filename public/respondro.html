@@ -1152,31 +1152,24 @@ async function manualSync() {
 let currentEditingId = null;
 
 function openReviewModal(msg) {
-    const modal = document.getElementById('review-modal');
-    currentEditingId = msg.id; // Crucial: This tells the "Send" and "Regenerate" buttons which email to fix
+    ST.activeTicket = msg;
     
-    // 2. Fill in the Customer Details
+    // 1. Clean the name (remove quotes and trim)
+    const cleanName = (msg.sender ? msg.sender.split('<')[0] : 'Customer').replace(/"/g, '').trim();
+    
+    // 2. Set the Modal Title/Name
+    document.getElementById('modal-customer-name').innerText = cleanName;
     document.getElementById('modal-subject').innerText = msg.subject || 'No Subject';
-    document.getElementById('modal-from').innerText = msg.sender ? msg.sender.split('<')[0] : 'Unknown Sender';
-    document.getElementById('modal-body').innerText = msg.body_text || 'No content found.';
-    document.getElementById('modal-reasoning').innerText = msg.ai_reasoning || 'No specific reasoning provided.';
-    document.getElementById('modal-badge').innerText = msg.category || 'General';
-    document.getElementById('modal-avatar').innerText = (msg.sender || 'U').charAt(0).toUpperCase();
-
-    // 3. Load the AI Draft (Fix: Priority goes to the actual Claude draft!)
-    const draftArea = document.getElementById('modal-draft');
-    if (msg.ai_draft) {
-        draftArea.value = msg.ai_draft;
-    } else {
-        // Only use the placeholder if the AI hasn't drafted anything yet
-        const firstName = msg.sender ? msg.sender.split(' ')[0] : 'there';
-        draftArea.value = `Hi ${firstName},\n\nThanks for reaching out! I'm looking into this for you.`;
+    
+    // 3. Update the Draft area (Make sure this ID matches your HTML!)
+    const draftArea = document.getElementById('draft-content') || document.getElementById('ai-draft-response');
+    if (draftArea) {
+        // Clean the initial draft name if it has quotes too
+        draftArea.value = (msg.ai_draft || "").replace(/Hi\s+"([^"]+)"/g, `Hi ${cleanName}`);
     }
 
-    // 4. Show the Modal
-    modal.classList.remove('hidden');
-    modal.classList.add('flex'); 
-    document.body.style.overflow = 'hidden';
+    // ... (rest of your modal opening logic)
+    document.getElementById('review-modal').classList.remove('hidden');
 }
 
 function closeReviewModal() {
@@ -1652,13 +1645,13 @@ async function regenerateDraft(id) {
     const btn = event.target;
     const originalText = btn.innerText;
     btn.innerText = "Generating...";
-    
+
     try {
-        // 2. Grab the Rulebook and Signature we loaded into our global state (ST)
+        // 2. Grab the Rulebook and Signature from global state (ST)
         const rulebook = ST.settings?.rulebook || "";
         const signature = ST.settings?.signature || "";
 
-        // 3. Send the request to your API with the custom rules
+        // 3. Send request to API
         const response = await fetch(`/api/messages/${id}/regenerate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1669,13 +1662,20 @@ async function regenerateDraft(id) {
         });
 
         const result = await response.json();
-        
+
         if (result.draft) {
-            // 4. Update the text area with the new, smart draft
-            const draftArea = document.getElementById('draft-content');
-            if (draftArea) draftArea.value = result.draft;
+            // 4. Update the text area
+            const draftArea = document.getElementById('draft-content') || document.getElementById('ai-draft-response');
             
-            // Sync it back to our local data list
+            if (draftArea) {
+                draftArea.value = result.draft;
+                
+                // Visual feedback: brief color change
+                draftArea.style.backgroundColor = '#1a2e2a';
+                setTimeout(() => draftArea.style.backgroundColor = 'transparent', 500);
+            }
+            
+            // Sync local data
             const msg = allMessages.find(m => m.id === id);
             if (msg) msg.ai_draft = result.draft;
             
@@ -1683,10 +1683,12 @@ async function regenerateDraft(id) {
         } else {
             throw new Error(result.error || "API returned no draft");
         }
+
     } catch (err) {
         console.error("Regeneration failed:", err);
         showToast("Couldn't generate draft. Check API logs.");
     } finally {
+        // 5. Restore button text
         btn.innerText = originalText;
     }
 }
