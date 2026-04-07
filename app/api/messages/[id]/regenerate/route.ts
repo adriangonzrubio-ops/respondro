@@ -1,72 +1,59 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { generateAiDraft } from '../../../../../lib/ai-generator';
+import { generateAiDraft } from '@/lib/ai-generator';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
-        console.log("🚀 Starting regeneration for ID:", id);
+        console.log("🚀 Starting regeneration for Message ID:", id);
 
         // 1. Fetch the message first
         const { data: message, error: msgError } = await supabase
             .from('messages')
-            .select('*') 
+            .select('*')
             .eq('id', id)
             .single();
 
-        if (msgError || !message) {
-            console.error("❌ Step 1 Failed (Message):", msgError?.message);
-            throw new Error(`Message not found: ${msgError?.message}`);
-        }
+        if (msgError || !message) throw new Error("Message not found in database.");
 
-        // 2. Fetch the connection to get the store_id
+        // 2. Fetch the connection to find the store_id (no join, just a simple query)
         const { data: connection, error: connError } = await supabase
             .from('user_connections')
             .select('store_id')
             .eq('id', message.connection_id)
             .single();
 
-        if (connError || !connection) {
-            console.error("❌ Step 2 Failed (Connection):", connError?.message);
-            throw new Error(`Connection not found for this message.`);
-        }
+        if (connError || !connection) throw new Error("Could not find the Shopify connection for this message.");
 
-        // 3. Fetch settings for this store
-        // We use .maybeSingle() so it doesn't crash if settings are missing
-        const { data: settings, error: settError } = await supabase
+        // 3. Fetch settings for this specific store
+        const { data: settings } = await supabase
             .from('settings')
             .select('*')
             .eq('store_id', connection.store_id)
-            .maybeSingle();
+            .single();
 
-        if (settError) {
-            console.error("❌ Step 3 Failed (Settings):", settError.message);
-        }
-
-        console.log("🤖 Calling AI with signature:", settings?.signature ? "YES" : "NO");
-
-        // 4. Generate the draft
+        // 4. Generate the AI Draft
         const aiDraft = await generateAiDraft({
             category: message.category || 'General Inquiry',
             body: message.body_text || "",
-            rulebook: settings?.rulebook || "Be helpful and professional.",
+            rulebook: settings?.rulebook || "Be professional.",
             shopifyData: message.shopify_data || {},
             toneExamples: settings?.signature || "", 
             logoUrl: settings?.logo_url || ""
         });
 
-        // 5. Update and return
+        // 5. Save the new draft back to Supabase
         const { error: updateError } = await supabase
             .from('messages')
             .update({ ai_draft: aiDraft })
             .eq('id', id);
 
-        if (updateError) throw new Error(`Update failed: ${updateError.message}`);
+        if (updateError) throw new Error("Failed to save the new draft.");
 
         return NextResponse.json({ draft: aiDraft });
 
     } catch (error: any) {
-        console.error("❌ Critical Regenerate Error:", error.message);
+        console.error("❌ Regeneration Crash:", error.message);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
