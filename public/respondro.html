@@ -1503,6 +1503,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // ... existing fetch('/api/settings') code ...
 });
+function syncEmailUI() {
+    if (!ST.connectedEmail) return;
+    
+    // Find the PrivateEmail card in the grid and add a checkmark
+    const providerCards = document.querySelectorAll('#provider-list > div');
+    providerCards.forEach(card => {
+        if (card.innerText.includes('PrivateEmail')) {
+            card.classList.add('border-emerald-500/50', 'bg-emerald-500/5');
+            const statusTag = document.createElement('span');
+            statusTag.className = 'ml-auto text-[10px] text-emerald-500 font-bold';
+            statusTag.innerHTML = '✓ CONNECTED';
+            card.querySelector('.flex.items-center').appendChild(statusTag);
+        }
+    });
+}
 
 </script>
 <div id="review-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
