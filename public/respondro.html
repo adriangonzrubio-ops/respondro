@@ -1152,35 +1152,47 @@ async function manualSync() {
 let currentEditingId = null;
 
 function openReviewModal(msg) {
-    ST.activeTicket = msg;
+    console.log("🖱️ Card clicked! Attempting to open modal for:", msg.id);
     
-    // 1. Clean the customer name
-    const cleanName = (msg.sender ? msg.sender.split('<')[0] : 'Customer').replace(/"/g, '').trim();
-    
-    // 2. Map data to your HTML IDs
-    const setField = (id, value) => {
-        const el = document.getElementById(id);
-        if (el) el.innerText = value;
-    };
+    try {
+        ST.activeTicket = msg;
+        
+        // 1. Clean the name
+        const cleanName = (msg.sender ? msg.sender.split('<')[0] : 'Customer').replace(/"/g, '').trim();
+        
+        // 2. Helper to safely set text
+        const safeSet = (id, text) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = text;
+            else console.warn(`⚠️ Element #${id} not found`);
+        };
 
-    setField('modal-from', cleanName);
-    setField('modal-subject', msg.subject || 'No Subject');
-    setField('modal-body', msg.body_text || 'No message content available.');
-    setField('modal-reasoning', msg.modal-reasoning || 'Categorized based on your rulebook.');
+        // 3. Fill the fields using the IDs from your HTML at Line 1761+
+        safeSet('modal-from', cleanName);
+        safeSet('modal-subject', msg.subject || 'No Subject');
+        safeSet('modal-body', msg.body_text || 'No content available.');
+        safeSet('modal-reasoning', msg.ai_reasoning || 'Categorized by AI.');
 
-    // 3. Update the Draft box (textarea)
-    // Checking for all possible IDs you might have used
-    const draftArea = document.getElementById('draft-content') || 
-                      document.getElementById('ai-draft-response') || 
-                      document.getElementById('modal-draft');
-                      
-    if (draftArea) {
-        draftArea.value = (msg.ai_draft || "Generating your draft...").replace(/Hi\s+"([^"]+)"/g, `Hi ${cleanName}`);
+        // 4. Handle the Draft box
+        const draftArea = document.getElementById('draft-content') || 
+                          document.getElementById('ai-draft-response') || 
+                          document.getElementById('modal-draft');
+        if (draftArea) {
+            draftArea.value = (msg.ai_draft || "Drafting...").replace(/Hi\s+"([^"]+)"/g, `Hi ${cleanName}`);
+        }
+
+        // 5. Open the Modal
+        const modal = document.getElementById('review-modal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex'; // Force it to show if 'hidden' isn't enough
+            console.log("✅ Modal opened successfully");
+        } else {
+            console.error("❌ Critical: Could not find #review-modal");
+        }
+    } catch (err) {
+        console.error("💥 Crash in openReviewModal:", err);
     }
-
-    // 4. Show the Modal (Matches your Line 1761)
-    const modal = document.getElementById('review-modal');
-    if (modal) modal.classList.remove('hidden');
 }
 
 function closeReviewModal() {
