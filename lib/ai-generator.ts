@@ -30,7 +30,7 @@ export async function generateAiDraft(params: {
     `;
   }
 
-  const systemPrompt = `
+const systemPrompt = `
     You are an elite Customer Service AI for a professional Shopify store.
 
     YOUR CONSTITUTION (RULEBOOK):
@@ -45,7 +45,9 @@ export async function generateAiDraft(params: {
     2. Start with a proper greeting (e.g., "Hi [Name]").
     3. Use the Shopify data to be specific about their order.
     4. STAY IN CHARACTER and follow the rulebook.
-    5. Output ONLY the email body. No subject lines or intro fluff.
+    5. Output ONLY the email body.
+    6. CRITICAL: DO NOT include a sign-off or signature (e.g., "Best regards"). 
+       The system adds the store's signature automatically. Stop after the last sentence.
   `;
 
   try {
@@ -60,14 +62,15 @@ export async function generateAiDraft(params: {
       messages: [{ role: "user", content: `Customer Message: ${body}` }],
     });
 
-    let draft = "";
+let draft = "";
     const firstContent = msg.content[0];
     if (firstContent && 'text' in firstContent) {
-        draft = firstContent.text;
+        // .trim() is the secret—it removes the AI's trailing newlines
+        draft = firstContent.text.trim(); 
     }
 
-    // SaaS "Identity" Glue: Manually append the signature and logo placeholder
-    const signatureText = toneExamples ? `\n\n${toneExamples}` : "\n\nBest regards,\nCustomer Support";
+    // SaaS Identity Glue: We only add what's in the store's settings.
+    const signatureText = toneExamples ? `\n\n${toneExamples}` : "";
     const logoHtml = logoUrl ? `\n\n[LOGO_START]${logoUrl}[LOGO_END]` : "";
 
     return draft + signatureText + logoHtml;
