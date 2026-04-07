@@ -57,13 +57,13 @@ export async function generateAiDraft(params: {
         throw new Error("ANTHROPIC_API_KEY is missing in environment variables.");
     }
 
-    const msg = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20240620",
+const msg = await anthropic.messages.create({
+      // We are moving to the 2026 production flagship model
+      model: "claude-4-6-sonnet-20260217", 
       max_tokens: 1024,
       system: systemPrompt,
       messages: [{ role: "user", content: `Customer Message: ${body}` }],
     });
-
     // Safely extract the text
     const firstContent = msg.content[0];
     if (firstContent && 'text' in firstContent) {
