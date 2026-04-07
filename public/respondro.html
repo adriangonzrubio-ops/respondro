@@ -1167,7 +1167,7 @@ function openReviewModal(msg) {
             else console.warn(`⚠️ Element #${id} not found`);
         };
 
-        // 3. Fill the fields using the IDs from your HTML at Line 1761+
+        // 3. Fill the fields using the IDs from your HTML
         safeSet('modal-from', cleanName);
         safeSet('modal-subject', msg.subject || 'No Subject');
         safeSet('modal-body', msg.body_text || 'No content available.');
@@ -1185,8 +1185,14 @@ function openReviewModal(msg) {
         const modal = document.getElementById('review-modal');
         if (modal) {
             modal.classList.remove('hidden');
-            modal.style.display = 'flex'; // Force it to show if 'hidden' isn't enough
+            modal.style.display = 'flex'; 
             console.log("✅ Modal opened successfully");
+
+            // AUTO-DRAFT: If there's no draft yet, start generating it immediately!
+            if (!msg.ai_draft) {
+                console.log("✨ No draft found, auto-generating...");
+                regenerateDraft(msg.id);
+            }
         } else {
             console.error("❌ Critical: Could not find #review-modal");
         }
@@ -1664,55 +1670,48 @@ function syncEmailUI() {
     });
 }
 async function regenerateDraft(id) {
-    // 1. UI Feedback: show the user the AI is working
+    // 1. If 'id' is missing, try to grab it from our global 'Active Ticket'
+    const targetId = id || ST.activeTicket?.id;
+    
+    if (!targetId) {
+        console.error("❌ Cannot regenerate: No message ID found.");
+        showToast("Error: Missing ticket ID");
+        return;
+    }
+
     const btn = event.target;
-    const originalText = btn.innerText;
-    btn.innerText = "Generating...";
+    const originalText = btn?.innerText || "Regenerate";
+    if (btn) btn.innerText = "Generating...";
 
     try {
-        // 2. Grab the Rulebook and Signature from global state (ST)
         const rulebook = ST.settings?.rulebook || "";
         const signature = ST.settings?.signature || "";
 
-        // 3. Send request to API
-        const response = await fetch(`/api/messages/${id}/regenerate`, {
+        // Use 'targetId' instead of 'id'
+        const response = await fetch(`/api/messages/${targetId}/regenerate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                rulebook: rulebook, 
-                signature: signature 
-            })
+            body: JSON.stringify({ rulebook, signature })
         });
 
         const result = await response.json();
-
         if (result.draft) {
-            // 4. Update the text area
             const draftArea = document.getElementById('draft-content') || document.getElementById('ai-draft-response');
-            
-            if (draftArea) {
-                draftArea.value = result.draft;
-                
-                // Visual feedback: brief color change
-                draftArea.style.backgroundColor = '#1a2e2a';
-                setTimeout(() => draftArea.style.backgroundColor = 'transparent', 500);
-            }
+            if (draftArea) draftArea.value = result.draft;
             
             // Sync local data
-            const msg = allMessages.find(m => m.id === id);
+            const msg = allMessages.find(m => m.id === targetId);
             if (msg) msg.ai_draft = result.draft;
             
             showToast("New draft generated! ✨");
         } else {
             throw new Error(result.error || "API returned no draft");
         }
-
     } catch (err) {
         console.error("Regeneration failed:", err);
-        showToast("Couldn't generate draft. Check API logs.");
+        showToast("Couldn't generate draft.");
     } finally {
-        // 5. Restore button text
-        btn.innerText = originalText;
+        if (btn) btn.innerText = originalText;
     }
 }
 async function sendResponse(msgId) {
