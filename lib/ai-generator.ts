@@ -58,8 +58,8 @@ export async function generateAiDraft(params: {
     }
 
 const msg = await anthropic.messages.create({
-      // We are moving to the 2026 production flagship model
-      model: "claude-4-6-sonnet-20260217", 
+      // Using the exact stable 4.5 flagship version for 2026 production
+      model: "claude-sonnet-4-5-20250929", 
       max_tokens: 1024,
       system: systemPrompt,
       messages: [{ role: "user", content: `Customer Message: ${body}` }],
