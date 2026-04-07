@@ -284,10 +284,46 @@ select.form-input option{background:#0F1623}
         <div id="email-list" class="space-y-3"></div>
     </div>
 
-    <div id="view-review-board" class="p-6 hidden">
-        <h2 class="font-display font-700 text-xl mb-5">Review board</h2>
-        <div id="col-new" class="space-y-3 min-h-[350px]"></div>
+<div id="view-review-board" class="p-6 hidden">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h2 class="font-display font-700 text-2xl text-white">Review Board</h2>
+            <p class="text-gray-500 text-xs">Manage AI drafts and customer inquiries.</p>
+        </div>
+        <button onclick="manualSync()" class="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-4 py-2 rounded-lg border border-white/10 transition-all text-sm font-medium">
+            <span id="sync-icon" class="inline-block">🔄</span> Refresh Sync
+        </button>
     </div>
+
+    <div class="flex gap-6 h-[calc(100vh-220px)] overflow-x-auto pb-4 custom-scrollbar">
+        <div class="flex-1 min-w-[320px] bg-[#1a1a1a]/50 rounded-2xl p-4 flex flex-col border border-white/5">
+            <div class="flex items-center gap-2 mb-4 px-2">
+                <span class="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.4)]"></span>
+                <h3 class="font-bold text-[10px] text-gray-400 uppercase tracking-widest">Needs Review</h3>
+                <span id="review-badge" class="ml-auto bg-white/5 text-gray-500 text-[10px] px-2 py-0.5 rounded-full border border-white/5">0</span>
+            </div>
+            <div id="col-review" class="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar"></div>
+        </div>
+
+        <div class="flex-1 min-w-[320px] bg-[#1a1a1a]/50 rounded-2xl p-4 flex flex-col border border-white/5">
+            <div class="flex items-center gap-2 mb-4 px-2">
+                <span class="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]"></span>
+                <h3 class="font-bold text-[10px] text-gray-400 uppercase tracking-widest">In Progress</h3>
+                <span id="progress-badge" class="ml-auto bg-white/5 text-gray-500 text-[10px] px-2 py-0.5 rounded-full border border-white/5">0</span>
+            </div>
+            <div id="col-progress" class="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar"></div>
+        </div>
+
+        <div class="flex-1 min-w-[320px] bg-[#1a1a1a]/50 rounded-2xl p-4 flex flex-col border border-white/5">
+            <div class="flex items-center gap-2 mb-4 px-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8_rgba(16,185,129,0.4)]"></span>
+                <h3 class="font-bold text-[10px] text-gray-400 uppercase tracking-widest">Done</h3>
+                <button onclick="toggleHistory()" id="history-btn" class="ml-auto text-[9px] text-emerald-400/60 hover:text-emerald-400 transition-colors uppercase font-bold">History</button>
+            </div>
+            <div id="col-done" class="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar"></div>
+        </div>
+    </div>
+</div>
 
     <div id="view-rules" class="p-6 hidden">
         <div class="flex items-center justify-between mb-5">
@@ -1006,9 +1042,10 @@ async function syncDashboardData() {
     }
 
     // 2. Update Kanban Board Columns
-    renderKanbanColumn(messages, 'needs_review', 'col-new', 'count-new');
-    renderKanbanColumn(messages, 'processing', 'col-progress', 'count-progress');
-    renderKanbanColumn(messages, 'replied', 'col-closed', 'count-closed');
+// 2. Update Kanban Board Columns
+            renderKanbanColumn(messages, 'needs_review', 'col-review', 'review-badge');
+            renderKanbanColumn(messages, 'in_progress', 'col-progress', 'progress-badge');
+            renderKanbanColumn(messages, 'done', 'col-done', null); // Done column doesn't need a numeric badge if using the history button
 
     // 3. Update Global Sidebar Badge
     const badge = document.getElementById('review-badge');
@@ -1018,59 +1055,112 @@ async function syncDashboardData() {
     console.error("Dashboard sync error:", err);
   }
 }
+let showFullHistory = false;
 
 function renderKanbanColumn(allMessages, status, columnId, countId) {
     const col = document.getElementById(columnId);
-    const badge = document.getElementById(countId);
+    const badge = countId ? document.getElementById(countId) : null;
     
-    // SAFETY CHECK: If we're on the Settings tab, these elements don't exist.
-    // We exit early so the script doesn't crash.
     if (!col) return;
 
-    const filtered = allMessages.filter(m => m.status === status || (status === 'needs_review' && m.status === 'pending'));
-    
-    // Only update the badge if it's found on the page
-    if (badge) {
-        badge.innerText = filtered.length;
-    }
+    const filtered = allMessages.filter(m => {
+        // Column 1: Needs Review (Catch-all for new or pending items)
+        if (status === 'needs_review') {
+            return m.status === 'needs_review' || m.status === 'pending';
+        }
+        // Column 2: In Progress
+        if (status === 'in_progress') {
+            return m.status === 'in_progress' || m.status === 'processing';
+        }
+        // Column 3: Done (Reset at midnight)
+        if (status === 'done') {
+            const isDone = m.status === 'done' || m.status === 'replied' || m.status === 'archived';
+            if (!isDone) return false;
+
+            // If "History" isn't toggled, only show items from today
+            if (showFullHistory) return true;
+            const today = new Date().toDateString();
+            const msgDate = new Date(m.updated_at || m.created_at).toDateString();
+            return msgDate === today;
+        }
+        return false;
+    });
+
+    if (badge) badge.innerText = filtered.length;
 
     col.innerHTML = filtered.map(msg => `
         <div onclick='openReviewModal(${JSON.stringify(msg).replace(/'/g, "&apos;")})' class="bg-card border border-white/5 p-4 rounded-xl hover:border-white/10 cursor-pointer transition-all group mb-3">
             <div class="flex justify-between mb-2">
                 <span class="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">${msg.category || 'general'}</span>
-                <span class="text-gray-600 text-[9px]">${new Date(msg.received_at).toLocaleDateString()}</span>
+                <span class="text-gray-600 text-[9px]">${new Date(msg.created_at).toLocaleDateString()}</span>
             </div>
             <div class="text-xs font-semibold text-white mb-1 line-clamp-1">${msg.subject}</div>
             <div class="text-[10px] text-gray-500 line-clamp-2 mb-3">${msg.body_text}</div>
             <div class="flex justify-between items-center">
                 <span class="text-[10px] text-gray-400">${msg.sender ? msg.sender.split('<')[0] : 'Customer'}</span>
-                <div class="w-4 h-4 rounded-full bg-emerald-500 border border-black text-[8px] flex items-center justify-center text-black font-bold uppercase">${msg.sender ? msg.sender.charAt(0).toUpperCase() : 'U'}</div>
+                <div class="w-4 h-4 rounded-full bg-emerald-500 border border-black text-[8px] flex items-center justify-center text-black font-bold uppercase">${msg.sender?.charAt(0) || 'U'}</div>
             </div>
         </div>
     `).join('');
 }
 
+// Function for the "History" button in the Done column
+function toggleHistory() {
+    showFullHistory = !showFullHistory;
+    const btn = document.getElementById('history-btn');
+    if (btn) btn.innerText = showFullHistory ? 'Today Only' : 'History';
+    syncDashboardData(); // This refreshes the UI
+}
+
+// Function for the manual Refresh Sync button
+async function manualSync() {
+    const icon = document.getElementById('sync-icon');
+    if (icon) icon.classList.add('animate-spin'); // Make it spin
+    
+    try {
+        // Call your worker to fetch new emails
+        await fetch('/api/worker');
+        // Refresh the local data
+        await syncDashboardData();
+        showToast('Check for new mail complete ✓');
+    } catch (err) {
+        console.error("Manual sync failed:", err);
+    } finally {
+        if (icon) icon.classList.remove('animate-spin');
+    }
+}
+
 // 🚀 Fire off the sync when the page loads
 // --- REVIEW MODAL LOGIC ---
-function openReviewModal(msg) {
-  const modal = document.getElementById('review-modal');
-  
-  // 📝 Fill in the Customer Details
-  document.getElementById('modal-subject').innerText = msg.subject || 'No Subject';
-  document.getElementById('modal-from').innerText = msg.sender ? msg.sender.split('<')[0] : 'Unknown Sender';
-  document.getElementById('modal-body').innerText = msg.body_text || 'No content found.';
-  document.getElementById('modal-reasoning').innerText = msg.ai_reasoning || 'No specific reasoning provided.';
-  document.getElementById('modal-badge').innerText = msg.category || 'General';
-  document.getElementById('modal-avatar').innerText = (msg.sender || 'U').charAt(0).toUpperCase();
-  
-  // ✍️ Simple Draft Placeholder
-  const firstName = msg.sender ? msg.sender.split(' ')[0] : 'there';
-  document.getElementById('modal-draft').value = `Hi ${firstName},\n\nThank you for reaching out! I've reviewed your request regarding "${msg.category.replace('_', ' ')}". \n\nI'm looking into this for you right now.\n\nBest regards,\nRespondro AI`;
+// 1. Add this variable right above the function to track the ID
+let currentEditingId = null;
 
-  // ✨ Show the Modal
-  modal.classList.remove('hidden');
-  modal.classList.add('flex'); // Ensure it uses flex to center
-  document.body.style.overflow = 'hidden'; 
+function openReviewModal(msg) {
+    const modal = document.getElementById('review-modal');
+    currentEditingId = msg.id; // Crucial: This tells the "Send" and "Regenerate" buttons which email to fix
+    
+    // 2. Fill in the Customer Details
+    document.getElementById('modal-subject').innerText = msg.subject || 'No Subject';
+    document.getElementById('modal-from').innerText = msg.sender ? msg.sender.split('<')[0] : 'Unknown Sender';
+    document.getElementById('modal-body').innerText = msg.body_text || 'No content found.';
+    document.getElementById('modal-reasoning').innerText = msg.ai_reasoning || 'No specific reasoning provided.';
+    document.getElementById('modal-badge').innerText = msg.category || 'General';
+    document.getElementById('modal-avatar').innerText = (msg.sender || 'U').charAt(0).toUpperCase();
+
+    // 3. Load the AI Draft (Fix: Priority goes to the actual Claude draft!)
+    const draftArea = document.getElementById('modal-draft');
+    if (msg.ai_draft) {
+        draftArea.value = msg.ai_draft;
+    } else {
+        // Only use the placeholder if the AI hasn't drafted anything yet
+        const firstName = msg.sender ? msg.sender.split(' ')[0] : 'there';
+        draftArea.value = `Hi ${firstName},\n\nThanks for reaching out! I'm looking into this for you.`;
+    }
+
+    // 4. Show the Modal
+    modal.classList.remove('hidden');
+    modal.classList.add('flex'); 
+    document.body.style.overflow = 'hidden';
 }
 
 function closeReviewModal() {
@@ -1528,6 +1618,63 @@ function syncEmailUI() {
         }
     });
 }
+async function regenerateDraft(msgId) {
+    const btn = document.getElementById('modal-regenerate-btn');
+    if (!btn) return;
+    
+    // UI Feedback: Show the user it's thinking
+    const originalText = btn.innerText;
+    btn.innerText = '✨ Regenerating...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`/api/messages/${msgId}/regenerate`, { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.ai_draft) {
+            // Update the text box in the modal with the new Claude draft
+            const draftArea = document.getElementById('modal-draft');
+            if (draftArea) draftArea.value = data.ai_draft;
+            showToast('New draft generated! ✨');
+        }
+    } catch (err) {
+        showToast('Error regenerating draft');
+    } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+}
+async function sendResponse(msgId) {
+    const draftArea = document.getElementById('modal-draft');
+    const draftText = draftArea ? draftArea.value : '';
+    const btn = document.querySelector('button[onclick*="sendResponse"]');
+    
+    if (!confirm("Send this response to the customer?")) return;
+    
+    btn.innerText = '🚀 Sending...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`/api/messages/${msgId}/send`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ draftText })
+        });
+        
+        if (res.ok) {
+            showToast('Email sent! ✈️');
+            closeReviewModal();
+            syncDashboardData(); 
+        } else {
+            showToast('Error sending email');
+        }
+    } catch (err) {
+        showToast('Failed to connect to server');
+    } finally {
+        btn.innerText = 'Send Response';
+        btn.disabled = false;
+    }
+}
 
 </script>
 <div id="review-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
@@ -1559,23 +1706,22 @@ function syncEmailUI() {
         </div>
       </div>
 
-      <div class="flex flex-col h-full bg-white/[0.02] rounded-2xl border border-white/5 p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+<div class="flex flex-col h-full bg-white/[0.02] rounded-2xl border border-white/5 p-6">
+<div class="flex justify-between items-center mb-4">
+        <h3 class="text-sm font-bold text-white flex items-center gap-2">
             <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             Respondro AI Draft
-          </h3>
-          <button class="text-[10px] text-gray-500 hover:text-white">Regenerate</button>
-        </div>
-        <textarea id="modal-draft" class="flex-1 bg-transparent border-none text-sm text-gray-300 leading-relaxed resize-none focus:ring-0 p-0 mb-4" placeholder="Drafting response..."></textarea>
-        
-        <div class="pt-4 border-t border-white/5 flex gap-3">
-          <button class="flex-1 py-3 bg-white text-black rounded-xl font-bold text-xs hover:bg-emerald-400 transition-colors">Send Response</button>
-          <button class="px-4 py-3 bg-white/5 text-white rounded-xl font-bold text-xs hover:bg-white/10 transition-colors">Edit</button>
-        </div>
-      </div>
+        </h3>
+        <button id="modal-regenerate-btn" onclick="regenerateDraft(currentEditingId)" class="text-[10px] text-gray-500 hover:text-white transition-colors">Regenerate</button>
     </div>
-  </div>
+
+    <textarea id="modal-draft" class="flex-1 bg-transparent border-none text-sm text-gray-300 leading-relaxed resize-none focus:ring-0 p-0 mb-4" placeholder="AI is drafting..."></textarea>
+
+    <div class="pt-4 border-t border-white/5 flex gap-3">
+        <button onclick="sendResponse(currentEditingId)" class="flex-1 px-4 py-3 bg-white text-black rounded-xl font-bold text-xs hover:bg-emerald-400 transition-colors">Send Response</button>
+        <button class="px-4 py-3 bg-white/5 text-white rounded-xl font-bold text-xs hover:bg-white/10 transition-colors">Edit</button>
+    </div>
+    </div>
 </div>
 </body>
 </html>
