@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>tailwind.config={theme:{extend:{colors:{navy:'#080D1A',surface:'#0F1623',surface2:'#151E30',accent:'#00C896',warm:'#F0A500',muted:'#5A6785'},fontFamily:{display:['Syne','sans-serif'],body:['DM Sans','sans-serif'],mono:['DM Mono','monospace']}}}}</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -584,6 +585,10 @@ select.form-input option{background:#0F1623}
   </div>
 </div>
 <script>
+  // Add these lines right at the top of your script block
+const supabaseUrl = 'https://vlwhwkxmjfwzpvspkldc.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsd2h3a3htamZ3enB2c3BrbGRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMjA4NDQsImV4cCI6MjA5MDg5Njg0NH0.zKr1JkEa1WI3Bu2_ZkmN9P2RPdcGMn_MUMPZBePX26Y';
+const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 // ═══ PROVIDERS ═══
 // ═══ 1. DATA & STATE (Preserving your full list) ═══
 const PROVIDERS = [
