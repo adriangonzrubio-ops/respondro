@@ -5,65 +5,47 @@ import { generateAiDraft } from '../../../../../lib/ai-generator';
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
-        
-        // 1. Get the merchant's settings from the request (SaaS Dynamic)
-        const { rulebook, signature } = await req.json();
 
-        // 2. Fetch the message context from Supabase
-        const { data: message, error } = await supabase
+        // 1. Fetch the message AND the associated store ID via the connection
+        // We use the 'connections' join to make sure we get the right merchant's data
+        const { data: message } = await supabase
             .from('messages')
-            .select('*')
+            .select('*, connections(store_id)') 
             .eq('id', id)
             .single();
 
-        if (error || !message) {
-            return NextResponse.json({ error: "Message context not found" }, { status: 404 });
-        }
+        if (!message || !message.connections) throw new Error("Message or Store connection not found");
 
-        // 3. SaaS "Data Healing"
-        // If body_text is missing in DB, we can't draft. 
-        // A pro app would log this for the merchant.
-        if (!message.body_text) {
-            return NextResponse.json({ error: "Cannot generate draft: Original email content is missing." }, { status: 400 });
-        }
+        // 2. Fetch the specific settings for THIS store (SaaS standard)
+        const { data: settings } = await supabase
+            .from('settings')
+            .select('*')
+            .eq('store_id', message.connections.store_id)
+            .single();
 
-        // 4. Construct a high-priority prompt for the AI
-        // We wrap the rulebook and signature clearly so the AI can't ignore them
-        const merchantContext = `
-            # BRAND RULEBOOK
-            ${rulebook || 'Be helpful, professional, and concise.'}
-
-            # REQUIRED SIGNATURE
-            ${signature || 'Best regards, Customer Support'}
-        `;
-
-        // 5. Generate the Draft using the AI Service
-        // We pass the full message object to ensure it has Shopify order data if available
-        const draft = await generateAiDraft({
+        // 3. Generate the draft using the official signature from the database
+        const aiDraft = await generateAiDraft({
             category: message.category || 'General Inquiry',
             body: message.body_text,
-            rulebook: merchantContext,
-            shopifyData: message.shopify_data || {} // This is the gold for SaaS
+            rulebook: settings?.rulebook || "Be professional.",
+            shopifyData: message.shopify_data || {},
+            toneExamples: settings?.signature || "", // This fixes the missing signature!
+            logoUrl: settings?.logo_url || ""
         });
 
-        if (!draft) {
-            throw new Error("AI Service returned an empty response");
-        }
-
-        // 6. Final SaaS Step: Save the draft back to the DB 
-        // This ensures if the user refreshes, the work isn't lost.
+        // 4. Update the message with the new draft in Supabase
         await supabase
             .from('messages')
-            .update({ ai_draft: draft })
+            .update({ ai_draft: aiDraft })
             .eq('id', id);
 
-        return NextResponse.json({ draft });
+        return NextResponse.json({ draft: aiDraft });
 
-    } catch (err: any) {
-        console.error("🚀 SaaS Regeneration Crash:", err.message);
+    } catch (error: any) {
+        console.error("❌ SaaS Regeneration Crash:", error.message);
         return NextResponse.json({ 
             error: "Drafting failed. Please check your Shopify connection or AI credits.",
-            details: err.message 
+            details: error.message 
         }, { status: 500 });
     }
 }
