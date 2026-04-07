@@ -1154,36 +1154,39 @@ let currentEditingId = null;
 // --- UNIFIED MODAL LOGIC (SaaS READY) ---
 
 function openReviewModal(msg) {
-    ST.activeTicket = msg; // Dynamic: Stores whoever's ticket is clicked
-    
+    console.log("🛠️ Loading Shopify Ticket:", msg.id);
+    ST.activeTicket = msg; // Dynamic global state for the active merchant
+
     const cleanName = (msg.sender ? msg.sender.split('<')[0] : 'Customer').replace(/"/g, '').trim();
 
-    // Helper to sync data to HTML IDs
     const safeSet = (id, val, isValue = false) => {
         const el = document.getElementById(id);
-        if (el) {
-            if (isValue) el.value = val;
-            else el.innerText = val;
-        }
+        if (el) isValue ? (el.value = val) : (el.innerText = val);
     };
 
-    // Mapping to Standardized IDs (Update your HTML to match these!)
+    // 1. Populate UI fields using standardized IDs
     safeSet('modal-from', cleanName);
     safeSet('modal-subject', msg.subject || 'No Subject');
-    safeSet('modal-body', msg.body_text || 'No message content.');
-    safeSet('modal-reasoning', msg.ai_reasoning || 'Categorized by AI.');
+    safeSet('modal-body', msg.body_text || 'No message content found.');
+    safeSet('modal-reasoning', msg.ai_reasoning || 'Categorizing...');
     
-    // Draft Area
-    safeSet('modal-draft-area', (msg.ai_draft || "Drafting...").replace(/Hi\s+"([^"]+)"/g, `Hi ${cleanName}`), true);
+    // 2. Set the draft area with the dark transparent styling
+    const draftArea = document.getElementById('modal-draft-area');
+    if (draftArea) {
+        draftArea.value = msg.ai_draft ? msg.ai_draft.replace(/Hi\s+"([^"]+)"/g, `Hi ${cleanName}`) : "Drafting your response...";
+    }
 
+    // 3. Show Modal centered
     const modal = document.getElementById('review-modal');
     if (modal) {
         modal.classList.remove('hidden');
         modal.classList.add('flex');
     }
 
-    // Auto-trigger AI for new tickets
-    if (!msg.ai_draft) regenerateDraft(msg.id);
+    // 4. SaaS Auto-Draft: Generate the first draft if it doesn't exist yet
+    if (!msg.ai_draft) {
+        regenerateDraft(msg.id);
+    }
 }
 
 function closeReviewModal() {
@@ -1191,6 +1194,43 @@ function closeReviewModal() {
     if (modal) {
         modal.classList.add('hidden');
         modal.classList.remove('flex');
+    }
+}
+
+async function regenerateDraft(id) {
+    const targetId = id || ST.activeTicket?.id;
+    if (!targetId) return;
+
+    const area = document.getElementById('modal-draft-area');
+    if (area) area.value = "Consulting your Rulebook... 🤖";
+
+    try {
+        // Multi-tenant call: uses the logged-in merchant's rulebook/signature
+        const res = await fetch(`/api/messages/${targetId}/regenerate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                rulebook: ST.settings?.rulebook || "No rules defined.", 
+                signature: ST.settings?.signature || "" 
+            })
+        });
+
+        const result = await res.json();
+        
+        if (result.draft) {
+            if (area) area.value = result.draft;
+            
+            // Sync result to local memory to avoid duplicate API calls
+            const msg = allMessages.find(m => m.id === targetId);
+            if (msg) msg.ai_draft = result.draft;
+            
+            showToast("New draft generated! ✨");
+        } else {
+            throw new Error(result.error || "AI Generation Failed");
+        }
+    } catch (err) {
+        console.error("❌ SaaS Regeneration Error:", err);
+        if (area) area.value = "I couldn't generate a draft. Please ensure your Rulebook is set up in Settings.";
     }
 }
 
@@ -1749,49 +1789,55 @@ try {
 }
 
 </script>
-<div id="review-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
-  <div class="bg-[#0A0A0A] border border-white/10 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
-    <div class="p-6 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
-      <div>
-        <div id="modal-badge" class="text-[10px] font-bold uppercase px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 inline-block mb-2">Category</div>
-        <h2 id="modal-subject" class="text-xl font-bold text-white">Email Subject</h2>
-      </div>
-      <button onclick="closeReviewModal()" class="text-gray-500 hover:text-white transition">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-      </button>
-    </div>
-
-    <div class="flex-1 overflow-y-auto p-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <div class="space-y-4">
-        <div class="flex items-center gap-3 pb-4 border-b border-white/5">
-          <div class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-emerald-400 font-bold" id="modal-avatar">?</div>
-          <div>
-            <div id="modal-from" class="text-sm font-bold text-white">Customer Name</div>
-            <div id="modal-date" class="text-[10px] text-gray-500">Sent 2 hours ago</div>
-          </div>
-        </div>
-        <div id="modal-body" class="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap py-4 italic">Loading email content...</div>
+<div id="review-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] items-center justify-center p-4">
+    <div class="bg-[#0A0A0A] border border-white/10 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
         
-        <div class="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10">
-          <div class="text-[10px] font-bold text-blue-400 uppercase mb-1">AI Reasoning</div>
-          <p id="modal-reasoning" class="text-xs text-blue-200/70 italic">The AI categorized this because...</p>
+        <div class="p-6 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+            <div>
+                <div id="modal-badge" class="text-[10px] font-bold uppercase px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 inline-block mb-2">Ticket Review</div>
+                <h2 id="modal-subject" class="text-xl font-bold text-white">Email Subject</h2>
+            </div>
+            <button onclick="closeReviewModal()" class="text-gray-500 hover:text-white transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
         </div>
-      </div>
 
-<div class="flex flex-col h-full bg-white/[0.02] rounded-2xl border border-white/5 p-6">
-<div class="flex justify-between items-center mb-4">
-        <h3 class="text-sm font-bold text-white flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            Respondro AI Draft
-        </h3>
-        <button id="modal-regenerate-btn" onclick="regenerateDraft(currentEditingId)" class="text-[10px] text-gray-500 hover:text-white transition-colors">Regenerate</button>
-    </div>
+        <div class="flex-1 overflow-y-auto p-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="space-y-4">
+                <div class="flex items-center gap-3 pb-4 border-b border-white/5">
+                    <div class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-emerald-400 font-bold" id="modal-avatar">?</div>
+                    <div>
+                        <div id="modal-from" class="text-sm font-bold text-white">Customer Name</div>
+                        <div id="modal-date" class="text-[10px] text-gray-500">Sent via Shopify</div>
+                    </div>
+                </div>
+                <div id="modal-body" class="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap py-4 italic">Loading email content...</div>
+                
+                <div class="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10">
+                    <div class="text-[10px] font-bold text-blue-400 uppercase mb-1">AI REASONING</div>
+                    <p id="modal-reasoning" class="text-xs text-blue-200/70 italic">Analyzing sentiment...</p>
+                </div>
+            </div>
 
-<textarea id="modal-draft-area" class="..."></textarea>
-    <div class="pt-4 border-t border-white/5 flex gap-3">
-        <button onclick="sendResponse(currentEditingId)" class="flex-1 px-4 py-3 bg-white text-black rounded-xl font-bold text-xs hover:bg-emerald-400 transition-colors">Send Response</button>
-        <button class="px-4 py-3 bg-white/5 text-white rounded-xl font-bold text-xs hover:bg-white/10 transition-colors">Edit</button>
-    </div>
+            <div class="flex flex-col h-full bg-white/[0.02] rounded-2xl border border-white/5 p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Respondro AI Draft
+                    </h3>
+                    <button onclick="regenerateDraft()" class="text-[10px] text-gray-500 hover:text-white transition">Regenerate</button>
+                </div>
+
+                <textarea id="modal-draft-area" 
+                    class="flex-1 bg-transparent border-none text-sm text-gray-300 leading-relaxed resize-none focus:ring-0 p-0 mb-4 outline-none min-h-[200px]" 
+                    placeholder="AI is drafting your response..."></textarea>
+
+                <div class="pt-4 border-t border-white/5 flex gap-3">
+                    <button onclick="sendResponse()" class="flex-1 px-4 py-3 bg-white text-black rounded-xl font-bold text-xs hover:bg-gray-200 transition">Send Response</button>
+                    <button onclick="document.getElementById('modal-draft-area').focus()" class="px-4 py-3 bg-white/5 text-white rounded-xl font-bold text-xs hover:bg-white/10 transition">Edit</button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 </body>
