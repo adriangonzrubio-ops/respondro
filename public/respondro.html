@@ -1063,27 +1063,36 @@ function renderKanbanColumn(allMessages, status, columnId, countId) {
     
     if (!col) return;
 
-    const filtered = allMessages.filter(m => {
-        // Column 1: Needs Review (Catch-all for new or pending items)
+const filtered = allMessages.filter(m => {
+        // --- 1. COLUMN FILTERING ---
+        
+        // Column 1: Needs Review (THE "WEEK-PROOF" COLUMN)
         if (status === 'needs_review') {
-            return m.status === 'needs_review' || m.status === 'pending';
+            const isReview = m.status === 'needs_review' || m.status === 'pending' || !m.status;
+            if (isReview) return true; // If it needs review, show it regardless of date!
+            return false;
         }
+
         // Column 2: In Progress
         if (status === 'in_progress') {
-            return m.status === 'in_progress' || m.status === 'processing';
+            const isProgress = m.status === 'in_progress' || m.status === 'processing';
+            if (!isProgress) return false;
         }
-        // Column 3: Done (Reset at midnight)
+
+        // Column 3: Done
         if (status === 'done') {
             const isDone = m.status === 'done' || m.status === 'replied' || m.status === 'archived';
             if (!isDone) return false;
-
-            // If "History" isn't toggled, only show items from today
-            if (showFullHistory) return true;
-            const today = new Date().toDateString();
-            const msgDate = new Date(m.updated_at || m.created_at).toDateString();
-            return msgDate === today;
         }
-        return false;
+
+        // --- 2. DATE/HISTORY FILTERING ---
+        // This part now only cleans up the "In Progress" and "Done" columns.
+        if (showFullHistory) return true;
+
+        const today = new Date().toDateString();
+        const msgDate = new Date(m.updated_at || m.created_at).toDateString();
+        
+        return msgDate === today;
     });
 
     if (badge) badge.innerText = filtered.length;

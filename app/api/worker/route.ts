@@ -1,32 +1,37 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { classifyEmail } from '../../../lib/ai-classifier';
 import { getOrdersByEmail } from '../../../lib/shopify';
 import { generateAiDraft } from '../../../lib/ai-generator';
-
-// Initialize Supabase at the top level so all functions can see it
-const supabase = createClient(
-    process.env.SUPABASE_URL!, 
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabase } from '../../../lib/supabase'; // This fixes the 4 "Cannot find" errors
 
 export const dynamic = 'force-dynamic';
-
 export async function GET() {
+    console.log("Worker started...");
     try {
-        const { data: connections } = await supabase.from('user_connections').select('*');
-        if (!connections) return NextResponse.json({ message: "No connections" });
+        // 1. Get connections from the database
+        const { data: connections, error: connError } = await supabase
+            .from('user_connections')
+            .select('*');
 
+        if (connError) throw connError;
+
+        if (!connections || connections.length === 0) {
+            return NextResponse.json({ message: "No email connections found. Please connect an account first." });
+        }
+
+        // 2. Fetch emails for every connection
         for (const conn of connections) {
-            if (conn.imap_host) {
+            if (conn.imap_host && conn.imap_user && conn.imap_pass) {
+                console.log(`Checking mail for: ${conn.imap_user}`);
                 await fetchImap(conn);
             }
         }
 
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, message: "Sync complete" });
     } catch (error: any) {
+        console.error("Worker Crash:", error.message);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
