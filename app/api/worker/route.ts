@@ -102,7 +102,8 @@ async function fetchImap(conn: any) {
                     body: body,
                     rulebook: settings?.rulebook || "Be professional.",
                     shopifyData: shopifyData,
-                    toneExamples: settings?.signature || ""
+                    toneExamples: settings?.signature || "", 
+                    logoUrl: settings?.logo_url || "" // This is the final SaaS piece!
                 });
 
                 // 5. Save to Database

@@ -9,12 +9,12 @@ export async function generateAiDraft(params: {
   body: string;
   rulebook: string;
   shopifyData: any;
-  toneExamples?: string;
+  toneExamples?: string; 
+  logoUrl?: string;     
 }) {
-  const { category, body, rulebook, shopifyData, toneExamples } = params;
+  const { category, body, rulebook, shopifyData, toneExamples, logoUrl } = params;
 
   // 1. SaaS Resilient Shopify Context
-  // This handles cases where some Shopify data might be missing without crashing the prompt
   let shopifyContext = "No specific Shopify order data found for this customer.";
   
   if (shopifyData && typeof shopifyData === 'object' && Object.keys(shopifyData).length > 0) {
@@ -36,47 +36,44 @@ export async function generateAiDraft(params: {
     YOUR CONSTITUTION (RULEBOOK):
     ${rulebook || "Be helpful, empathetic, and professional."}
 
-    TONE EXAMPLES:
-    ${toneExamples || "Helpful, concise, and friendly."}
-
     CURRENT CASE CONTEXT:
     Category: ${category}
     ${shopifyContext}
 
     INSTRUCTIONS:
-    1. Write a direct draft response to the customer's email.
-    2. Use the Shopify data provided to give specific answers.
-    3. If no order is found, politely ask for their order number.
-    4. STAY IN CHARACTER and follow the rulebook strictly.
-    5. Output ONLY the response text. No subject lines, no intro fluff.
+    1. Write a direct, empathetic response to the customer.
+    2. Start with a proper greeting (e.g., "Hi [Name]").
+    3. Use the Shopify data to be specific about their order.
+    4. STAY IN CHARACTER and follow the rulebook.
+    5. Output ONLY the email body. No subject lines or intro fluff.
   `;
 
   try {
-    // Check for API Key to prevent silent failures
     if (!process.env.ANTHROPIC_API_KEY) {
-        throw new Error("ANTHROPIC_API_KEY is missing in environment variables.");
+        throw new Error("ANTHROPIC_API_KEY is missing.");
     }
 
-const msg = await anthropic.messages.create({
-      // Using the exact stable 4.5 flagship version for 2026 production
-      model: "claude-sonnet-4-5-20250929", 
+    const msg = await anthropic.messages.create({
+      model: "claude-sonnet-4-5-20250929",
       max_tokens: 1024,
       system: systemPrompt,
       messages: [{ role: "user", content: `Customer Message: ${body}` }],
     });
-    // Safely extract the text
+
+    let draft = "";
     const firstContent = msg.content[0];
     if (firstContent && 'text' in firstContent) {
-        return firstContent.text;
+        draft = firstContent.text;
     }
-    
-    return "Draft generated, but content format was unexpected.";
+
+    // SaaS "Identity" Glue: Manually append the signature and logo placeholder
+    const signatureText = toneExamples ? `\n\n${toneExamples}` : "\n\nBest regards,\nCustomer Support";
+    const logoHtml = logoUrl ? `\n\n[LOGO_START]${logoUrl}[LOGO_END]` : "";
+
+    return draft + signatureText + logoHtml;
 
   } catch (error: any) {
-    // SaaS logging: This helps you debug in the Vercel logs
     console.error("❌ Claude AI Error:", error.message);
-    
-    // Return a more descriptive error for the merchant
     return `I'm sorry, I couldn't generate a draft. (Error: ${error.message})`;
   }
 }
