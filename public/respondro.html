@@ -1265,7 +1265,6 @@ function syncShopifyUI() {
     // 1. Find the elements (using ID or fallback to text search)
     let btn = document.getElementById('shopify-btn');
     if (!btn) {
-        // Fallback: Find the button that contains the word "Shopify"
         const buttons = document.querySelectorAll('button, a');
         btn = Array.from(buttons).find(b => b.innerText.includes('Shopify'));
     }
@@ -1276,9 +1275,9 @@ function syncShopifyUI() {
         console.log("🟢 Shopify Connected UI State Active");
         if (btn) {
             btn.innerHTML = `✓ Shopify connected — ${ST.shopURL || 'Active'}`;
-            btn.style.background = 'rgba(16, 185, 129, 0.1)';
+            btn.style.background = 'rgba(16, 185, 129, 0.15)';
             btn.style.color = '#10b981';
-            btn.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+            btn.style.border = '1px solid rgba(16, 185, 129, 0.4)';
             btn.disabled = true; 
             btn.style.cursor = 'default';
         }
@@ -1286,7 +1285,7 @@ function syncShopifyUI() {
     } else {
         if (btn) {
             btn.innerHTML = 'Connect with Shopify';
-            btn.style.background = ''; // Revert to original
+            btn.style.background = ''; 
             btn.disabled = false;
         }
         if (chip) chip.classList.add('hidden');
@@ -1498,6 +1497,7 @@ function showView(viewId) {
 
 // 2. Updated Load Logic (Update your existing DOMContentLoaded listener)
 function syncEmailUI() {
+    // 1. SAFETY CHECK (The "Step 2" fix): If data isn't here yet, exit to prevent crash
     if (!ST.connectedEmail || !ST.activeEmail) return;
     
     const providerCards = document.querySelectorAll('#provider-list > div');
