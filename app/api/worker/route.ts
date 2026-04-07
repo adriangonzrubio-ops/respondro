@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { classifyEmail } from '../../../lib/ai-classifier';
-import { getOrdersByEmail } from '../../../lib/shopify';
+import { getOrdersByEmail, getOrderByName } from '../../../lib/shopify';
 import { generateAiDraft } from '../../../lib/ai-generator';
 import { supabase } from '../../../lib/supabase'; // This fixes the 4 "Cannot find" errors
 
@@ -49,71 +49,81 @@ async function fetchImap(conn: any) {
     let lock = await client.getMailboxLock('INBOX');
 
     try {
-        // Fetch unseen messages
         for await (let msg of client.fetch({ seen: false }, { source: true })) {
-            if (!msg.source) continue;
+            if (msg.source) {
+                const parsed = await simpleParser(msg.source);
+                const subject = parsed.subject || "No Subject";
+                const body = parsed.text || '';
+                const from = parsed.from?.value[0]?.address || 'Unknown Sender';
 
-            const parsed = await simpleParser(msg.source);
-            const subject = parsed.subject || 'No Subject';
-            const body = parsed.text || '';
-            const from = parsed.from?.value[0]?.address || 'Unknown Sender';
+                console.log(`📩 Processing email from: ${from}`);
 
-            console.log(`📡 Processing email from: ${from}`);
+                // 1. AI Classification
+                const triage = await classifyEmail(subject, body);
 
-            // 1. AI Classification (The "Sorter")
-            const triage = await classifyEmail(subject, body);
+                // 2. Shopify Order Lookup (SaaS Optimized)
+                let shopifyData = null;
+                const needsData = ['order_status', 'shipping_update', 'refund_request', 'tracking_update'].includes(triage.category);
 
-            // 2. Shopify Order Lookup (The "Detective")
-            let shopifyData = null;
-            const needsData = ['order_status', 'shipping_update', 'refund_request'].includes(triage.category);
+                if (needsData) {
+                    const { data: store } = await supabase.from('stores').select('*').eq('id', conn.store_id).single();
 
-            if (needsData) {
-                const { data: store } = await supabase.from('stores').select('*').single();
-                if (store?.shopify_token) {
-                    shopifyData = await getOrdersByEmail(store.shopify_url, store.shopify_token, from);
-                    console.log("📦 Shopify Data Found:", shopifyData ? "Yes" : "No");
+                    if (store?.shopify_access_token) {
+                        // Search by #number in text
+                        const orderMatch = subject.match(/#(\d+)/) || body.match(/#(\d+)/);
+                        const orderNumber = orderMatch ? orderMatch[1] : null;
+
+                        if (orderNumber) {
+                            // This calls the new function in lib/shopify.ts
+                            shopifyData = await getOrderByName(store.shop_url, store.shopify_access_token, orderNumber);
+                        }
+                        // Fallback to email if no order number found
+                        if (!shopifyData) {
+                            shopifyData = await getOrdersByEmail(store.shop_url, store.shopify_access_token, from);
+                        }
+                    }
                 }
-            }
 
-            // 3. Status Determination (Triage)
-            let initialStatus = 'pending';
-            const reviewNeeded = ['refund_request', 'customer_complaint', 'cancellation'];
-            
-            // Send to Review Board if complex or if data is missing for an order inquiry
-            if (reviewNeeded.includes(triage.category) || (needsData && !shopifyData)) {
-                initialStatus = 'needs_review';
-            } else if (['spam', 'marketing'].includes(triage.category)) {
-                initialStatus = 'archived';
+                // 3. Status Determination
+                let currentStatus = 'pending'; 
+                const reviewNeeded = ['refund_request', 'customer_complaint', 'cancellation'];
+                
+                if (reviewNeeded.includes(triage.category) || (needsData && !shopifyData)) {
+                    currentStatus = 'needs_review';
+                } else if (['spam', 'marketing'].includes(triage.category)) {
+                    currentStatus = 'archived';
+                }
+
+                // 4. Fetch Settings & Generate Draft
+                const { data: settings } = await supabase.from('settings').select('*').eq('store_id', conn.store_id).single();
+
+                const aiDraft = await generateAiDraft({
+                    category: triage.category,
+                    body: body,
+                    rulebook: settings?.rulebook || "Be professional.",
+                    shopifyData: shopifyData,
+                    toneExamples: settings?.signature || ""
+                });
+
+                // 5. Save to Database
+                await supabase.from('messages').upsert({
+                    connection_id: conn.id,
+                    sender: from,
+                    subject: subject,
+                    body_text: body,
+                    category: triage.category,
+                    priority: triage.priority,
+                    ai_reasoning: triage.reason,
+                    status: currentStatus,
+                    shopify_data: shopifyData,
+                    ai_draft: aiDraft,
+                    external_id: msg.uid.toString(),
+                }, { onConflict: 'external_id' });
             }
-// 3.5 Generate the AI Draft (Claude Voice)
-            const { data: settings } = await supabase.from('settings').select('*').single();
-            
-            const aiDraft = await generateAiDraft({
-                category: triage.category,
-                body: body,
-                rulebook: settings?.rulebook || '',
-                shopifyData: shopifyData,
-                toneExamples: settings?.signature || '' 
-            });
-            // 4. Save to Database
-// 4. Save to Database
-            await supabase.from('messages').upsert({
-                connection_id: conn.id,
-                sender: from,
-                subject: subject,
-                body_text: body,
-                category: triage.category,
-                priority: triage.priority,
-                ai_reasoning: triage.reason,
-                status: initialStatus,
-                shopify_data: shopifyData,
-                ai_draft: aiDraft, 
-                external_id: msg.uid.toString(),
-            }, { onConflict: 'external_id' });
-} // This closes the for loop
+        }
     } finally {
-        // This block ensures we always disconnect properly even if there's an error
         if (lock) lock.release();
         await client.logout();
     }
+
 }

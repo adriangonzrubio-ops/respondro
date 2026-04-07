@@ -47,7 +47,57 @@ export async function getOrderData(
     return null
   }
 }
+/**
+ * Finds a specific Shopify order using the Order Name (e.g. #1001)
+ */
+export async function getOrderByName(shopUrl: string, accessToken: string, orderName: string) {
+    try {
+        const cleanName = orderName.replace('#', '');
+        
+        const query = `
+        {
+          orders(first: 1, query: "name:${cleanName}") {
+            edges {
+              node {
+                name
+                displayFinancialStatus
+                displayFulfillmentStatus
+                currentTotalPriceSet { shopMoney { amount currencyCode } }
+                customer { email }
+                fulfillments(first: 1) {
+                  trackingInfo(first: 1) { url number }
+                }
+              }
+            }
+          }
+        }`;
 
+        const response = await fetch(`https://${shopUrl}/admin/api/2024-01/graphql.json`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Shopify-Access-Token': accessToken,
+            },
+            body: JSON.stringify({ query }),
+        });
+
+        const result = await response.json();
+        const order = result.data?.orders?.edges[0]?.node;
+
+        if (!order) return null;
+
+        return {
+            orderNumber: order.name,
+            status: order.displayFulfillmentStatus || 'Unfulfilled',
+            payment: order.displayFinancialStatus,
+            total: `${order.currentTotalPriceSet.shopMoney.amount} ${order.currentTotalPriceSet.shopMoney.currencyCode}`,
+            tracking: order.fulfillments[0]?.trackingInfo || []
+        };
+    } catch (error) {
+        console.error("Shopify Order Lookup Error:", error);
+        return null;
+    }
+}
 export function extractOrderNumber(emailBody: string): string | null {
   const patterns = [
     /#(\d{4,6})/,
