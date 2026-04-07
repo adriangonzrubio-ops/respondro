@@ -1152,40 +1152,35 @@ async function manualSync() {
 let currentEditingId = null;
 
 function openReviewModal(msg) {
-    console.log("Opening modal for message ID:", msg.id);
     ST.activeTicket = msg;
     
-    // 1. Clean the name
+    // 1. Clean the customer name
     const cleanName = (msg.sender ? msg.sender.split('<')[0] : 'Customer').replace(/"/g, '').trim();
     
-    // 2. Map the data to your HTML IDs (Safe Updates)
-    const setEl = (id, val) => {
+    // 2. Map data to your HTML IDs
+    const setField = (id, value) => {
         const el = document.getElementById(id);
-        if (el) el.innerText = val;
+        if (el) el.innerText = value;
     };
 
-    setEl('modal-customer-name', cleanName);
-    setEl('modal-subject', msg.subject || 'No Subject');
-    
-    // Fill the actual email content (Body)
-    const bodyEl = document.getElementById('modal-email-body') || document.getElementById('email-content');
-    if (bodyEl) bodyEl.innerText = msg.body_text || 'No message content available.';
+    setField('modal-from', cleanName);
+    setField('modal-subject', msg.subject || 'No Subject');
+    setField('modal-body', msg.body_text || 'No message content available.');
+    setField('modal-reasoning', msg.modal-reasoning || 'Categorized based on your rulebook.');
 
-    // Fill the AI Reasoning
-    const reasonEl = document.getElementById('modal-ai-reasoning') || document.getElementById('ai-reasoning-text');
-    if (reasonEl) reasonEl.innerText = msg.ai_reasoning || 'The AI categorized this based on your current rulebook.';
-
-    // 3. Update the Draft box (Using 'value' for textareas)
-    const draftArea = document.getElementById('draft-content') || document.getElementById('ai-draft-response');
+    // 3. Update the Draft box (textarea)
+    // Checking for all possible IDs you might have used
+    const draftArea = document.getElementById('draft-content') || 
+                      document.getElementById('ai-draft-response') || 
+                      document.getElementById('modal-draft');
+                      
     if (draftArea) {
         draftArea.value = (msg.ai_draft || "Generating your draft...").replace(/Hi\s+"([^"]+)"/g, `Hi ${cleanName}`);
     }
 
-    // 4. Show the Modal
-    const modal = document.getElementById('review-modal') || document.getElementById('review-nodal');
-    if (modal) {
-        modal.classList.remove('hidden');
-    }
+    // 4. Show the Modal (Matches your Line 1761)
+    const modal = document.getElementById('review-modal');
+    if (modal) modal.classList.remove('hidden');
 }
 
 function closeReviewModal() {
