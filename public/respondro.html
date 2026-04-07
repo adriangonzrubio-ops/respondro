@@ -1170,11 +1170,20 @@ function openReviewModal(msg) {
     safeSet('modal-body', msg.body_text || 'No message content found.');
     safeSet('modal-reasoning', msg.ai_reasoning || 'Categorizing...');
     
-    // 2. Set the draft area with the dark transparent styling
-    const draftArea = document.getElementById('modal-draft-area');
-    if (draftArea) {
-        draftArea.value = msg.ai_draft ? msg.ai_draft.replace(/Hi\s+"([^"]+)"/g, `Hi ${cleanName}`) : "Drafting your response...";
-    }
+// 2. Set the draft area with the dark transparent styling
+        if (draftArea) {
+            const finalDraft = msg.ai_draft ? msg.ai_draft.replace(/Hi\s+([^"]+)/g, `Hi ${cleanName}`) : "Drafting your response...";
+            draftArea.value = finalDraft;
+
+            // SaaS Logo Preview Logic
+            const logoPreview = document.getElementById('modal-logo-preview');
+            if (logoPreview) {
+                // Pulls the logo from your global store settings
+                logoPreview.src = ST.settings?.logo_url || '';
+                // Show image ONLY if [LOGO] marker is in the text
+                logoPreview.style.display = finalDraft.includes('[LOGO]') ? 'block' : 'none';
+            }
+        }
 
     // 3. Show Modal centered
     const modal = document.getElementById('review-modal');
@@ -1252,19 +1261,27 @@ async function regenerateDraft(id) {
         });
 
         const result = await res.json();
-        if (result.draft) {
-            // SMART ID CHECK: Try all possible IDs
+if (result.draft) {
+            // SMART ID CHECK: Find the correct container for the draft
             const area = document.getElementById('modal-draft-area') || 
                          document.getElementById('draft-content') || 
                          document.getElementById('ai-draft-response');
-            
+
             if (area) {
                 area.value = result.draft;
-                console.log("✅ Draft placed in box");
+                
+                // --- SaaS Logo Sync ---
+                // This ensures the preview image updates as soon as the AI finishes
+                const logoPreview = document.getElementById('modal-logo-preview');
+                if (logoPreview) {
+                    // If the AI included [LOGO], show the preview; otherwise, hide it
+                    logoPreview.style.display = result.draft.includes('[LOGO]') ? 'block' : 'none';
+                }
+                console.log("✅ New draft and logo preview synced.");
             } else {
                 console.error("❌ Could not find the draft box in HTML!");
             }
-            
+
             showToast("New draft generated! ✨");
         }
     } catch (err) {
@@ -1831,7 +1848,9 @@ try {
                 <textarea id="modal-draft-area" 
                     class="flex-1 bg-transparent border-none text-sm text-gray-300 leading-relaxed resize-none focus:ring-0 p-0 mb-4 outline-none min-h-[200px]" 
                     placeholder="AI is drafting your response..."></textarea>
-
+<div class="mt-2">
+    <img id="modal-logo-preview" src="" style="max-width: 140px; display: none; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);" alt="Store Logo Preview" />
+</div>
                 <div class="pt-4 border-t border-white/5 flex gap-3">
                     <button onclick="sendResponse()" class="flex-1 px-4 py-3 bg-white text-black rounded-xl font-bold text-xs hover:bg-gray-200 transition">Send Response</button>
                     <button onclick="document.getElementById('modal-draft-area').focus()" class="px-4 py-3 bg-white/5 text-white rounded-xl font-bold text-xs hover:bg-white/10 transition">Edit</button>

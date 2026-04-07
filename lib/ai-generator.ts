@@ -71,9 +71,10 @@ let draft = "";
 
     // SaaS Identity Glue: We only add what's in the store's settings.
     const signatureText = toneExamples ? `\n\n${toneExamples}` : "";
-    const logoHtml = logoUrl ? `\n\n[LOGO_START]${logoUrl}[LOGO_END]` : "";
+// We replace the massive logo data with a simple placeholder tag
+    const logoMarker = logoUrl ? `\n\n[LOGO]` : "";
 
-    return draft + signatureText + logoHtml;
+    return draft + signatureText + logoMarker;
 
   } catch (error: any) {
     console.error("❌ Claude AI Error:", error.message);
