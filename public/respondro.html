@@ -1151,61 +1151,83 @@ async function manualSync() {
 // 1. Add this variable right above the function to track the ID
 let currentEditingId = null;
 
+// --- UNIFIED MODAL LOGIC (SaaS READY) ---
+
 function openReviewModal(msg) {
-    console.log("🖱️ Card clicked! Attempting to open modal for:", msg.id);
+    ST.activeTicket = msg; // Dynamic: Stores whoever's ticket is clicked
     
-    try {
-        ST.activeTicket = msg;
-        
-        // 1. Clean the name
-        const cleanName = (msg.sender ? msg.sender.split('<')[0] : 'Customer').replace(/"/g, '').trim();
-        
-        // 2. Helper to safely set text
-        const safeSet = (id, text) => {
-            const el = document.getElementById(id);
-            if (el) el.innerText = text;
-            else console.warn(`⚠️ Element #${id} not found`);
-        };
+    const cleanName = (msg.sender ? msg.sender.split('<')[0] : 'Customer').replace(/"/g, '').trim();
 
-        // 3. Fill the fields using the IDs from your HTML
-        safeSet('modal-from', cleanName);
-        safeSet('modal-subject', msg.subject || 'No Subject');
-        safeSet('modal-body', msg.body_text || 'No content available.');
-        safeSet('modal-reasoning', msg.ai_reasoning || 'Categorized by AI.');
-
-        // 4. Handle the Draft box
-        const draftArea = document.getElementById('draft-content') || 
-                          document.getElementById('ai-draft-response') || 
-                          document.getElementById('modal-draft');
-        if (draftArea) {
-            draftArea.value = (msg.ai_draft || "Drafting...").replace(/Hi\s+"([^"]+)"/g, `Hi ${cleanName}`);
+    // Helper to sync data to HTML IDs
+    const safeSet = (id, val, isValue = false) => {
+        const el = document.getElementById(id);
+        if (el) {
+            if (isValue) el.value = val;
+            else el.innerText = val;
         }
+    };
 
-        // 5. Open the Modal
-        const modal = document.getElementById('review-modal');
-        if (modal) {
-            modal.classList.remove('hidden');
-            modal.style.display = 'flex'; 
-            console.log("✅ Modal opened successfully");
+    // Mapping to Standardized IDs (Update your HTML to match these!)
+    safeSet('modal-from', cleanName);
+    safeSet('modal-subject', msg.subject || 'No Subject');
+    safeSet('modal-body', msg.body_text || 'No message content.');
+    safeSet('modal-reasoning', msg.ai_reasoning || 'Categorized by AI.');
+    
+    // Draft Area
+    safeSet('modal-draft-area', (msg.ai_draft || "Drafting...").replace(/Hi\s+"([^"]+)"/g, `Hi ${cleanName}`), true);
 
-            // AUTO-DRAFT: If there's no draft yet, start generating it immediately!
-            if (!msg.ai_draft) {
-                console.log("✨ No draft found, auto-generating...");
-                regenerateDraft(msg.id);
-            }
-        } else {
-            console.error("❌ Critical: Could not find #review-modal");
-        }
-    } catch (err) {
-        console.error("💥 Crash in openReviewModal:", err);
+    const modal = document.getElementById('review-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
     }
+
+    // Auto-trigger AI for new tickets
+    if (!msg.ai_draft) regenerateDraft(msg.id);
 }
 
 function closeReviewModal() {
-  const modal = document.getElementById('review-modal');
-  modal.classList.add('hidden');
-  modal.classList.remove('flex');
-  document.body.style.overflow = 'auto'; 
+    const modal = document.getElementById('review-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+}
+
+async function regenerateDraft(id) {
+    const targetId = id || ST.activeTicket?.id;
+    if (!targetId) return;
+
+    const btn = document.querySelector('[onclick*="regenerateDraft"]');
+    if (btn) btn.innerText = "Generating...";
+
+    try {
+        // Dynamic API call: uses the user's specific settings
+        const res = await fetch(`/api/messages/${targetId}/regenerate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                rulebook: ST.settings?.rulebook || "", 
+                signature: ST.settings?.signature || "" 
+            })
+        });
+
+        const result = await res.json();
+        if (result.draft) {
+            const area = document.getElementById('modal-draft-area');
+            if (area) area.value = result.draft;
+            
+            // Sync to local memory
+            const msg = allMessages.find(m => m.id === targetId);
+            if (msg) msg.ai_draft = result.draft;
+            
+            showToast("New draft generated! ✨");
+        }
+    } catch (err) {
+        console.error("Draft failed:", err);
+    } finally {
+        if (btn) btn.innerText = "Regenerate";
+    }
 }
 window.addEventListener('load', syncDashboardData);
 // ═══ SHOPIFY SETTINGS MODAL ═══
@@ -1669,55 +1691,13 @@ function syncEmailUI() {
         }
     });
 }
-async function regenerateDraft(id) {
-    // 1. If 'id' is missing, try to grab it from our global 'Active Ticket'
-    const targetId = id || ST.activeTicket?.id;
-    
-    if (!targetId) {
-        console.error("❌ Cannot regenerate: No message ID found.");
-        showToast("Error: Missing ticket ID");
-        return;
-    }
 
-    const btn = event.target;
-    const originalText = btn?.innerText || "Regenerate";
-    if (btn) btn.innerText = "Generating...";
-
-    try {
-        const rulebook = ST.settings?.rulebook || "";
-        const signature = ST.settings?.signature || "";
-
-        // Use 'targetId' instead of 'id'
-        const response = await fetch(`/api/messages/${targetId}/regenerate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ rulebook, signature })
-        });
-
-        const result = await response.json();
-        if (result.draft) {
-            const draftArea = document.getElementById('draft-content') || document.getElementById('ai-draft-response');
-            if (draftArea) draftArea.value = result.draft;
-            
-            // Sync local data
-            const msg = allMessages.find(m => m.id === targetId);
-            if (msg) msg.ai_draft = result.draft;
-            
-            showToast("New draft generated! ✨");
-        } else {
-            throw new Error(result.error || "API returned no draft");
-        }
-    } catch (err) {
-        console.error("Regeneration failed:", err);
-        showToast("Couldn't generate draft.");
-    } finally {
-        if (btn) btn.innerText = originalText;
-    }
-}
 async function sendResponse(msgId) {
-    // 1. Get the draft text
-    const draftArea = document.getElementById('draft-content') || document.getElementById('ai-draft-response');
-    const draftText = draftArea ? draftArea.value : '';
+    // Standardized for SaaS: uses passed ID or the current active ticket
+    const targetId = msgId || ST.activeTicket?.id;
+    if (!targetId) return showToast("Error: No ticket ID found");
+
+    const draftArea = document.getElementById('modal-draft-area');
     
     if (!draftText.trim()) {
         showToast("Cannot send an empty response!");
@@ -1732,10 +1712,9 @@ async function sendResponse(msgId) {
     const originalText = btn.innerText;
     btn.innerText = "🚀 Sending...";
     btn.disabled = true;
-
-    try {
-        // 4. The API Call
-        const res = await fetch(`/api/messages/${msgId}/send`, {
+try {
+        // 4. The API Call (Using targetId for SaaS stability)
+        const res = await fetch(`/api/messages/${targetId}/send`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -1748,16 +1727,18 @@ async function sendResponse(msgId) {
 
         showToast("Response sent successfully! ✅");
         
-        // 5. Close modal (Using 'review-nodal' to match your HTML)
+        // 5. Close modal
         const modal = document.getElementById('review-nodal') || document.getElementById('review-modal');
         if (modal) modal.classList.add('hidden');
         
+        // Refresh the board to show the message is now in "Done"
         await syncDashboardData();
 
     } catch (err) {
         console.error("Send error:", err);
         showToast("Error sending response. Check console.");
     } finally {
+        // 6. Restore the button state
         btn.innerText = originalText;
         btn.disabled = false;
     }
