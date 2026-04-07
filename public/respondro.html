@@ -585,15 +585,13 @@ select.form-input option{background:#0F1623}
   </div>
 </div>
 <script>
-// Replace lines 588-591 with this:
-var supabaseUrl = 'https://vlwhwkxmjfwzpvspkldc.supabase.co'; 
-var supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsd2h3a3htamZ3enB2c3BrbGRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMjA4NDQsImV4cCI6MjA5MDg5Njg0NH0.zKr1JkEa1WI3Bu2_ZkmN9P2RPdcGMn_MUMPZBePX26Y'
+// Replace Lines 588-596 with this:
+const sbUrl = 'https://vlwhwkxmjfwzpvspkldc.supabase.co'; 
+const sbKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsd2h3a3htamZ3enB2c3BrbGRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMjA4NDQsImV4cCI6MjA5MDg5Njg0NH0.zKr1JkEa1WI3Bu2_ZkmN9P2RPdcGMn_MUMPZBePX26Y'; 
 
-// Use 'var' and a check to prevent the "Already Declared" crash
-if (typeof supabase === 'undefined') {
-    var supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-    console.log("Supabase initialized successfully!");
-}
+// We name the connection 'sb' to avoid crashing with the library name
+const sb = window.supabase.createClient(sbUrl, sbKey);
+console.log("Connection 'sb' initialized!");
 // ═══ PROVIDERS ═══
 // ═══ 1. DATA & STATE (Preserving your full list) ═══
 const PROVIDERS = [
@@ -1037,12 +1035,12 @@ function markEmailConnected(id, name) {
     }
 }
 
-// --- MASTER DASHBOARD SYNC ---
 async function syncDashboardData() {
     console.log("Fetching messages from Supabase...");
     
     try {
-        const { data, error } = await supabase
+        // Use 'sb' here to talk to your database
+        const { data, error } = await sb
             .from('messages')
             .select('*')
             .order('created_at', { ascending: false });
@@ -1524,8 +1522,8 @@ function handleLogoUpload(event) {
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("Fetching your saved settings directly from Supabase...");
     try {
-        // Direct database pull to bypass the 404 error
-        const { data: settings, error } = await supabase
+        // Direct database pull via the 'sb' client
+        const { data: settings, error } = await sb
             .from('settings')
             .select('*')
             .single();
@@ -1543,11 +1541,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Fill the Rulebook field
             if (settings.rulebook) document.getElementById('rulebook-text').value = settings.rulebook;
             
-            // If you have a global state, sync it
+            // Sync with global state
             if (typeof ST !== 'undefined') ST.settings = settings;
         }
 
-        // Also trigger the email sync once settings are ready
+        // Trigger the email sync now that we have settings
         if (typeof syncDashboardData === 'function') {
             await syncDashboardData();
         }
