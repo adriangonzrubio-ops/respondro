@@ -577,22 +577,30 @@ const ST = {
     shopURL: '',
     rules: []
 };
-// ═══ INIT ═══
+// --- INIT (The Master Sync) ---
 document.addEventListener('DOMContentLoaded', async () => {
+    // 1. Immediate UI Setup
     showDashboard();
     buildProviderList();
     
     const params = new URLSearchParams(window.location.search);
+    const isShopifyReturn = params.get('connected') === 'true';
 
+    // 2. Fetch the "Truth" from the Database
     try {
         const res = await fetch('/api/settings');
         const data = await res.json();
-        console.log("✅ Unified Sync Data:", data); // THIS IS THE ONE I NEED TO SEE
+        console.log("✅ Unified Sync Data:", data);
         
         if (data) {
+            // Update Rulebook/Signature
+            if (document.getElementById('rulebook-text')) document.getElementById('rulebook-text').value = data.rulebook || '';
+            if (document.getElementById('sig-text')) document.getElementById('sig-text').value = data.signature || '';
+            
+            // Update the "Brain" (ST state)
             if (data.has_shopify) {
                 ST.connectedShopify = true;
-                ST.shopURL = data.shop_url;
+                ST.shopURL = data.shop_url || '';
             }
             if (data.has_email) {
                 ST.connectedEmail = true;
@@ -600,13 +608,24 @@ document.addEventListener('DOMContentLoaded', async () => {
                 ST.imapHost = data.imap_host;
             }
             
-            syncShopifyUI(); // Light up Shopify
-            syncEmailUI();   // Light up Email
+            // 3. Trigger UI Updates
+            syncShopifyUI();
+            syncEmailUI();
         }
-    } catch (err) { console.error("❌ Sync failed:", err); }
+    } catch (err) { 
+        console.error("❌ Sync failed:", err); 
+    }
 
-    const activeTab = params.get('tab') || 'overview';
-    showView(activeTab);
+    // 4. Handle Navigation & Redirects
+    if (isShopifyReturn) {
+        switchView('settings', document.getElementById('link-settings'));
+        showToast('Shopify connected ✓');
+        setTimeout(() => window.history.replaceState({}, '', '/respondro.html?tab=settings'), 1000);
+    } else {
+        const activeTab = params.get('tab') || 'overview';
+        showView(activeTab);
+    }
+
     initTickets(); 
 });
 
@@ -1463,40 +1482,6 @@ function showView(viewId) {
 }
 
 // 2. Updated Load Logic (Update your existing DOMContentLoaded listener)
-document.addEventListener('DOMContentLoaded', async () => {
-    showDashboard();
-    buildProviderList();
-    
-    const params = new URLSearchParams(window.location.search);
-
-    try {
-        const res = await fetch('/api/settings');
-        const data = await res.json();
-        
-if (data) {
-            // 1. Sync Shopify State
-            if (data.has_shopify || data.shop_url) {
-                ST.connectedShopify = true;
-                ST.shopURL = data.shop_url || '';
-            }
-
-            // 2. Sync Email State (SaaS Universal Logic)
-            if (data.has_email || data.connected_email) {
-                ST.connectedEmail = true;
-                ST.activeEmail = data.connected_email; 
-                ST.imapHost = data.imap_host; // Used by Step 2 to find the right provider card
-            }
-            
-            // 3. Trigger UI Updates
-            syncShopifyUI();
-            syncEmailUI(); 
-        }
-    } catch (err) { console.error("Sync error:", err); }
-const activeTab = params.get('tab') || 'overview';
-showView(activeTab);
-    // ... handle navigation ...
-    initTickets(); 
-});
 function syncEmailUI() {
     if (!ST.connectedEmail || !ST.activeEmail) return;
     
