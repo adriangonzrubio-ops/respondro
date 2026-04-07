@@ -1001,26 +1001,34 @@ async function syncDashboardData() {
 }
 
 function renderKanbanColumn(allMessages, status, columnId, countId) {
-  const col = document.getElementById(columnId);
-  if (!col) return;
-  
-  const filtered = allMessages.filter(m => m.status === status || (status === 'needs_review' && m.status === 'pending'));
-  document.getElementById(countId).innerText = filtered.length;
-  
-  col.innerHTML = filtered.map(msg => `
-<div onclick='openReviewModal(${JSON.stringify(msg).replace(/'/g, "&apos;")})' class="bg-card border border-white/5 p-4 rounded-xl hover:border-white/20 transition-all cursor-pointer group">
-      <div class="flex justify-between mb-2">
-        <span class="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">${msg.category || 'general'}</span>
-        <span class="text-[9px] text-gray-600">${new Date(msg.received_at).toLocaleDateString()}</span>
-      </div>
-      <div class="text-xs font-semibold text-white mb-1 line-clamp-1">${msg.subject}</div>
-      <div class="text-[10px] text-gray-500 line-clamp-2 mb-3">${msg.body_text}</div>
-      <div class="flex justify-between items-center">
-        <span class="text-[10px] text-gray-400">${msg.sender ? msg.sender.split('<')[0] : 'Customer'}</span>
-        <div class="w-4 h-4 rounded-full bg-emerald-500 border border-black text-[8px] flex items-center justify-center text-black font-bold">AI</div>
-      </div>
-    </div>
-  `).join('');
+    const col = document.getElementById(columnId);
+    const badge = document.getElementById(countId);
+    
+    // SAFETY CHECK: If we're on the Settings tab, these elements don't exist.
+    // We exit early so the script doesn't crash.
+    if (!col) return;
+
+    const filtered = allMessages.filter(m => m.status === status || (status === 'needs_review' && m.status === 'pending'));
+    
+    // Only update the badge if it's found on the page
+    if (badge) {
+        badge.innerText = filtered.length;
+    }
+
+    col.innerHTML = filtered.map(msg => `
+        <div onclick='openReviewModal(${JSON.stringify(msg).replace(/'/g, "&apos;")})' class="bg-card border border-white/5 p-4 rounded-xl hover:border-white/10 cursor-pointer transition-all group mb-3">
+            <div class="flex justify-between mb-2">
+                <span class="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">${msg.category || 'general'}</span>
+                <span class="text-gray-600 text-[9px]">${new Date(msg.received_at).toLocaleDateString()}</span>
+            </div>
+            <div class="text-xs font-semibold text-white mb-1 line-clamp-1">${msg.subject}</div>
+            <div class="text-[10px] text-gray-500 line-clamp-2 mb-3">${msg.body_text}</div>
+            <div class="flex justify-between items-center">
+                <span class="text-[10px] text-gray-400">${msg.sender ? msg.sender.split('<')[0] : 'Customer'}</span>
+                <div class="w-4 h-4 rounded-full bg-emerald-500 border border-black text-[8px] flex items-center justify-center text-black font-bold uppercase">${msg.sender ? msg.sender.charAt(0).toUpperCase() : 'U'}</div>
+            </div>
+        </div>
+    `).join('');
 }
 
 // 🚀 Fire off the sync when the page loads
@@ -1505,15 +1513,15 @@ function syncEmailUI() {
                         (provider && cardText.includes(provider.name.toLowerCase()));
 
         if (isMatch) {
-            // 1. Clean Design
+            // Clean, professional card styling
             card.style.border = '1px solid rgba(16, 185, 129, 0.4)';
             card.style.background = 'rgba(16, 185, 129, 0.03)';
             
-            // 2. Position the checkmark correctly inside the header
+            // Correctly place the checkmark inside the card header
             const header = card.querySelector('.flex.items-center');
             if (header && !card.querySelector('.conn-check')) {
                 const check = document.createElement('span');
-                check.className = 'conn-check ml-auto text-[10px] text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full';
+                check.className = 'conn-check ml-auto text-[10px] text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20';
                 check.innerHTML = `✓ ${email.toUpperCase()}`;
                 header.appendChild(check);
             }
