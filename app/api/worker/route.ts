@@ -4,6 +4,7 @@ import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { classifyEmail } from '../../../lib/ai-classifier';
 import { getOrdersByEmail } from '../../../lib/shopify';
+import { generateAiDraft } from '../../../lib/ai-generator';
 
 // Initialize Supabase at the top level so all functions can see it
 const supabase = createClient(
@@ -79,8 +80,18 @@ async function fetchImap(conn: any) {
             } else if (['spam', 'marketing'].includes(triage.category)) {
                 initialStatus = 'archived';
             }
-
+// 3.5 Generate the AI Draft (Claude Voice)
+            const { data: settings } = await supabase.from('settings').select('*').single();
+            
+            const aiDraft = await generateAiDraft({
+                category: triage.category,
+                body: body,
+                rulebook: settings?.rulebook || '',
+                shopifyData: shopifyData,
+                toneExamples: settings?.signature || '' 
+            });
             // 4. Save to Database
+// 4. Save to Database
             await supabase.from('messages').upsert({
                 connection_id: conn.id,
                 sender: from,
@@ -90,12 +101,14 @@ async function fetchImap(conn: any) {
                 priority: triage.priority,
                 ai_reasoning: triage.reason,
                 status: initialStatus,
-                shopify_data: shopifyData, // Critical for AI drafting later
+                shopify_data: shopifyData,
+                ai_draft: aiDraft, 
                 external_id: msg.uid.toString(),
             }, { onConflict: 'external_id' });
-        }
+} // This closes the for loop
     } finally {
-        lock.release();
+        // This block ensures we always disconnect properly even if there's an error
+        if (lock) lock.release();
         await client.logout();
     }
 }
