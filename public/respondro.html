@@ -585,10 +585,15 @@ select.form-input option{background:#0F1623}
   </div>
 </div>
 <script>
-  // Add these lines right at the top of your script block
-const supabaseUrl = 'https://vlwhwkxmjfwzpvspkldc.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsd2h3a3htamZ3enB2c3BrbGRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMjA4NDQsImV4cCI6MjA5MDg5Njg0NH0.zKr1JkEa1WI3Bu2_ZkmN9P2RPdcGMn_MUMPZBePX26Y';
-const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+// Replace lines 588-591 with this:
+var supabaseUrl = 'https://vlwhwkxmjfwzpvspkldc.supabase.co'; 
+var supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsd2h3a3htamZ3enB2c3BrbGRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMjA4NDQsImV4cCI6MjA5MDg5Njg0NH0.zKr1JkEa1WI3Bu2_ZkmN9P2RPdcGMn_MUMPZBePX26Y'
+
+// Use 'var' and a check to prevent the "Already Declared" crash
+if (typeof supabase === 'undefined') {
+    var supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+    console.log("Supabase initialized successfully!");
+}
 // ═══ PROVIDERS ═══
 // ═══ 1. DATA & STATE (Preserving your full list) ═══
 const PROVIDERS = [
