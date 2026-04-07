@@ -3,35 +3,34 @@ import { supabase } from '../../../lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
-// 📥 GET: Pulls settings from the DB when the page loads
 export async function GET() {
   try {
-    // 1. Get Rulebook & Signature
     const { data: settings } = await supabase.from('settings').select('*').single();
-    
-    // 2. Get Connections (Shopify & Email)
     const { data: connections } = await supabase.from('user_connections').select('*');
 
-    // Create a "SaaS-Ready" response
-    const hasShopify = connections?.some(c => c.shopify_access_token);
+    // SaaS-Ready: Check for any variation of a Shopify token
+    const shopifyConn = connections?.find(c => c.shopify_access_token || c.access_token || c.shop_url);
     const emailConn = connections?.find(c => c.imap_host || c.gmail_access_token);
 
-    return NextResponse.json({
+    const responseData = {
       rulebook: settings?.rulebook,
       signature: settings?.signature,
       logo_url: settings?.logo_url,
-      has_shopify: !!hasShopify,
-      shop_url: connections?.find(c => c.shop_url)?.shop_url || '',
+      has_shopify: !!(shopifyConn?.shopify_access_token || shopifyConn?.access_token),
+      shop_url: shopifyConn?.shop_url || '',
       has_email: !!emailConn,
       connected_email: emailConn?.email || '',
       imap_host: emailConn?.imap_host || ''
-    });
+    };
+
+    console.log("📡 API returning settings:", responseData);
+    return NextResponse.json(responseData);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// 📤 POST: Saves everything (Rulebook, Logo, Signature) in one go
+// POST remains the same...
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -39,13 +38,7 @@ export async function POST(request: Request) {
 
     const { data, error } = await supabase
       .from('settings')
-      .upsert({ 
-        id: 1, // Use a real ID or shop name here
-        rulebook, 
-        logo_url, 
-        logo_width, 
-        signature 
-      })
+      .upsert({ id: 1, rulebook, logo_url, logo_width, signature })
       .select();
 
     if (error) throw error;

@@ -1262,20 +1262,35 @@ async function startParallelProcessing() {
 function showToast(msg){const t=document.createElement('div');t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0F1623;border:1px solid rgba(0,200,150,0.3);color:#00C896;padding:9px 20px;border-radius:999px;font-size:13px;z-index:9999;animation:slideUp 0.3s ease;white-space:nowrap';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2400);}
 // ═══ UI HELPERS ═══
 function syncShopifyUI() {
-  if (ST.connectedShopify) {
-    const btn = document.getElementById('shopify-btn');
-    const chip = document.getElementById('shopify-conn-chip');
+    // 1. Find the elements (using ID or fallback to text search)
+    let btn = document.getElementById('shopify-btn');
+    if (!btn) {
+        // Fallback: Find the button that contains the word "Shopify"
+        const buttons = document.querySelectorAll('button, a');
+        btn = Array.from(buttons).find(b => b.innerText.includes('Shopify'));
+    }
     
-    if (btn) {
-      btn.style.background = 'rgba(0, 200, 150, 0.1)';
-      btn.style.color = '#00C896';
-      btn.innerHTML = `✓ Shopify connected — ${ST.shopURL || 'Active'}`;
-      btn.disabled = true;
+    const chip = document.getElementById('shopify-conn-chip');
+
+    if (ST.connectedShopify) {
+        console.log("🟢 Shopify Connected UI State Active");
+        if (btn) {
+            btn.innerHTML = `✓ Shopify connected — ${ST.shopURL || 'Active'}`;
+            btn.style.background = 'rgba(16, 185, 129, 0.1)';
+            btn.style.color = '#10b981';
+            btn.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+            btn.disabled = true; 
+            btn.style.cursor = 'default';
+        }
+        if (chip) chip.classList.remove('hidden');
+    } else {
+        if (btn) {
+            btn.innerHTML = 'Connect with Shopify';
+            btn.style.background = ''; // Revert to original
+            btn.disabled = false;
+        }
+        if (chip) chip.classList.add('hidden');
     }
-    if (chip) {
-      chip.classList.remove('hidden');
-    }
-  }
 }
 
 // --- SIGNATURE SETTINGS ---
