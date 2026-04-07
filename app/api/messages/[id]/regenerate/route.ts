@@ -3,11 +3,14 @@ import { supabase } from '../../../../../lib/supabase';
 import { generateAiDraft } from '../../../../../lib/ai-generator';
 
 // The "Promise" in the type below is what satisfies the new Next.js rules
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+// 1. Change the type to Promise
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    // 1. Get the Rulebook and Signature from the frontend request
+    // 2. Await the params to get the id
+    const { id } = await params;
+    
+    // 3. Get the body from the request
     const { rulebook, signature } = await req.json();
-    const { id } = params;
 
     // 2. Fetch the specific message from Supabase to get the context
     const { data: message, error } = await supabase
