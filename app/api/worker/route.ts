@@ -68,7 +68,7 @@ for await (const msg of client.fetch({ seen: false }, { source: true })) {
             );
 
             // 2. PROACTIVE DRAFTING & TRIAGE (Claude Sonnet 4.5)
-            // This makes the draft appear INSTANTLY in the dashboard
+            // This ensures the draft is sitting in the DB before you open the ticket
             const triage = await classifyAndDraft(
                 subject, 
                 body, 
@@ -81,7 +81,7 @@ for await (const msg of client.fetch({ seen: false }, { source: true })) {
             const finalStatus = triage.path === 'AUTOMATE' ? 'automated' : 'needs_review';
 
             // 4. SAVE TO DATABASE (Pre-populated for the UI)
-            await supabase.from('messages').upsert({
+            const { error: upsertError } = await supabase.from('messages').upsert({
                 connection_id: conn.id,
                 sender: from,
                 subject: subject,
@@ -95,7 +95,11 @@ for await (const msg of client.fetch({ seen: false }, { source: true })) {
                 external_id: msg.uid.toString()
             }, { onConflict: 'external_id' });
 
-            console.log(`✅ ${triage.path} | Processed: ${subject}`);
+            if (upsertError) {
+                console.error("❌ Database Upsert Error:", upsertError.message);
+            } else {
+                console.log(`✅ ${triage.path} | Processed: ${subject}`);
+            }
         
         }
         

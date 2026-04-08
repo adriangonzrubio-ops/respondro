@@ -1282,6 +1282,9 @@ async function renderTicketWorkspace(msg) {
 }
 
 async function generateNewDraft(messageId) {
+    console.log("🤖 AI: Manually generating draft for", messageId);
+    showToast("AI is analyzing and drafting...");
+
     try {
         const response = await fetch('/api/agents/generate-draft', {
             method: 'POST',
@@ -1290,48 +1293,27 @@ async function generateNewDraft(messageId) {
         });
 
         const data = await response.json();
+        
         if (data.draft) {
-            // 🛑 CRITICAL: We only update columns that actually exist!
-            const { error } = await sb
+            // ✅ FIX: Use 'needs_review' because 'drafted' is not allowed in your DB
+            const { error: updateError } = await sb
                 .from('messages')
                 .update({ 
                     ai_draft: data.draft, 
-                    status: 'drafted' 
+                    status: 'needs_review' 
                 })
                 .eq('id', messageId);
 
-            if (error) throw error;
+            if (updateError) throw updateError;
             
-            // Re-fetch message to refresh UI
-            const { data: updated } = await sb.from('messages').select('*').eq('id', messageId).single();
-            renderTicketWorkspace(updated);
-        }
-    } catch (err) {
-        console.error("❌ Manual Draft Failed:", err.message);
-    }
-}
-
-// Fixed generateNewDraft function
-async function generateNewDraft(messageId) {
-    showToast("✨ AI is analyzing and drafting...");
-    const draftArea = document.getElementById('workspace-draft-area');
-    
-    try {
-        const res = await fetch('/api/agents/generate-draft', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ messageId })
-        });
-        const data = await res.json();
-        
-        if (data.draft) {
-            draftArea.value = data.draft;
+            // Re-fetch only this message to update the UI
+            const { data: updatedMsg } = await sb.from('messages').select('*').eq('id', messageId).single();
+            renderTicketWorkspace(updatedMsg);
             showToast("Draft updated! ✨");
-            // Update Supabase so it's saved for next time
-            await sb.from('messages').update({ ai_draft: data.draft }).eq('id', messageId);
         }
     } catch (err) {
-        showToast("Drafting failed. Check console.");
+        console.error("❌ Draft Update Failed:", err.message);
+        showToast("Draft failed. Check console.");
     }
 }
 
