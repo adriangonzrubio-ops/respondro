@@ -1089,8 +1089,12 @@ async function fetchMessages() {
     const { data: messages, error } = await sb
         .from('messages')
         .select('*')
-        .order('created_at', { ascending: false })
         .limit(50);
+
+    if (messages) {
+        console.log("📬 Messages found:", messages.length);
+        console.log("Column names available:", Object.keys(messages[0] || {}));
+    }
 
     if (messages && messages.length > 0) {
         console.log("✅ SUCCESS! Found columns:", Object.keys(messages[0]));
