@@ -1103,12 +1103,14 @@ async function fetchMessages() {
     list.innerHTML = messages.map(msg => {
         const cleanName = (msg.sender ? msg.sender.split('<')[0] : 'Customer').replace(/"/g, '').trim();
         
-        // 🕒 Robust Time Parsing (Replaces Lines 1106-1114)
-        const dateStr = msg.received_at || msg.created_at;
+        // 🕒 Updated Robust Time Parsing
+        console.log("Ticket Data:", msg); // <--- ADD THIS LINE to see the real column names in console
+        const dateStr = msg.received_at || msg.created_at || msg.inserted_at; // Added inserted_at just in case
         const dateObj = dateStr ? new Date(dateStr) : null;
+        
         const timeDisplay = (dateObj && !isNaN(dateObj.getTime())) 
             ? dateObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) 
-            : 'Just now';
+            : 'New';
         
         const isDrafted = msg.ai_draft && msg.ai_draft.length > 5;
 
