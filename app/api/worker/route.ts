@@ -2,38 +2,50 @@ import { NextResponse } from 'next/server';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { supabase } from '@/lib/supabase';
-import { classifyAndDraft } from '@/lib/ai-classifier'; // Ensure this matches exactly
-// We updated these to match your existing shopify.ts exports
+import { classifyAndDraft } from '@/lib/ai-classifier';
 import { getShopifyContext, extractOrderNumber } from "@/lib/shopify";
 
 export const dynamic = 'force-dynamic';
 
+// 1. THE MAIN TRIGGER (Triggered by "Refresh Sync")
 export async function GET() {
+    let processedCount = 0;
+    let errors = [];
+
     try {
-        const { data: connections, error } = await supabase
-            .from('user_connections')
-            .select('*');
-
-        if (error) throw error;
-
-        for (const conn of connections) {
-            await fetchInmap(conn);
+        const { data: connections } = await supabase.from('user_connections').select('*');
+        
+        for (const conn of connections || []) {
+            try {
+                // We call the background worker for this specific email connection
+                const count = await fetchInImap(conn);
+                processedCount += (count || 0);
+            } catch (e: any) {
+                errors.push(`${conn.imap_user}: ${e.message || 'Connection failed'}`);
+            }
         }
 
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ 
+            success: true, 
+            processed: processedCount, 
+            errors: errors 
+        });
     } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
 
-async function fetchInmap(conn: any) {
+// 2. THE BACKGROUND WORKER (The "Brain")
+async function fetchInImap(conn: any) {
+    let emailsProcessed = 0;
+
     const { data: store } = await supabase
         .from('settings')
         .select('*')
         .eq('store_id', conn.store_id)
         .single();
 
-    if (!store) return;
+    if (!store) return 0;
 
     const client = new ImapFlow({
         host: conn.imap_host,
@@ -47,18 +59,19 @@ async function fetchInmap(conn: any) {
     let lock = await client.getMailboxLock('INBOX');
 
     try {
-for await (const msg of client.fetch('1:10', { source: true })) {
-            // 🛡️ Safety check
-            if (!msg.source) continue;
+        // Look at the last 10 emails so we don't miss anything
+        for await (const msg of client.fetch('1:10', { source: true })) {
+            // 🛡️ Safety check: If the email has no content, skip it
+            if (!msg.source) continue; 
 
             const sourceBuffer = Buffer.from(msg.source);
             const parsed = await simpleParser(sourceBuffer);
-            
+
             const subject = parsed.subject || "";
             const body = parsed.text || "";
             const from = parsed.from?.value[0]?.address || "";
 
-// 1. DYNAMIC SHOPIFY LOOKUP (Automatic Scout)
+            // A. SCOUT SHOPIFY
             const orderNumber = extractOrderNumber(body) || extractOrderNumber(subject);
             const shopifyData = await getShopifyContext(
                 store.shop_url, 
@@ -67,7 +80,7 @@ for await (const msg of client.fetch('1:10', { source: true })) {
                 orderNumber
             );
 
-            // 2. AUTOMATIC DRAFTING (Claude Sonnet 4.5)
+            // B. AUTOMATIC AI DRAFTING (Claude Sonnet 4.5)
             const rawTriage = await classifyAndDraft(
                 subject, 
                 body, 
@@ -76,7 +89,7 @@ for await (const msg of client.fetch('1:10', { source: true })) {
                 shopifyData
             );
             
-            // Robust parsing: Strips out any extra text Claude might add
+            // Handle Claude's potential JSON formatting
             let triage = rawTriage;
             if (typeof rawTriage === 'string') {
                 try {
@@ -87,7 +100,7 @@ for await (const msg of client.fetch('1:10', { source: true })) {
 
             const finalStatus = triage.path === 'AUTOMATE' ? 'automated' : 'needs_review';
 
-            // 3. SAVE TO DATABASE (Proactive / No-Click)
+            // C. SAVE TO SUPABASE (Proactive / Instant)
             const { error: upsertError } = await supabase.from('messages').upsert({
                 connection_id: conn.id,
                 sender: from,
@@ -97,22 +110,19 @@ for await (const msg of client.fetch('1:10', { source: true })) {
                 priority: triage.priority || 'Medium',
                 status: finalStatus, 
                 ai_draft: triage.draft || null, 
-                // ✅ NO stringify here - Supabase handles the array automatically
                 shopify_data: shopifyData && shopifyData.length > 0 ? shopifyData : null,
-                ai_reasoning: triage.reason || 'Analyzed.',
+                ai_reasoning: triage.reason || 'Analyzed automatically.',
                 external_id: msg.uid.toString()
             }, { onConflict: 'external_id' });
 
-            if (upsertError) {
-                console.error("❌ Database Upsert Error:", upsertError.message);
-            } else {
-                console.log(`✅ AUTOMATED: Processed ${from}`);
+            if (!upsertError) {
+                emailsProcessed++;
             }
-        
         }
-        
     } finally {
         lock.release();
         await client.logout();
     }
+
+    return emailsProcessed;
 }

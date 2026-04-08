@@ -632,6 +632,36 @@ select.form-input option{background:#0F1623}
   </div>
 </div>
 <script>
+  async function fetchMessages() {
+    console.log("📡 Diagnostic Sync Started...");
+    showToast("Syncing with Inbox...");
+    
+    try {
+        // 1. Kick the worker (The "Automatic" Brain)
+        const res = await fetch('/api/worker');
+        const report = await res.json();
+        console.log(`📊 Worker Report: Found ${report.processed} emails.`);
+        
+        // 2. ⏳ THE WAIT: Give the AI 4 seconds to finish drafting in the background.
+        // This is why the drafts will appear automatically without you clicking.
+        await new Promise(r => setTimeout(r, 4000)); 
+        
+    } catch (e) {
+        console.error("Sync Fetch Failed", e);
+    }
+
+    // 3. Pull the messages from Supabase (Drafts are now ready!)
+    const { data: messages, error } = await sb
+        .from('messages')
+        .select('*')
+        .eq('status', 'needs_review')
+        .order('received_at', { ascending: false });
+
+    if (!error) {
+        renderMessageList(messages);
+        console.log("✅ Sync Complete. Tickets updated with AI drafts.");
+    }
+}
 // Replace Lines 588-596 with this:
 const sbUrl = 'https://vlwhwkxmjfwzpvspkldc.supabase.co'; 
 const sbKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsd2h3a3htamZ3enB2c3BrbGRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMjA4NDQsImV4cCI6MjA5MDg5Njg0NH0.zKr1JkEa1WI3Bu2_ZkmN9P2RPdcGMn_MUMPZBePX26Y'; 
@@ -1138,168 +1168,6 @@ function renderMessageList(messages) {
             </div>
         `;
     }).join('');
-}
-
-async function fetchMessages() {
-    console.log("📡 Triggering Automatic Sync...");
-    
-    try {
-        await fetch('/api/worker'); 
-        // ⏳ Give the AI 4 seconds to write the draft in the background
-        await new Promise(r => setTimeout(r, 4000)); 
-    } catch (e) {
-        console.error("Sync failed:", e);
-    }
-
-    const { data: messages, error } = await sb
-        .from('messages')
-        .select('*')
-        .eq('status', 'needs_review')
-        .order('received_at', { ascending: false });
-
-    if (!error) renderMessageList(messages);
-}
-
-async function renderTicketWorkspace(msg) {
-    const workspace = document.getElementById('active-ticket-workspace');
-    const sidebar = document.getElementById('active-ticket-details');
-    if (!workspace || !sidebar) return;
-
-    // 1. Fetch History (Wilmo context)
-    const { data: history } = await sb
-        .from('messages')
-        .select('*')
-        .eq('sender', msg.sender)
-        .neq('id', msg.id)
-        .order('received_at', { ascending: false })
-        .limit(2);
-
-let s = {};
-    try {
-        // We no longer need JSON.parse because the Worker saves clean data
-        const rawData = msg.shopify_data || [];
-        // If the Worker found multiple orders, we grab the most recent one
-        s = Array.isArray(rawData) ? (rawData[0] || {}) : rawData;
-    } catch(e) { 
-        s = {}; 
-    }
-
-    // Define indicators for the UI
-    const hasOrder = (s && (s.order_number || s.name)) ? true : false;
-    const customerEmail = s?.email || (s?.customer && s?.customer.email) || msg.sender || 'No Email';
-    const cleanSender = (msg.sender || 'Customer').split('<')[0].replace(/"/g, '').trim();
-// 3. Prevent Manual Loop: Only draft if the Worker missed it
-    if (!msg.ai_draft || msg.ai_draft === 'No draft found.' || msg.ai_draft.length < 5) {
-        console.log("🤖 AI: Draft missing, triggering manual backup...");
-        generateNewDraft(msg.id);
-    } else {
-        console.log("✨ AI: Draft loaded instantly from background worker.");
-    }
-    // 🕒 MAIN TIMELINE
-    workspace.innerHTML = `
-        <div class="flex flex-col h-full bg-[#f9fafb]">
-            <div class="px-8 py-5 bg-white border-b border-gray-200 flex justify-between items-center shadow-sm">
-                <div>
-                    <h2 class="text-lg font-bold text-gray-900">${msg.subject || 'No Subject'}</h2>
-                    <p class="text-[10px] text-gray-400 font-mono mt-1 uppercase tracking-widest">Review Board / Ticket #${msg.id.slice(0,5)}</p>
-                </div>
-            </div>
-
-            <div class="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
-                
-                ${history && history.length > 0 ? history.map(h => `
-                    <div class="opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all cursor-default">
-                        <div class="flex gap-4">
-                            <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-[10px] font-bold">HIST</div>
-                            <div class="flex-1 bg-white border border-gray-100 p-4 rounded-xl text-[11px] text-gray-500 italic shadow-sm">
-                                ${new Date(h.received_at).toLocaleDateString()}: "${h.body_text.slice(0, 100)}..."
-                            </div>
-                        </div>
-                    </div>
-                `).join('') : ''}
-
-                <div class="flex gap-4">
-                    <div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center font-bold text-gray-600 shadow-sm">
-                        ${cleanSender.charAt(0).toUpperCase()}
-                    </div>
-                    <div class="flex-1 bg-white border border-gray-200 p-6 rounded-2xl rounded-tl-none shadow-sm text-sm text-gray-700 leading-relaxed max-w-2xl">
-                        ${msg.body_text}
-                    </div>
-                </div>
-
-                <div class="flex gap-4">
-                    <div class="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center text-amber-600 border border-amber-200">🤖</div>
-                    <div class="flex-1 bg-[#fffbeb] border border-amber-200 p-5 rounded-2xl text-[11px] text-amber-900 shadow-sm max-w-2xl">
-                        <div class="flex justify-between items-center mb-3">
-                            <span class="font-bold uppercase tracking-widest text-[9px] text-amber-700">AI Assistant Process Log</span>
-                            <span class="opacity-50 font-mono text-[8px]">ACTIVE</span>
-                        </div>
-                        <ul class="space-y-2">
-                            <li class="flex items-center gap-2">✅ Intent: <b>${msg.category || 'Support Inquiry'}</b></li>
-                            <li class="flex items-center gap-2">📦 Shopify: <b>${hasOrder ? 'Found Order #' + s.order_number : 'Searching email history...'}</b></li>
-                            <li class="flex items-center gap-2">📑 Rulebook: <b>Standard Policy Applied</b></li>
-                            <li class="flex items-center gap-2">✍️ Action: <b>Pre-drafted response for human review</b></li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="flex gap-4 pb-12">
-                    <div class="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">AI</div>
-                    <div class="flex-1 max-w-2xl">
-                        <div class="bg-white border-2 border-purple-100 rounded-2xl shadow-xl overflow-hidden">
-                            <textarea id="workspace-draft-area" class="w-full p-6 text-sm text-gray-800 bg-transparent outline-none min-h-[200px] resize-none leading-relaxed">${msg.ai_draft || 'AI is drafting...'}</textarea>
-                            <div class="bg-purple-50 p-4 border-t border-purple-100 flex justify-end gap-3">
-                                <button onclick="generateNewDraft('${msg.id}')" class="px-4 py-2 text-xs font-bold text-purple-600 hover:bg-purple-100 rounded-lg">Regenerate</button>
-                                <button onclick="sendResponse()" class="px-6 py-2 bg-purple-600 text-white text-xs font-bold rounded-lg shadow-md hover:bg-purple-700">Send Response</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>`;
-
-    // 🛍️ SIDEBAR
-    sidebar.innerHTML = `
-        <div class="p-8 space-y-8 bg-white h-full border-l border-gray-200 text-gray-800">
-            <div class="mb-8">
-                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Contact Details</p>
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 font-bold">
-                        ${cleanSender.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                        <div class="text-sm font-bold text-gray-900">${cleanSender}</div>
-                        <div class="text-[10px] text-gray-500 truncate w-32">${customerEmail}</div>
-                    </div>
-                </div>
-            </div>
-
-            <div>
-                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Shopify Orders</p>
-                ${hasOrder ? `
-                    <div class="space-y-4">
-                        <div class="p-4 rounded-2xl border-2 border-gray-50 bg-gray-50/30">
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="text-xs font-bold text-gray-900">Order #${s.order_number || s.name}</span>
-                                <span class="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[9px] font-bold uppercase tracking-tighter">${s.financial_status || 'Paid'}</span>
-                            </div>
-                            <div class="space-y-1">
-                                <p class="text-[10px] text-gray-500">${s.created_at ? new Date(s.created_at).toLocaleDateString() : 'Recently'}</p>
-                                <p class="text-[11px] text-gray-900 font-semibold truncate">${s.items || 'Standard Order'}</p>
-                            </div>
-                            <div class="pt-3 border-t border-gray-100 flex justify-between items-center text-xs">
-                                <span class="text-gray-400 font-medium">Total Spent</span>
-                                <span class="font-bold text-gray-900">$${s.total_price} ${s.currency || ''}</span>
-                            </div>
-                        </div>
-                    </div>
-                ` : `
-                    <div class="text-center py-12 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/30">
-                        <p class="text-[10px] text-gray-400 uppercase tracking-widest font-bold">No Order Found</p>
-                    </div>
-                `}
-            </div>
-        </div>`;
 }
 
 async function generateNewDraft(messageId) {
