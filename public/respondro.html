@@ -293,7 +293,7 @@ select.form-input option{background:#0F1623}
     <div class="flex justify-between items-center px-8 py-4 border-b border-white/5 bg-[#0f1115]">
         <div>
             <h2 class="text-xl font-bold text-white tracking-tight">Review Board</h2>
-            <p class="text-xs text-gray-500">Manage AI drafts and customer inquiries.</p>
+            <p class="text-xs text-gray-500">Only showing tickets that need human review.</p>
         </div>
         <button onclick="fetchMessages()" class="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white text-xs px-4 py-2 rounded-lg border border-white/5 transition-all">
             Refresh Sync
@@ -310,9 +310,12 @@ select.form-input option{background:#0F1623}
         <div id="active-ticket-workspace" class="flex-1 flex overflow-hidden bg-[#0a0b0e]">
             <div class="flex-1 flex items-center justify-center text-gray-600 flex-col gap-4">
                 <div class="text-4xl opacity-20">✉️</div>
-                <div class="text-sm">Select a ticket to view conversation and AI drafts</div>
+                <div class="text-sm">Select a ticket to begin review</div>
             </div>
         </div>
+
+        <div id="active-ticket-details" class="w-80 border-l border-white/5 bg-[#0f1115] overflow-y-auto custom-scrollbar p-6 hidden">
+            </div>
     </div>
 </div>
 
@@ -1089,10 +1092,11 @@ async function fetchMessages() {
     const list = document.getElementById('ticket-list');
     if (!list) return;
 
-    // We only fetch messages that 'need_review'. Automated ones go to the Inbox tab later.
+    // 🎯 FILTER: Only show messages that need human review
     const { data: messages, error } = await sb
         .from('messages')
         .select('*')
+        .eq('status', 'needs_review') 
         .order('received_at', { ascending: false });
 
     if (error) return console.error(error);
@@ -1100,13 +1104,10 @@ async function fetchMessages() {
     list.innerHTML = messages.map(msg => {
         const cleanName = (msg.sender ? msg.sender.split('<')[0] : 'Customer').replace(/"/g, '').trim();
         
-        // Robust Time Parsing
+        // 🕒 FIX: Robust Date Parsing for 2026
         const date = new Date(msg.received_at);
-        const timeStr = !isNaN(date) ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '--:--';
+        const timeStr = !isNaN(date) ? date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '--:--';
         
-        const isDrafted = msg.ai_draft && msg.ai_draft.length > 10;
-        const statusClass = isDrafted ? 'text-emerald-500/80 bg-emerald-500/10' : 'text-amber-500/80 bg-amber-500/10';
-
         return `
         <div onclick='renderTicketWorkspace(${JSON.stringify(msg).replace(/'/g, "&apos;")})' 
              class="group p-4 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-emerald-500/30 cursor-pointer transition-all mb-2">
@@ -1116,13 +1117,73 @@ async function fetchMessages() {
             </div>
             <div class="text-[11px] text-gray-300 font-medium truncate mb-1">${msg.subject || 'No Subject'}</div>
             <div class="flex items-center gap-2 mt-2">
-                <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase flex items-center gap-1.5 ${statusClass}">
-                    <span class="w-1.5 h-1.5 rounded-full ${isDrafted ? 'bg-emerald-500' : 'bg-amber-500'}"></span>
-                    ${isDrafted ? 'Draft Ready' : 'Needs Review'}
+                <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase flex items-center gap-1.5 text-amber-500/80 bg-amber-500/10">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                    Needs Review
                 </span>
             </div>
         </div>`;
     }).join('');
+}
+
+function renderTicketWorkspace(msg) {
+    const workspace = document.getElementById('active-ticket-workspace');
+    const sidebar = document.getElementById('active-ticket-details');
+    if (!workspace || !sidebar) return;
+
+    // Show the Shopify Sidebar
+    sidebar.classList.remove('hidden');
+
+    workspace.innerHTML = `
+        <div class="flex-1 flex flex-col h-full overflow-hidden">
+            <div class="px-8 py-6 border-b border-white/5 bg-[#0f1115]">
+                <h3 class="text-xl font-bold text-white mt-2">${msg.subject || 'No Subject'}</h3>
+            </div>
+            <div class="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
+                <div class="flex gap-4">
+                    <div class="w-8 h-8 bg-white/5 rounded-full flex items-center justify-center text-xs">👤</div>
+                    <div class="flex-1 text-sm text-gray-300 bg-white/[0.02] p-4 rounded-xl border border-white/5">
+                        ${msg.body_text || 'No content.'}
+                    </div>
+                </div>
+                <div class="bg-[#16191f] border border-white/5 rounded-2xl p-6 shadow-2xl">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="text-xs font-bold text-white flex items-center gap-2">
+                            <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div> Respondro AI Draft
+                        </div>
+                        <button onclick="generateNewDraft('${msg.id}')" class="text-[10px] text-gray-500 hover:text-white transition-all">✨ Regenerate</button>
+                    </div>
+                    <textarea id="workspace-draft-area" class="w-full h-48 bg-transparent border-none text-sm text-gray-300 outline-none resize-none p-0">${msg.ai_draft || 'Generating draft...'}</textarea>
+                    <button onclick="sendResponse()" class="w-full bg-white text-black py-2.5 rounded-xl text-sm font-bold mt-4">Send Response</button>
+                </div>
+            </div>
+        </div>`;
+
+    // 🛍️ SHOPIFY SIDEBAR INJECTION
+    sidebar.innerHTML = `
+        <div class="space-y-6">
+            <div>
+                <h4 class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">Customer Context</h4>
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-500 font-bold">
+                        ${msg.sender ? msg.sender.charAt(0).toUpperCase() : 'C'}
+                    </div>
+                    <div>
+                        <div class="text-sm font-bold text-white truncate w-40">${msg.sender || 'Unknown'}</div>
+                        <div class="text-[10px] text-gray-500">Shopify Customer</div>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 rounded-xl border border-white/5 bg-white/[0.02]">
+                <div class="text-[10px] font-bold text-white mb-2 uppercase">Recent Order</div>
+                <div class="text-xs text-gray-400 mb-1">Order #3275</div>
+                <div class="text-xs font-bold text-emerald-400">Fulfilled & Shipped</div>
+                <div class="mt-3 pt-3 border-t border-white/5 flex justify-between">
+                    <span class="text-[10px] text-gray-500">Tracking:</span>
+                    <span class="text-[10px] text-white underline cursor-pointer">1Z999AA10123...</span>
+                </div>
+            </div>
+        </div>`;
 }
 
 // Fixed generateNewDraft function
