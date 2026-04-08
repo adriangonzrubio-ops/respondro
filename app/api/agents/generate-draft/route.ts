@@ -11,59 +11,37 @@ const supabase = createClient(
 export async function POST(req: Request) {
   try {
     const { messageId } = await req.json();
-    console.log("🚀 Starting draft generation for ID:", messageId);
 
-    // 1. Fetch the message
-    const { data: message, error: msgError } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('id', messageId)
-      .single();
+    // 1. Get the message
+    const { data: message } = await supabase.from('messages').select('*').eq('id', messageId).single();
+    if (!message) throw new Error("Message not found");
 
-    if (msgError || !message) throw new Error(`Message not found: ${msgError?.message}`);
-
-    // 2. Fetch the connection to get store_id
-    const { data: conn, error: connError } = await supabase
-      .from('user_connections')
-      .select('store_id')
-      .eq('id', message.connection_id)
-      .single();
-
-    if (connError || !conn) throw new Error("Connection/Store link not found.");
-
-    // 3. Fetch the Store Settings (Rulebook)
-    const { data: settings } = await supabase
-      .from('settings')
-      .select('rulebook, store_name')
-      .eq('store_id', conn.store_id)
-      .single();
+    // 2. Get the store ID through the connection
+    const { data: conn } = await supabase.from('user_connections').select('store_id').eq('id', message.connection_id).single();
+    
+    // 3. Get the rulebook using the store ID
+    const { data: settings } = await supabase.from('settings').select('rulebook, store_name').eq('store_id', conn?.store_id).single();
 
     const rulebook = settings?.rulebook || "Be professional and helpful.";
     const storeName = settings?.store_name || "the store";
 
-    // 4. Generate the draft using Claude Sonnet 4.5
+    // 4. Generate with Claude Sonnet 4.5
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-5', 
       max_tokens: 1000,
       messages: [{ 
         role: 'user', 
-        content: `You are a CS agent for ${storeName}. \n\nRULES: ${rulebook} \n\nCUSTOMER EMAIL: ${message.body_text} \n\nDraft a reply:` 
+        content: `Agent for: ${storeName}\nRules: ${rulebook}\nCustomer Email: ${message.body_text}\n\nDraft a professional reply:` 
       }],
     });
 
     const draft = response.content[0].type === 'text' ? response.content[0].text : '';
 
-    // 5. Save back to DB
-    const { error: updateError } = await supabase
-      .from('messages')
-      .update({ ai_draft: draft, status: 'drafted' })
-      .eq('id', messageId);
-
-    if (updateError) throw new Error("Failed to update database with draft.");
+    // 5. Update DB
+    await supabase.from('messages').update({ ai_draft: draft, status: 'drafted' }).eq('id', messageId);
 
     return NextResponse.json({ draft });
   } catch (error: any) {
-    console.error("❌ Drafting API Crash:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
