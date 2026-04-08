@@ -4,7 +4,7 @@ import { simpleParser } from 'mailparser';
 import { supabase } from '@/lib/supabase';
 import { classifyEmail } from '@/lib/ai-classifier';
 // We updated these to match your existing shopify.ts exports
-import { getOrderData, getCustomerOrders } from '@/lib/shopify'; 
+import { getShopifyContext, extractOrderNumber } from '@/lib/shopify';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,7 +49,6 @@ async function fetchInmap(conn: any) {
     try {
 for await (const msg of client.fetch({ seen: false }, { source: true })) {
             // 🛡️ Safety check: If there's no email source, skip this one
-            // This clears the red error on Line 52
             if (!msg.source) continue;
 
             const sourceBuffer = Buffer.from(msg.source);
@@ -59,41 +58,42 @@ for await (const msg of client.fetch({ seen: false }, { source: true })) {
             const body = parsed.text || "";
             const from = parsed.from?.value[0]?.address || "";
 
-            // 🛍️ Shopify Lookup (Wilmo-style background fetch)
-            let shopifyData = null;
-            const orderNumberMatch = body.match(/#(\d+)/) || subject.match(/#(\d+)/);
-            const orderNumber = orderNumberMatch ? orderNumberMatch[1] : null;
+            // 🛍️ Unified Shopify Lookup (Tries Order Number -> Email Fallback)
+            const orderNumber = extractOrderNumber(body) || extractOrderNumber(subject);
+            const shopifyData = await getShopifyContext(
+                store.shop_url, 
+                store.shopify_access_token, 
+                from, 
+                orderNumber
+            );
 
-            if (orderNumber) {
-                shopifyData = await getOrderData(store.shop_url, store.shopify_access_token, orderNumber);
-            } else if (from) {
-                shopifyData = await getCustomerOrders(store.shop_url, store.shopify_access_token, from);
-            }
-
-            // 🤖 AI Processing with Claude Sonnet 4.5
+            // 🤖 AI Processing & Auto-Drafting
             const triage = await classifyEmail(subject, body, store.rulebook);
             
-            // ✍️ Clean Signature: Removes Markdown (**) and extra quotes ("")
+            // Clean the draft (Remove Markdown ** and quotes)
             const finalDraft = (triage.draft || "")
                 .replace(/\*\*/g, '')
                 .replace(/^["']|["']$/g, '')
                 .trim();
 
-            // 💾 Database Upsert (Multi-tenant ready for the App Store)
+            // 💾 Database Upsert (Pre-populated for Review Board)
             await supabase.from('messages').upsert({
                 connection_id: conn.id,
                 sender: from,
                 subject: subject,
                 body_text: body,
-                category: triage.category,
-                priority: triage.priority,
-                status: triage.path === 'AUTOMATE' ? 'automated' : 'needs_review',
+                category: triage.category || 'General',
+                priority: triage.priority || 'Medium',
+                status: 'needs_review',
                 ai_draft: finalDraft,
-                shopify_data: shopifyData, 
-                ai_reasoning: triage.reason,
+                shopify_data: shopifyData, // This powers the right sidebar!
+                ai_reasoning: triage.reason || 'Analyzed intent and checked Shopify status.',
                 external_id: msg.uid.toString()
             }, { onConflict: 'external_id' });
+
+            console.log(`✅ Automated Triage & Draft for: ${subject}`);
         }
+        
     } finally {
         lock.release();
         await client.logout();
