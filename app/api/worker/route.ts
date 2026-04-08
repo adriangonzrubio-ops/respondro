@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { supabase } from '@/lib/supabase';
-import { classifyEmail } from '@/lib/ai-classifier';
+import { classifyAndDraft } from '@/lib/ai-classifier';
 // We updated these to match your existing shopify.ts exports
 import { getShopifyContext, extractOrderNumber } from '@/lib/shopify';
 
@@ -48,7 +48,7 @@ async function fetchInmap(conn: any) {
 
     try {
 for await (const msg of client.fetch({ seen: false }, { source: true })) {
-            // 🛡️ Safety check: If there's no email source, skip this one
+            // 🛡️ Safety check
             if (!msg.source) continue;
 
             const sourceBuffer = Buffer.from(msg.source);
@@ -58,7 +58,7 @@ for await (const msg of client.fetch({ seen: false }, { source: true })) {
             const body = parsed.text || "";
             const from = parsed.from?.value[0]?.address || "";
 
-            // 🛍️ Unified Shopify Lookup (Tries Order Number -> Email Fallback)
+            // 1. DYNAMIC SHOPIFY LOOKUP (Instant Context)
             const orderNumber = extractOrderNumber(body) || extractOrderNumber(subject);
             const shopifyData = await getShopifyContext(
                 store.shop_url, 
@@ -67,31 +67,30 @@ for await (const msg of client.fetch({ seen: false }, { source: true })) {
                 orderNumber
             );
 
-            // 🤖 AI Processing & Auto-Drafting
-            const triage = await classifyEmail(subject, body, store.rulebook);
+            // 2. PROACTIVE DRAFTING & TRIAGE (Claude Sonnet 4.5)
+            // This calls the "Brain" to categorize and write the reply immediately
+            const triage = await classifyAndDraft(subject, body, store.rulebook, store.store_name, shopifyData);
             
-            // Clean the draft (Remove Markdown ** and quotes)
-            const finalDraft = (triage.draft || "")
-                .replace(/\*\*/g, '')
-                .replace(/^["']|["']$/g, '')
-                .trim();
+            // 3. DECISION ENGINE: Automated vs. Manual
+            // If the AI is confident, it goes to 'automated'. Otherwise, it hits your Review Board.
+            const finalStatus = triage.path === 'AUTOMATE' ? 'automated' : 'needs_review';
 
-            // 💾 Database Upsert (Pre-populated for Review Board)
+            // 4. SAVE TO DATABASE (Pre-populated for the UI)
             await supabase.from('messages').upsert({
                 connection_id: conn.id,
                 sender: from,
                 subject: subject,
                 body_text: body,
-                category: triage.category || 'General',
+                category: triage.category || 'General Inquiry',
                 priority: triage.priority || 'Medium',
-                status: 'needs_review',
-                ai_draft: finalDraft,
-                shopify_data: shopifyData, // This powers the right sidebar!
-                ai_reasoning: triage.reason || 'Analyzed intent and checked Shopify status.',
+                status: finalStatus, 
+                ai_draft: triage.draft, 
+                shopify_data: shopifyData,
+                ai_reasoning: triage.reason,
                 external_id: msg.uid.toString()
             }, { onConflict: 'external_id' });
 
-            console.log(`✅ Automated Triage & Draft for: ${subject}`);
+            console.log(`✅ ${triage.path} | Processed: ${subject}`);
         }
         
     } finally {

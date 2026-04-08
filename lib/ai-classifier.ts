@@ -1,57 +1,61 @@
-// --- Respondro AI Classifier & Gatekeeper ---
+import { Anthropic } from '@anthropic-ai/sdk';
 
-export async function classifyEmail(subject: string, body: string, rulebook: string) {
-    const prompt = `
-    You are the "Gatekeeper" for a high-end Shopify store. Your goal is to automate 90% of customer service.
-    
-    TASK: Analyze this email and categorize it into ONE of two paths:
-    
-    PATH 1: AUTOMATE
-    - For "Easy" emails: Tracking updates, shipping times, general store info, or policy questions found in the rulebook.
-    - If you have enough info to answer perfectly, choose this path.
-    
-    PATH 2: REVIEW
-    - For "Complex" emails: Refund requests, cancellation requests, complaints about broken/wrong items, or angry customers.
-    - These MUST be reviewed by the store owner in the Review Board.
-    
-    RULEBOOK:
-    ${rulebook || "Standard professional store policies apply."}
-    
-    CUSTOMER EMAIL:
-    Subject: ${subject}
-    Body: ${body}
-    
-    Respond ONLY in JSON format:
-    {
-      "path": "AUTOMATE" or "REVIEW",
-      "category": "tracking_update" | "refund_request" | "product_question" | "cancellation" | "other",
-      "priority": "high" | "medium" | "low",
-      "reason": "Brief explanation why",
-      "draft": "Write a complete, professional reply if path is AUTOMATE. Otherwise, leave empty."
-    }`;
+const anthropic = new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY!,
+});
 
+export async function classifyAndDraft(subject: string, body: string, rulebook: string, storeName: string, shopifyData: any) {
     try {
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-                'x-api-key': process.env.ANTHROPIC_API_KEY!,
-                'anthropic-version': '2023-06-01',
-                'content-type': 'application/json'
-            },
-            body: JSON.stringify({
-                model: 'claude-sonnet-4-5', // Locked in for Respondro
-                max_tokens: 1000,
-                messages: [{ role: 'user', content: prompt }]
-            })
+        const response = await anthropic.messages.create({
+            model: 'claude-sonnet-4-5',
+            max_tokens: 1500,
+            messages: [{
+                role: 'user',
+                content: `
+                    You are the Lead Support Agent for ${storeName}.
+                    
+                    STORE RULEBOOK:
+                    ${rulebook}
+
+                    CUSTOMER INQUIRY:
+                    Subject: ${subject}
+                    Message: ${body}
+
+                    SHOPIFY CONTEXT:
+                    ${JSON.stringify(shopifyData, null, 2)}
+
+                    TASK:
+                    1. Categorize the email (Shipping, Refund, General, etc).
+                    2. Determine Priority (Low, Medium, High).
+                    3. DECIDE THE PATH:
+                       - Set path to "AUTOMATE" ONLY if the rulebook gives a clear answer AND the Shopify data confirms it (e.g., giving a tracking link).
+                       - Set path to "REVIEW" if it requires human empathy, a complex decision, or a refund.
+                    4. DRAFT THE RESPONSE:
+                       - No Markdown (** or ##).
+                       - Sign off as "${storeName} Support Team".
+
+                    Return ONLY a JSON object:
+                    {
+                        "path": "AUTOMATE" | "REVIEW",
+                        "category": "string",
+                        "priority": "string",
+                        "draft": "string",
+                        "reason": "Briefly explain why you chose this path"
+                    }
+                `
+            }],
         });
 
-        const data = await response.json();
-        const result = JSON.parse(data.content[0].text);
-        
-        return result;
+        const content = response.content[0].type === 'text' ? response.content[0].text : '';
+        return JSON.parse(content);
     } catch (error) {
-        console.error("Classification Error:", error);
-        // Fallback to human review if AI fails
-        return { path: "REVIEW", category: "other", priority: "high", reason: "AI error", draft: "" };
+        console.error("AI Classification Error:", error);
+        return {
+            path: "REVIEW",
+            category: "General Inquiry",
+            priority: "Medium",
+            draft: "I'll look into this for you immediately.",
+            reason: "AI failed to process, defaulting to manual review."
+        };
     }
 }
