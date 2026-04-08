@@ -1092,6 +1092,53 @@ function showDashboard() {
     renderOverviewRules();
 }
 // --- WORKSPACE LOGIC: TICKETS & INBOX ---
+function renderMessageList(messages) {
+    const list = document.getElementById('ticket-list');
+    if (!list) return;
+
+    if (!messages || messages.length === 0) {
+        list.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-64 opacity-30">
+                <p class="text-xs font-bold uppercase tracking-widest">Inbox Empty</p>
+                <p class="text-[10px] mt-1">Everything is currently automated.</p>
+            </div>`;
+        return;
+    }
+
+    list.innerHTML = messages.map(msg => {
+        const cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g, '').trim();
+        const isDrafted = msg.ai_draft && msg.ai_draft.length > 10;
+        
+        // Time formatting
+        const dateObj = new Date(msg.received_at);
+        const timeDisplay = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        return `
+            <div onclick='renderTicketWorkspace(${JSON.stringify(msg).replace(/'/g, "&apos;")})' 
+                 class="group p-4 rounded-xl border border-transparent hover:bg-white/[0.03] cursor-pointer transition-all mb-1 relative overflow-hidden">
+                
+                <div class="flex justify-between items-start mb-1">
+                    <span class="text-[11px] font-bold text-gray-200 truncate w-32">${cleanName}</span>
+                    <span class="text-[9px] text-gray-500 font-mono">${timeDisplay}</span>
+                </div>
+                
+                <div class="text-[11px] text-gray-400 truncate mb-2">${msg.subject || 'No Subject'}</div>
+                
+                <div class="flex items-center gap-2">
+                    ${isDrafted ? 
+                        `<span class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[9px] font-bold uppercase tracking-tighter border border-emerald-500/20">
+                            <div class="w-1 h-1 bg-emerald-500 rounded-full animate-pulse"></div> Draft Ready
+                         </span>` : 
+                        `<span class="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 text-[9px] font-bold uppercase tracking-tighter border border-amber-500/20">
+                            Needs Review
+                         </span>`
+                    }
+                    <span class="text-[9px] text-gray-600 font-bold uppercase">${msg.category || 'Support'}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
 
 async function fetchMessages() {
     // 🔍 Only show tickets marked for human review (Status: needs_review)
