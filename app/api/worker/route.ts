@@ -66,7 +66,7 @@ for await (const msg of client.fetch({ seen: false }, { source: true })) {
                 from, 
                 orderNumber
             );
-            
+
             // 2. PROACTIVE DRAFTING & TRIAGE (Claude Sonnet 4.5)
             const rawTriage = await classifyAndDraft(
                 subject, 
@@ -88,8 +88,7 @@ for await (const msg of client.fetch({ seen: false }, { source: true })) {
             // 3. DECISION ENGINE
             const finalStatus = triage.path === 'AUTOMATE' ? 'automated' : 'needs_review';
 
-            // 4. SAVE TO DATABASE (Pre-populated for the UI)
-            // ✅ Added "const { error: upsertError }" to fix the Line 98 crash
+            // 4. SAVE TO DATABASE (The "Wilmo" delivery)
             const { error: upsertError } = await supabase.from('messages').upsert({
                 connection_id: conn.id,
                 sender: from,
@@ -99,10 +98,12 @@ for await (const msg of client.fetch({ seen: false }, { source: true })) {
                 priority: triage.priority || 'Medium',
                 status: finalStatus, 
                 ai_draft: triage.draft || null, 
-                shopify_data: shopifyData,
-                ai_reasoning: triage.reason || 'Analyzed inquiry.',
+                // 🛠️ CRITICAL: We stringify the JSON so Supabase accepts it perfectly
+                shopify_data: shopifyData ? JSON.stringify(shopifyData) : null, 
+                ai_reasoning: triage.reason || 'Analyzed.',
                 external_id: msg.uid.toString()
             }, { onConflict: 'external_id' });
+
             if (upsertError) {
                 console.error("❌ Database Upsert Error:", upsertError.message);
             } else {

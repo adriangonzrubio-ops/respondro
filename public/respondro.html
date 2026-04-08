@@ -1141,16 +1141,26 @@ function renderMessageList(messages) {
 }
 
 async function fetchMessages() {
-    // 🔍 Only show tickets marked for human review (Status: needs_review)
+    console.log("📡 Pinging Worker for new emails...");
+    
+    // 1. Kick the worker to fetch new emails right now
+    try { 
+        await fetch('/api/worker'); 
+    } catch (e) {
+        console.error("Worker heartbeat failed:", e);
+    }
+
+    // 2. Fetch the newly synced messages from the DB
     const { data: messages, error } = await sb
         .from('messages')
         .select('*')
-        .eq('status', 'needs_review') 
+        .eq('status', 'needs_review')
         .order('received_at', { ascending: false });
 
     if (error) {
         console.error('❌ Fetch Error:', error.message);
     } else {
+        console.log(`✅ Database Check: Found ${messages?.length || 0} messages.`);
         renderMessageList(messages);
     }
 }
@@ -1177,7 +1187,13 @@ async function renderTicketWorkspace(msg) {
 
     const hasOrder = s.order_number || s.name;
     const cleanSender = (msg.sender || 'Customer').split('<')[0].replace(/"/g, '').trim();
-
+// 3. Prevent Manual Loop: Only draft if the Worker missed it
+    if (!msg.ai_draft || msg.ai_draft === 'No draft found.' || msg.ai_draft.length < 5) {
+        console.log("🤖 AI: Draft missing, triggering manual backup...");
+        generateNewDraft(msg.id);
+    } else {
+        console.log("✨ AI: Draft loaded instantly from background worker.");
+    }
     // 🕒 MAIN TIMELINE
     workspace.innerHTML = `
         <div class="flex flex-col h-full bg-[#f9fafb]">
