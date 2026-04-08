@@ -1089,6 +1089,81 @@ function showDashboard() {
     renderRules();
     renderOverviewRules();
 }
+// --- WORKSPACE LOGIC: TICKETS & INBOX ---
+
+async function fetchMessages() {
+    console.log("📥 Fetching latest tickets...");
+    const list = document.getElementById('ticket-list');
+    if (!list) return;
+
+    const { data: messages, error } = await sb
+        .from('messages')
+        .select('*')
+        .eq('store_id', ST.settings.store_id)
+        .order('created_at', { ascending: false });
+
+    if (error) return console.error("Supabase error:", error);
+
+    if (!messages || messages.length === 0) {
+        list.innerHTML = '<div class="text-gray-600 text-[10px] text-center mt-20 px-4">No tickets found.</div>';
+        return;
+    }
+
+    list.innerHTML = messages.map(msg => {
+        const cleanName = (msg.sender ? msg.sender.split('<')[0] : 'Customer').replace(/"/g, '').trim();
+        const timeAgo = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        const statusClass = msg.ai_draft ? 'text-emerald-500/80 bg-emerald-500/10' : 'text-amber-500/80 bg-amber-500/10';
+        const statusDot = msg.ai_draft ? 'bg-emerald-500' : 'bg-amber-500';
+
+        return `
+        <div onclick='renderTicketWorkspace(${JSON.stringify(msg).replace(/'/g, "&apos;")})' 
+             class="group p-4 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-emerald-500/30 cursor-pointer transition-all mb-2">
+            <div class="flex justify-between items-start mb-1">
+                <span class="text-xs font-bold text-white truncate w-32">${cleanName}</span>
+                <span class="text-[9px] text-gray-500">${timeAgo}</span>
+            </div>
+            <div class="text-[11px] text-gray-300 font-medium truncate mb-1">${msg.subject || 'No Subject'}</div>
+            <div class="flex items-center gap-2 mt-2">
+                <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase flex items-center gap-1.5 ${statusClass}">
+                    <span class="w-1.5 h-1.5 rounded-full ${statusDot}"></span>
+                    ${msg.ai_draft ? 'Draft Ready' : 'Needs Review'}
+                </span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderTicketWorkspace(msg) {
+    const workspace = document.getElementById('active-ticket-workspace');
+    if (!workspace) return;
+
+    const cleanName = (msg.sender ? msg.sender.split('<')[0] : 'Customer').replace(/"/g, '').trim();
+
+    workspace.innerHTML = `
+        <div class="flex-1 flex flex-col h-full overflow-hidden">
+            <div class="px-8 py-6 border-b border-white/5 bg-[#0f1115]">
+                <span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded uppercase tracking-widest">Ticket Review</span>
+                <h3 class="text-xl font-bold text-white mt-2">${msg.subject || 'No Subject'}</h3>
+            </div>
+            <div class="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
+                <div class="flex gap-4">
+                    <div class="w-8 h-8 bg-white/5 rounded-full flex items-center justify-center text-xs">👤</div>
+                    <div class="flex-1 text-sm text-gray-300 bg-white/[0.02] p-4 rounded-xl border border-white/5">
+                        ${msg.body_text || 'No content.'}
+                    </div>
+                </div>
+                <div class="bg-[#16191f] border border-white/5 rounded-2xl p-6 shadow-2xl">
+                    <div class="text-xs font-bold text-white mb-4 flex items-center gap-2">
+                        <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div> Respondro AI Draft
+                    </div>
+                    <textarea class="w-full h-48 bg-transparent border-none text-sm text-gray-300 outline-none resize-none">${msg.ai_draft || 'Drafting...'}</textarea>
+                    <button class="w-full bg-white text-black py-2.5 rounded-xl text-sm font-bold mt-4">Send Response</button>
+                </div>
+            </div>
+        </div>`;
+}
+
 function switchView(viewId, el) {
     // 1. Hide all view containers
     document.querySelectorAll('#main-content > div').forEach(v => v.classList.add('hidden'));
@@ -1099,7 +1174,7 @@ function switchView(viewId, el) {
 
     // 3. TRIGGER THE LOADER (Crucial for Step 2 to work!)
     if (viewId === 'agents') loadAgentsView();
-
+if (viewId === 'review-board') fetchMessages();
     // 4. Update Sidebar CSS
     document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
     if (el) el.classList.add('active');

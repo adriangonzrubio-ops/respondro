@@ -25,11 +25,12 @@ export async function POST(req: Request) {
         Do not include any conversational text before or after the JSON.
         `;
 
-        const response = await anthropic.messages.create({
-            model: 'claude-3-5-sonnet-20240620',
-            max_tokens: 1000,
-            messages: [{ role: 'user', content: systemPrompt }],
-        });
+const response = await anthropic.messages.create({
+    // Updated to the correct Sonnet 4.5 string for 2026
+    model: 'claude-sonnet-4-5-20250929', 
+    max_tokens: 1500, // Sonnet can handle much deeper reasoning
+    messages: [{ role: 'user', content: systemPrompt }],
+});
 
         const text = response.content[0].type === 'text' ? response.content[0].text : '';
         console.log("🤖 Raw AI Response:", text);
