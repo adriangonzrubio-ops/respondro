@@ -1171,16 +1171,15 @@ function openReviewModal(msg) {
     safeSet('modal-reasoning', msg.ai_reasoning || 'Categorizing...');
     
 // 2. Set the draft area with the dark transparent styling
+        const draftArea = document.getElementById('modal-draft-area');
         if (draftArea) {
             const finalDraft = msg.ai_draft ? msg.ai_draft.replace(/Hi\s+([^"]+)/g, `Hi ${cleanName}`) : "Drafting your response...";
             draftArea.value = finalDraft;
 
-            // SaaS Logo Preview Logic
+            // SaaS Logo Preview Logic (Keeping it safe but simple)
             const logoPreview = document.getElementById('modal-logo-preview');
             if (logoPreview) {
-                // Pulls the logo from your global store settings
                 logoPreview.src = ST.settings?.logo_url || '';
-                // Show image ONLY if [LOGO] marker is in the text
                 logoPreview.style.display = finalDraft.includes('[LOGO]') ? 'block' : 'none';
             }
         }
