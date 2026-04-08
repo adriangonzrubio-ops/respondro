@@ -1282,8 +1282,6 @@ async function renderTicketWorkspace(msg) {
 }
 
 async function generateNewDraft(messageId) {
-    console.log("🤖 AI: Starting auto-draft for", messageId);
-    
     try {
         const response = await fetch('/api/agents/generate-draft', {
             method: 'POST',
@@ -1293,7 +1291,7 @@ async function generateNewDraft(messageId) {
 
         const data = await response.json();
         if (data.draft) {
-            // ✅ We only update ai_draft and status. No 'created_at' to avoid the 400 error.
+            // 🛑 CRITICAL: We only update columns that actually exist!
             const { error } = await sb
                 .from('messages')
                 .update({ 
@@ -1304,12 +1302,12 @@ async function generateNewDraft(messageId) {
 
             if (error) throw error;
             
-            // Refresh the workspace to show the new draft
-            const { data: updatedMsg } = await sb.from('messages').select('*').eq('id', messageId).single();
-            renderTicketWorkspace(updatedMsg);
+            // Re-fetch message to refresh UI
+            const { data: updated } = await sb.from('messages').select('*').eq('id', messageId).single();
+            renderTicketWorkspace(updated);
         }
     } catch (err) {
-        console.error("❌ Draft Error:", err.message);
+        console.error("❌ Manual Draft Failed:", err.message);
     }
 }
 

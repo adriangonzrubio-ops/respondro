@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { supabase } from '@/lib/supabase';
-import { classifyAndDraft } from '@/lib/ai-classifier';
+import { classifyAndDraft } from '@/lib/ai-classifier'; // Ensure this matches exactly
 // We updated these to match your existing shopify.ts exports
 import { getShopifyContext, extractOrderNumber } from '@/lib/shopify';
 
@@ -58,7 +58,7 @@ for await (const msg of client.fetch({ seen: false }, { source: true })) {
             const body = parsed.text || "";
             const from = parsed.from?.value[0]?.address || "";
 
-            // 1. DYNAMIC SHOPIFY LOOKUP (Instant Context)
+// 1. DYNAMIC SHOPIFY LOOKUP (Instant Context)
             const orderNumber = extractOrderNumber(body) || extractOrderNumber(subject);
             const shopifyData = await getShopifyContext(
                 store.shop_url, 
@@ -68,11 +68,16 @@ for await (const msg of client.fetch({ seen: false }, { source: true })) {
             );
 
             // 2. PROACTIVE DRAFTING & TRIAGE (Claude Sonnet 4.5)
-            // This calls the "Brain" to categorize and write the reply immediately
-            const triage = await classifyAndDraft(subject, body, store.rulebook, store.store_name, shopifyData);
+            // This makes the draft appear INSTANTLY in the dashboard
+            const triage = await classifyAndDraft(
+                subject, 
+                body, 
+                store.rulebook, 
+                store.store_name || "The Store", 
+                shopifyData
+            );
             
             // 3. DECISION ENGINE: Automated vs. Manual
-            // If the AI is confident, it goes to 'automated'. Otherwise, it hits your Review Board.
             const finalStatus = triage.path === 'AUTOMATE' ? 'automated' : 'needs_review';
 
             // 4. SAVE TO DATABASE (Pre-populated for the UI)
@@ -91,6 +96,7 @@ for await (const msg of client.fetch({ seen: false }, { source: true })) {
             }, { onConflict: 'external_id' });
 
             console.log(`✅ ${triage.path} | Processed: ${subject}`);
+        
         }
         
     } finally {

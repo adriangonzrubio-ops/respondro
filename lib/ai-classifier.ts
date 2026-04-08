@@ -12,50 +12,33 @@ export async function classifyAndDraft(subject: string, body: string, rulebook: 
             messages: [{
                 role: 'user',
                 content: `
-                    You are the Lead Support Agent for ${storeName}.
-                    
-                    STORE RULEBOOK:
-                    ${rulebook}
+                You are the Lead Support Agent for ${storeName}.
+                
+                RULEBOOK: ${rulebook}
+                CUSTOMER EMAIL: ${body}
+                SHOPIFY DATA: ${JSON.stringify(shopifyData)}
 
-                    CUSTOMER INQUIRY:
-                    Subject: ${subject}
-                    Message: ${body}
+                TASK:
+                1. Categorize (Shipping, Refund, etc).
+                2. If the rulebook gives a 100% clear answer based on the Shopify data, set path to "AUTOMATE".
+                3. Otherwise, set path to "REVIEW".
+                4. Write a professional draft. No markdown (**), no placeholders.
+                5. Sign off as "${storeName} Support Team".
 
-                    SHOPIFY CONTEXT:
-                    ${JSON.stringify(shopifyData, null, 2)}
-
-                    TASK:
-                    1. Categorize the email (Shipping, Refund, General, etc).
-                    2. Determine Priority (Low, Medium, High).
-                    3. DECIDE THE PATH:
-                       - Set path to "AUTOMATE" ONLY if the rulebook gives a clear answer AND the Shopify data confirms it (e.g., giving a tracking link).
-                       - Set path to "REVIEW" if it requires human empathy, a complex decision, or a refund.
-                    4. DRAFT THE RESPONSE:
-                       - No Markdown (** or ##).
-                       - Sign off as "${storeName} Support Team".
-
-                    Return ONLY a JSON object:
-                    {
-                        "path": "AUTOMATE" | "REVIEW",
-                        "category": "string",
-                        "priority": "string",
-                        "draft": "string",
-                        "reason": "Briefly explain why you chose this path"
-                    }
-                `
+                Return ONLY JSON:
+                {
+                    "path": "AUTOMATE" | "REVIEW",
+                    "category": "string",
+                    "priority": "Low" | "Medium" | "High",
+                    "draft": "string",
+                    "reason": "string"
+                }`
             }],
         });
 
         const content = response.content[0].type === 'text' ? response.content[0].text : '';
         return JSON.parse(content);
     } catch (error) {
-        console.error("AI Classification Error:", error);
-        return {
-            path: "REVIEW",
-            category: "General Inquiry",
-            priority: "Medium",
-            draft: "I'll look into this for you immediately.",
-            reason: "AI failed to process, defaulting to manual review."
-        };
+        return { path: "REVIEW", category: "General", priority: "Medium", draft: "I will look into this.", reason: "Error" };
     }
 }
