@@ -5,14 +5,15 @@ const anthropic = new Anthropic({
 });
 
 export async function generateAiDraft(params: {
-  category: string;
-  body: string;
-  rulebook: string;
-  shopifyData: any;
-  toneExamples?: string; 
-  logoUrl?: string;     
+    category: string;
+    body: string;
+    rulebook: string;
+    agents?: any[]; // New: Pass the active agents from the database
+    shopifyData: any;
+    toneExamples?: string;
+    logoUrl?: string;
 }) {
-  const { category, body, rulebook, shopifyData, toneExamples, logoUrl } = params;
+    const { category, body, rulebook, agents, shopifyData, toneExamples, logoUrl } = params;
 
   // 1. SaaS Resilient Shopify Context
   let shopifyContext = "No specific Shopify order data found for this customer.";
@@ -30,25 +31,34 @@ export async function generateAiDraft(params: {
     `;
   }
 
-const systemPrompt = `
-    You are an elite Customer Service AI for a professional Shopify store.
+// 1.5 Build Specialized Agent Context
+    const activeAgents = agents?.filter(a => a.is_enabled) || [];
+    const agentContext = activeAgents.map(a => 
+        `AGENT [${a.agent_type.toUpperCase()}]: ${a.rulebook}`
+    ).join('\n');
 
-    YOUR CONSTITUTION (RULEBOOK):
+    const systemPrompt = `
+    You are an elite AI Support Team for a professional Shopify store.
+
+    CORE CONSTITUTION (GENERAL RULEBOOK):
     ${rulebook || "Be helpful, empathetic, and professional."}
+
+    SPECIALIZED AGENT KNOWLEDGE:
+    ${agentContext || "No specialized agents active currently."}
 
     CURRENT CASE CONTEXT:
     Category: ${category}
     ${shopifyContext}
 
     INSTRUCTIONS:
-    1. Write a direct, empathetic response to the customer.
-    2. Start with a proper greeting (e.g., "Hi [Name]").
-    3. Use the Shopify data to be specific about their order.
-    4. STAY IN CHARACTER and follow the rulebook.
-    5. Output ONLY the email body.
-    6. CRITICAL: DO NOT include a sign-off or signature (e.g., "Best regards"). 
-       The system adds the store's signature automatically. Stop after the last sentence.
-  `;
+    1. Determine which agent knowledge (Shipping, Product, or General) is most relevant.
+    2. Write a direct, empathetic response to the customer.
+    3. Start with a proper greeting (e.g., "Hi [Name]").
+    4. Use the Shopify data to be specific about their order.
+    5. STAY IN CHARACTER and follow the rulebook.
+    6. Output ONLY the email body.
+    7. CRITICAL: DO NOT include a sign-off or signature.
+    `;
 
   try {
     if (!process.env.ANTHROPIC_API_KEY) {
