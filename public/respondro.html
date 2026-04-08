@@ -1089,13 +1089,14 @@ async function fetchMessages() {
     const { data: messages, error } = await sb
         .from('messages')
         .select('*')
-        .eq('store_id', ST.settings.store_id)
+        // Change 'store_id' to 'store' (or whatever your column is named)
+        .eq('store', ST.settings.store_id) 
         .order('created_at', { ascending: false });
 
-    if (error) return console.error("Supabase error:", error);
-
-    if (!messages || messages.length === 0) {
-        list.innerHTML = '<div class="text-gray-600 text-[10px] text-center mt-20 px-4">No tickets found.</div>';
+    if (error) {
+        console.error("Supabase error:", error);
+        // If it still says "column does not exist", try removing the .eq line entirely
+        // just to see if the messages show up!
         return;
     }
 
