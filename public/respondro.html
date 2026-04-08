@@ -1263,21 +1263,34 @@ function renderTicketWorkspace(msg) {
 }
 
 async function generateNewDraft(messageId) {
-    showToast("✨ AI drafting with Sonnet 4.5...");
+    console.log("🤖 AI: Starting auto-draft for", messageId);
+    
     try {
-        const res = await fetch('/api/agents/generate-draft', {
+        const response = await fetch('/api/agents/generate-draft', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ messageId })
         });
-        const data = await res.json();
+
+        const data = await response.json();
         if (data.draft) {
-            const draftArea = document.getElementById('workspace-draft-area');
-            if (draftArea) draftArea.value = data.draft;
-            showToast("Draft updated! ✅");
+            // ✅ We only update ai_draft and status. No 'created_at' to avoid the 400 error.
+            const { error } = await sb
+                .from('messages')
+                .update({ 
+                    ai_draft: data.draft, 
+                    status: 'drafted' 
+                })
+                .eq('id', messageId);
+
+            if (error) throw error;
+            
+            // Refresh the workspace to show the new draft
+            const { data: updatedMsg } = await sb.from('messages').select('*').eq('id', messageId).single();
+            renderTicketWorkspace(updatedMsg);
         }
     } catch (err) {
-        showToast("Error generating draft.");
+        console.error("❌ Draft Error:", err.message);
     }
 }
 
@@ -1305,103 +1318,95 @@ async function generateNewDraft(messageId) {
     }
 }
 
-function renderTicketWorkspace(msg) {
+async function renderTicketWorkspace(msg) {
     const workspace = document.getElementById('active-ticket-workspace');
     const sidebar = document.getElementById('active-ticket-details');
     if (!workspace || !sidebar) return;
 
-    // 1. Auto-Draft Logic
+    // 1. DYNAMIC HISTORY FETCH (Wilmo Style)
+    // Pulls the last 3 emails from this same customer to show context
+    const { data: history } = await sb
+        .from('messages')
+        .select('*')
+        .eq('sender', msg.sender)
+        .neq('id', msg.id) 
+        .order('received_at', { ascending: false })
+        .limit(3);
+
+    // 2. Proactive Logic: Auto-trigger draft if missing
     if (!msg.ai_draft || msg.ai_draft.length < 5) {
         generateNewDraft(msg.id);
     }
 
-    // 2. Shopify Data Setup
     let s = {};
-    try {
-        s = typeof msg.shopify_data === 'string' ? JSON.parse(msg.shopify_data) : (msg.shopify_data || {});
-    } catch(e) { s = {}; }
-
+    try { s = typeof msg.shopify_data === 'string' ? JSON.parse(msg.shopify_data) : (msg.shopify_data || {}); } catch(e) { s = {}; }
     const hasOrder = s.order_number || s.name;
     const cleanSender = (msg.sender || 'Customer').split('<')[0].replace(/"/g, '').trim();
 
-    // 🕒 THE WILMO TIMELINE
+    // 🕒 THE TIMELINE
     workspace.innerHTML = `
         <div class="flex flex-col h-full bg-[#f9fafb]">
-            <div class="px-8 py-5 bg-white border-b border-gray-200 flex justify-between items-center shadow-sm">
-                <div>
-                    <div class="flex items-center gap-2 mb-1">
-                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Ticket Overview</span>
-                    </div>
-                    <h2 class="text-lg font-bold text-gray-900">${msg.subject || 'No Subject'}</h2>
-                </div>
-                <div class="flex gap-2">
-                    <span class="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-bold border border-blue-100 uppercase">Open</span>
-                </div>
+            <div class="px-8 py-5 bg-white border-b border-gray-200 shadow-sm flex justify-between items-center">
+                <h2 class="text-lg font-bold text-gray-900">${msg.subject || 'No Subject'}</h2>
+                <span class="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-bold uppercase border border-blue-100">Open Ticket</span>
             </div>
 
             <div class="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
                 
+                ${history && history.length > 0 ? history.map(h => `
+                    <div class="opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all cursor-default">
+                        <div class="flex gap-4">
+                            <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-[10px] font-bold">HIST</div>
+                            <div class="flex-1 bg-white border border-gray-100 p-4 rounded-xl text-[11px] text-gray-500 italic shadow-sm">
+                                Previous from ${new Date(h.received_at).toLocaleDateString()}: "${h.body_text.slice(0, 80)}..."
+                            </div>
+                        </div>
+                    </div>
+                `).join('') : ''}
+
                 <div class="flex gap-4">
                     <div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center font-bold text-gray-600 shadow-sm">
                         ${cleanSender.charAt(0).toUpperCase()}
                     </div>
-                    <div class="flex-1 max-w-2xl">
-                        <div class="flex items-center gap-2 mb-2">
-                            <span class="font-bold text-sm text-gray-900">${cleanSender}</span>
-                            <span class="text-[10px] text-gray-400">Customer • ${new Date(msg.created_at).toLocaleTimeString()}</span>
-                        </div>
-                        <div class="bg-white border border-gray-200 p-5 rounded-2xl rounded-tl-none shadow-sm text-sm text-gray-700 leading-relaxed">
-                            ${msg.body_text}
-                        </div>
+                    <div class="flex-1 bg-white border border-gray-200 p-6 rounded-2xl shadow-sm text-sm text-gray-700 leading-relaxed">
+                        ${msg.body_text}
                     </div>
                 </div>
 
                 <div class="flex gap-4">
                     <div class="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center text-amber-600 border border-amber-200">🤖</div>
-                    <div class="flex-1 max-w-2xl">
-                        <div class="bg-[#fffbeb] border border-amber-200 p-5 rounded-2xl text-[11px] text-amber-900 shadow-sm">
-                            <div class="flex justify-between items-center mb-3">
-                                <span class="font-bold uppercase tracking-widest text-[9px] text-amber-700">AI Assistant (Internal Process)</span>
-                                <span class="opacity-50 font-mono text-[8px]">58ms</span>
-                            </div>
-                            <ul class="space-y-2">
-                                <li class="flex items-center gap-2">✅ <span class="font-semibold">Intent:</span> ${msg.category || 'Order Inquiry'}</li>
-                                <li class="flex items-center gap-2">📦 <span class="font-semibold">Shopify:</span> ${hasOrder ? `Matched Order <b>#${s.order_number}</b>` : 'Checking customer email...'}</li>
-                                <li class="flex items-center gap-2">📑 <span class="font-semibold">Rulebook:</span> Applied Standard Support Policy</li>
-                                <li class="flex items-center gap-2">✍️ <span class="font-semibold">Action:</span> Drafted response for review</li>
-                            </ul>
-                        </div>
+                    <div class="flex-1 bg-[#fffbeb] border border-amber-200 p-5 rounded-2xl text-[11px] text-amber-900 shadow-sm">
+                        <p class="font-bold uppercase tracking-widest text-[9px] mb-3 text-amber-700">AI Assistant (Internal Process)</p>
+                        <ul class="space-y-2">
+                            <li class="flex items-center gap-2">✅ <span class="font-semibold">Intent:</span> ${msg.category || 'Shipping Inquiry'}</li>
+                            <li class="flex items-center gap-2">📦 <span class="font-semibold">Shopify:</span> ${hasOrder ? 'Order Found #' + s.order_number : 'Searching by Email...'}</li>
+                            <li class="flex items-center gap-2">✍️ <span class="font-semibold">Action:</span> Drafted response for review</li>
+                        </ul>
                     </div>
                 </div>
 
-                <div class="flex gap-4">
+                <div class="flex gap-4 pb-12">
                     <div class="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">AI</div>
-                    <div class="flex-1 max-w-2xl">
-                        <div class="flex items-center gap-2 mb-2">
-                            <span class="font-bold text-sm text-purple-700">AI Assistant</span>
-                            <span class="text-[10px] text-gray-400">Draft Ready</span>
-                        </div>
-                        <div class="bg-white border-2 border-purple-100 rounded-2xl shadow-xl overflow-hidden">
-                            <textarea id="workspace-draft-area" class="w-full p-6 text-sm text-gray-700 bg-transparent outline-none min-h-[200px] resize-none leading-relaxed">${msg.ai_draft || 'Generating draft...'}</textarea>
-                            <div class="bg-purple-50 p-4 border-t border-purple-100 flex justify-end gap-3">
-                                <button onclick="generateNewDraft('${msg.id}')" class="px-4 py-2 text-xs font-bold text-purple-600 hover:bg-purple-100 rounded-lg">Regenerate</button>
-                                <button onclick="sendResponse()" class="px-6 py-2 bg-purple-600 text-white text-xs font-bold rounded-lg shadow-md hover:bg-purple-700">Send Response</button>
-                            </div>
+                    <div class="flex-1 bg-white border-2 border-purple-100 rounded-2xl shadow-xl overflow-hidden">
+                        <textarea id="workspace-draft-area" class="w-full p-6 text-sm text-gray-800 bg-transparent outline-none min-h-[200px] resize-none leading-relaxed font-sans">${msg.ai_draft || 'Generating draft...'}</textarea>
+                        <div class="bg-purple-50 p-4 border-t border-purple-100 flex justify-end gap-3">
+                            <button onclick="generateNewDraft('${msg.id}')" class="px-4 py-2 text-xs font-bold text-purple-600 hover:bg-purple-100 rounded-lg">Regenerate</button>
+                            <button onclick="sendResponse()" class="px-6 py-2 bg-purple-600 text-white text-xs font-bold rounded-lg shadow-md hover:bg-purple-700">Send Response</button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>`;
 
-    // 🛍️ WILMO SIDEBAR
+    // 🛍️ SHOPIFY SIDEBAR
     sidebar.innerHTML = `
         <div class="p-6 space-y-8 bg-white h-full border-l border-gray-200 text-gray-800">
             <div>
                 <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Contact Details</h4>
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-bold">${cleanSender.charAt(0).toUpperCase()}</div>
+                    <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center font-bold text-gray-500">${cleanSender.charAt(0).toUpperCase()}</div>
                     <div>
-                        <div class="text-sm font-bold text-gray-900">${cleanSender}</div>
+                        <div class="text-sm font-bold">${cleanSender}</div>
                         <div class="text-[10px] text-gray-400 truncate w-32">${msg.sender}</div>
                     </div>
                 </div>
@@ -1413,20 +1418,16 @@ function renderTicketWorkspace(msg) {
                 <div class="border border-gray-100 rounded-xl p-4 bg-gray-50/50 space-y-3 shadow-sm">
                     <div class="flex justify-between items-center">
                         <span class="text-sm font-bold text-gray-900">#${s.order_number}</span>
-                        <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-600 uppercase">${s.fulfillment_status}</span>
+                        <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-600 uppercase tracking-tighter">${s.fulfillment_status}</span>
                     </div>
-                    <div class="text-[11px] text-gray-900 font-medium">
-                        ${s.items || 'Standard Package'}
-                    </div>
-                    <div class="pt-2 border-t border-gray-100 flex justify-between text-xs">
-                        <span class="text-gray-400">Total</span>
-                        <span class="font-bold text-gray-900">$${s.total_price || '0.00'}</span>
+                    <div class="text-[11px] text-gray-900 font-medium">${s.items || 'Standard Package'}</div>
+                    <div class="pt-2 border-t border-gray-100 flex justify-between text-xs font-bold text-gray-900">
+                        <span class="text-gray-400 font-medium">Total</span>
+                        <span>$${s.total_price} ${s.currency || ''}</span>
                     </div>
                 </div>
                 ` : `
-                <div class="text-center py-10 border-2 border-dashed border-gray-100 rounded-xl">
-                    <p class="text-[10px] text-gray-400 uppercase font-bold tracking-widest">No Order Found</p>
-                </div>
+                <div class="text-center py-10 border-2 border-dashed border-gray-100 rounded-xl text-[10px] text-gray-400 font-bold uppercase tracking-widest">No Order Found</div>
                 `}
             </div>
         </div>`;
