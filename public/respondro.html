@@ -1141,27 +1141,29 @@ function renderMessageList(messages) {
 }
 
 async function fetchMessages() {
-    console.log("📡 Pinging Worker for new emails...");
+    const syncBtn = document.querySelector('button[onclick="fetchMessages()"]');
+    if (syncBtn) syncBtn.innerHTML = `Refreshing...`;
+
+    console.log("📡 Triggering Background Sync...");
     
-    // 1. Kick the worker to fetch new emails right now
-    try { 
+    try {
+        // We AWAIT the worker so it has time to fetch and draft before we look at the DB
         await fetch('/api/worker'); 
+        console.log("✅ Sync Complete.");
     } catch (e) {
-        console.error("Worker heartbeat failed:", e);
+        console.error("Worker failed", e);
     }
 
-    // 2. Fetch the newly synced messages from the DB
     const { data: messages, error } = await sb
         .from('messages')
         .select('*')
         .eq('status', 'needs_review')
         .order('received_at', { ascending: false });
 
-    if (error) {
-        console.error('❌ Fetch Error:', error.message);
-    } else {
-        console.log(`✅ Database Check: Found ${messages?.length || 0} messages.`);
+    if (error) console.error('❌ Fetch Error:', error.message);
+    else {
         renderMessageList(messages);
+        if (syncBtn) syncBtn.innerHTML = `Refresh Sync`;
     }
 }
 
@@ -1179,13 +1181,17 @@ async function renderTicketWorkspace(msg) {
         .order('received_at', { ascending: false })
         .limit(2);
 
-    // 2. Parse Shopify data safely
-    let s = {};
-    try {
-        s = typeof msg.shopify_data === 'string' ? JSON.parse(msg.shopify_data) : (msg.shopify_data || {});
-    } catch(e) { s = {}; }
+try {
+        const rawData = typeof msg.shopify_data === 'string' ? JSON.parse(msg.shopify_data) : (msg.shopify_data || {});
+        // If Shopify returned a list of orders for this email, grab the most recent one
+        s = Array.isArray(rawData) ? (rawData[0] || {}) : rawData;
+    } catch(e) { 
+        s = {}; 
+    }
 
-    const hasOrder = s.order_number || s.name;
+    // ✅ Define variables after parsing is complete
+    const hasOrder = s.order_number || s.name || s.email || s.customer?.email;
+    const customerEmail = s.email || (s.customer && s.customer.email) || msg.sender;
     const cleanSender = (msg.sender || 'Customer').split('<')[0].replace(/"/g, '').trim();
 // 3. Prevent Manual Loop: Only draft if the Worker missed it
     if (!msg.ai_draft || msg.ai_draft === 'No draft found.' || msg.ai_draft.length < 5) {
@@ -1259,39 +1265,43 @@ async function renderTicketWorkspace(msg) {
 
     // 🛍️ SIDEBAR
     sidebar.innerHTML = `
-        <div class="p-6 space-y-8 bg-white h-full border-l border-gray-200 text-gray-800">
-            <div>
-                <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Contact Details</h4>
+        <div class="p-8 space-y-8 bg-white h-full border-l border-gray-200 text-gray-800">
+            <div class="mb-8">
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Contact Details</p>
                 <div class="flex items-center gap-3">
-                    <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-bold text-xl shadow-inner">${cleanSender.charAt(0).toUpperCase()}</div>
+                    <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 font-bold">
+                        ${cleanSender.charAt(0).toUpperCase()}
+                    </div>
                     <div>
-                        <div class="text-sm font-bold text-gray-900 truncate w-32">${cleanSender}</div>
-                        <div class="text-[10px] text-gray-400">${msg.sender}</div>
+                        <div class="text-sm font-bold text-gray-900">${cleanSender}</div>
+                        <div class="text-[10px] text-gray-500 truncate w-32">${customerEmail}</div>
                     </div>
                 </div>
             </div>
 
             <div>
-                <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Shopify Orders</h4>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Shopify Orders</p>
                 ${hasOrder ? `
-                <div class="border border-gray-100 rounded-2xl p-5 bg-gray-50/50 space-y-4 shadow-sm">
-                    <div class="flex justify-between items-center">
-                        <span class="text-sm font-bold text-gray-900">#${s.order_number}</span>
-                        <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-600 uppercase tracking-tighter">${s.fulfillment_status}</span>
+                    <div class="space-y-4">
+                        <div class="p-4 rounded-2xl border-2 border-gray-50 bg-gray-50/30">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-xs font-bold text-gray-900">Order #${s.order_number || s.name}</span>
+                                <span class="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[9px] font-bold uppercase tracking-tighter">${s.financial_status || 'Paid'}</span>
+                            </div>
+                            <div class="space-y-1">
+                                <p class="text-[10px] text-gray-500">${s.created_at ? new Date(s.created_at).toLocaleDateString() : 'Recently'}</p>
+                                <p class="text-[11px] text-gray-900 font-semibold truncate">${s.items || 'Standard Order'}</p>
+                            </div>
+                            <div class="pt-3 border-t border-gray-100 flex justify-between items-center text-xs">
+                                <span class="text-gray-400 font-medium">Total Spent</span>
+                                <span class="font-bold text-gray-900">$${s.total_price} ${s.currency || ''}</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="space-y-1">
-                        <p class="text-[11px] text-gray-500">${s.created_at ? new Date(s.created_at).toLocaleDateString() : 'Recently'} • 1 item</p>
-                        <p class="text-[11px] text-gray-900 font-semibold truncate">${s.items || 'Standard Order'}</p>
-                    </div>
-                    <div class="pt-3 border-t border-gray-100 flex justify-between items-center text-xs">
-                        <span class="text-gray-400 font-medium">Total Spent</span>
-                        <span class="font-bold text-gray-900">$${s.total_price} ${s.currency || ''}</span>
-                    </div>
-                </div>
                 ` : `
-                <div class="text-center py-12 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/30">
-                    <p class="text-[10px] text-gray-400 uppercase tracking-widest font-bold">No Order Found</p>
-                </div>
+                    <div class="text-center py-12 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/30">
+                        <p class="text-[10px] text-gray-400 uppercase tracking-widest font-bold">No Order Found</p>
+                    </div>
                 `}
             </div>
         </div>`;
