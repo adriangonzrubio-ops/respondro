@@ -738,6 +738,67 @@ async function configureAgent(type) {
     }
 }
 
+async function sendMessageToAgent() {
+    const input = document.getElementById('agent-chat-input');
+    const chatBox = document.getElementById('agent-chat-box');
+    const rulebookDisplay = document.getElementById('agent-rulebook-display');
+    const message = input.value.trim();
+
+    if (!message) return;
+
+    // 1. Add User Bubble
+    const userBubble = `<div class="flex justify-end"><div class="bg-emerald-600 text-white p-3 rounded-xl rounded-tr-none text-xs max-w-[80%]">${message}</div></div>`;
+    chatBox.insertAdjacentHTML('beforeend', userBubble);
+    input.value = '';
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    // 2. Add "Thinking" Bubble
+    const thinkingId = 'thinking-' + Date.now();
+    const thinkingBubble = `<div id="${thinkingId}" class="flex justify-start"><div class="bg-white/5 text-gray-400 p-3 rounded-xl rounded-tl-none text-xs animate-pulse italic">Agent is updating rulebook...</div></div>`;
+    chatBox.insertAdjacentHTML('beforeend', thinkingBubble);
+
+    try {
+        // 3. Call the Agent Chat API
+        const res = await fetch('/api/agents/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                agentType: currentConfigAgent,
+                userMessage: message,
+                currentRulebook: rulebookDisplay.value
+            })
+        });
+
+        const data = await res.json();
+        const thinkingEl = document.getElementById(thinkingId);
+        if (thinkingEl) thinkingEl.remove();
+
+        if (data.updatedRulebook) {
+            // 4. Update the Rulebook Display
+            rulebookDisplay.value = data.updatedRulebook;
+            
+            // 5. Add AI Response Bubble
+            const aiBubble = `<div class="flex justify-start"><div class="bg-white/10 text-emerald-200 p-3 rounded-xl rounded-tl-none text-xs max-w-[80%]">${data.aiResponse}</div></div>`;
+            chatBox.insertAdjacentHTML('beforeend', aiBubble);
+
+            // 6. Save the new Rulebook to Supabase
+            await sb.from('support_agents').upsert({
+                store_id: ST.settings.store_id,
+                agent_type: currentConfigAgent,
+                rulebook: data.updatedRulebook,
+                updated_at: new Date()
+            }, { onConflict: 'store_id,agent_type' });
+
+            showToast("Knowledge updated! ✨");
+        }
+    } catch (err) {
+        console.error(err);
+        const thinkingEl = document.getElementById(thinkingId);
+        if (thinkingEl) thinkingEl.innerHTML = `<div class="bg-red-500/10 text-red-400 p-3 rounded-xl text-xs">Error updating agent.</div>`;
+    }
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
 // ═══ 1. DATA & STATE (Preserving your full list) ═══
 const PROVIDERS = [
     { id: 'gmail', name: 'Gmail', sub: 'Google Workspace', type: 'oauth', icon: 'G', color: '#EA4335', oauthLabel: 'Sign in with Google', oauthBg: '#fff', oauthColor: '#202223' },
