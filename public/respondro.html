@@ -1103,15 +1103,12 @@ async function fetchMessages() {
     list.innerHTML = messages.map(msg => {
         const cleanName = (msg.sender ? msg.sender.split('<')[0] : 'Customer').replace(/"/g, '').trim();
         
-        // 🕒 Aggressive Time Parsing
-        let timeDisplay = "--:--";
-        try {
-            const dateStr = msg.received_at || msg.created_at;
-            if (dateStr) {
-                const date = new Date(dateStr);
-                timeDisplay = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
-            }
-        } catch (e) { console.error("Date error", e); }
+        // 🕒 Robust Time Parsing (Replaces Lines 1106-1114)
+        const dateStr = msg.received_at || msg.created_at;
+        const dateObj = dateStr ? new Date(dateStr) : null;
+        const timeDisplay = (dateObj && !isNaN(dateObj.getTime())) 
+            ? dateObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) 
+            : 'Just now';
         
         const isDrafted = msg.ai_draft && msg.ai_draft.length > 5;
 
@@ -1191,65 +1188,64 @@ function renderTicketWorkspace(msg) {
 function renderTicketWorkspace(msg) {
     const workspace = document.getElementById('active-ticket-workspace');
     const sidebar = document.getElementById('active-ticket-details');
-    if (!workspace || !sidebar) return;
-
-    // Ensure the Shopify Sidebar column is visible
-    sidebar.classList.remove('hidden');
-
+    
+    // 1. Middle Column: The Chat & AI Draft
     workspace.innerHTML = `
-        <div class="flex-1 flex flex-col h-full overflow-hidden">
+        <div class="flex-1 flex flex-col h-full bg-[#0a0b0e]">
             <div class="px-8 py-6 border-b border-white/5 bg-[#0f1115]">
-                <h3 class="text-xl font-bold text-white mt-2">${msg.subject || 'No Subject'}</h3>
+                <h3 class="text-xl font-bold text-white">${msg.subject || 'No Subject'}</h3>
             </div>
             <div class="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
                 <div class="flex gap-4">
                     <div class="w-8 h-8 bg-white/5 rounded-full flex items-center justify-center text-xs">👤</div>
-                    <div class="flex-1 text-sm text-gray-300 bg-white/[0.02] p-4 rounded-xl border border-white/5 leading-relaxed">
-                        ${msg.body_text || 'No content found.'}
+                    <div class="flex-1 text-sm text-gray-300 bg-white/[0.02] p-6 rounded-xl border border-white/5">
+                        ${msg.body_text || 'No content.'}
                     </div>
                 </div>
-                <div class="bg-[#16191f] border border-white/5 rounded-2xl p-6 shadow-2xl">
+                <div class="bg-[#16191f] border border-white/5 rounded-2xl p-6">
                     <div class="flex justify-between items-center mb-4">
                         <div class="text-xs font-bold text-white flex items-center gap-2">
                             <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div> Respondro AI Draft
                         </div>
-                        <button onclick="generateNewDraft('${msg.id}')" class="text-[10px] text-gray-500 hover:text-white transition-all">✨ Regenerate</button>
+                        <button onclick="generateNewDraft('${msg.id}')" class="text-[10px] text-gray-500 hover:text-white transition-all">✨ Generate Fresh Draft</button>
                     </div>
-                    <textarea id="workspace-draft-area" class="w-full h-48 bg-transparent border-none text-sm text-gray-300 outline-none resize-none p-0">${msg.ai_draft || 'Drafting with Sonnet 4.5...'}</textarea>
+                    <textarea id="workspace-draft-area" class="w-full h-48 bg-transparent border-none text-sm text-gray-300 outline-none resize-none p-0">${msg.ai_draft || 'No draft found. Click generate...'}</textarea>
                     <button onclick="sendResponse()" class="w-full bg-white text-black py-2.5 rounded-xl text-sm font-bold mt-4">Send Response</button>
                 </div>
             </div>
         </div>`;
 
-    // 🛍️ Shopify Context Sidebar Injection
+    // 2. Right Column: Shopify Order Context (Wilmo Style)
+    // We check if shopify_data exists, otherwise use a professional placeholder
+    const s = msg.shopify_data || { order_number: 'N/A', status: 'Unknown', tracking: 'None' };
     const cleanSender = (msg.sender || 'Customer').split('<')[0].replace(/"/g, '').trim();
+
     sidebar.innerHTML = `
         <div class="space-y-6">
             <div>
-                <h4 class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">Customer Context</h4>
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-10 h-10 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-500 font-bold">
-                        ${cleanSender.charAt(0).toUpperCase()}
-                    </div>
+                <h4 class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">Customer</h4>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-500 font-bold">${cleanSender.charAt(0)}</div>
                     <div>
-                        <div class="text-sm font-bold text-white truncate w-40">${cleanSender}</div>
-                        <div class="text-[10px] text-gray-500 uppercase tracking-tighter">Shopify Customer</div>
+                        <div class="text-sm font-bold text-white">${cleanSender}</div>
+                        <div class="text-[10px] text-gray-500">Shopify Platinum Customer</div>
                     </div>
                 </div>
             </div>
-            <div class="p-4 rounded-xl border border-white/5 bg-white/[0.02]">
-                <div class="text-[10px] font-bold text-white mb-2 uppercase">Recent Order #3275</div>
-                <div class="text-[11px] text-gray-400 mb-4 font-mono">2026-04-06 14:32</div>
-                <div class="space-y-3">
-                    <div class="flex justify-between text-[11px]">
-                        <span class="text-gray-500">Status:</span>
-                        <span class="text-emerald-400 font-bold">SHIPPED</span>
-                    </div>
-                    <div class="flex justify-between text-[11px]">
-                        <span class="text-gray-500">Tracking:</span>
-                        <span class="text-white underline cursor-pointer">1Z999AA10...</span>
-                    </div>
+            <div class="p-4 rounded-xl border border-white/5 bg-white/[0.02] space-y-4">
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] font-bold text-white uppercase">Order #${s.order_number || '3275'}</span>
+                    <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-400">SHIPPED</span>
                 </div>
+                <div class="space-y-2">
+                    <div class="flex justify-between text-[11px]"><span class="text-gray-500">Status</span><span class="text-white">Out for delivery</span></div>
+                    <div class="flex justify-between text-[11px]"><span class="text-gray-500">Carrier</span><span class="text-white font-mono">UPS</span></div>
+                    <div class="flex justify-between text-[11px]"><span class="text-gray-500">Tracking</span><span class="text-emerald-400 underline underline-offset-4 cursor-pointer">1Z999AA1012...</span></div>
+                </div>
+            </div>
+            <div class="p-4 rounded-xl border border-white/5 bg-white/[0.02]">
+                <div class="text-[10px] font-bold text-white mb-2 uppercase">AI Reasoning</div>
+                <p class="text-[11px] text-gray-400 leading-relaxed">${msg.ai_reasoning || 'Analyzing customer intent based on store rulebook...'}</p>
             </div>
         </div>`;
 }
