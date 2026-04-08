@@ -1141,17 +1141,14 @@ function renderMessageList(messages) {
 }
 
 async function fetchMessages() {
-    const syncBtn = document.querySelector('button[onclick="fetchMessages()"]');
-    if (syncBtn) syncBtn.innerHTML = `Refreshing...`;
-
-    console.log("📡 Triggering Background Sync...");
+    console.log("📡 Triggering Automatic Sync...");
     
     try {
-        // We AWAIT the worker so it has time to fetch and draft before we look at the DB
         await fetch('/api/worker'); 
-        console.log("✅ Sync Complete.");
+        // ⏳ Give the AI 4 seconds to write the draft in the background
+        await new Promise(r => setTimeout(r, 4000)); 
     } catch (e) {
-        console.error("Worker failed", e);
+        console.error("Sync failed:", e);
     }
 
     const { data: messages, error } = await sb
@@ -1160,11 +1157,7 @@ async function fetchMessages() {
         .eq('status', 'needs_review')
         .order('received_at', { ascending: false });
 
-    if (error) console.error('❌ Fetch Error:', error.message);
-    else {
-        renderMessageList(messages);
-        if (syncBtn) syncBtn.innerHTML = `Refresh Sync`;
-    }
+    if (!error) renderMessageList(messages);
 }
 
 async function renderTicketWorkspace(msg) {
@@ -1181,17 +1174,19 @@ async function renderTicketWorkspace(msg) {
         .order('received_at', { ascending: false })
         .limit(2);
 
-try {
-        const rawData = typeof msg.shopify_data === 'string' ? JSON.parse(msg.shopify_data) : (msg.shopify_data || {});
-        // If Shopify returned a list of orders for this email, grab the most recent one
+let s = {};
+    try {
+        // We no longer need JSON.parse because the Worker saves clean data
+        const rawData = msg.shopify_data || [];
+        // If the Worker found multiple orders, we grab the most recent one
         s = Array.isArray(rawData) ? (rawData[0] || {}) : rawData;
     } catch(e) { 
         s = {}; 
     }
 
-    // ✅ Define variables after parsing is complete
-    const hasOrder = s.order_number || s.name || s.email || s.customer?.email;
-    const customerEmail = s.email || (s.customer && s.customer.email) || msg.sender;
+    // Define indicators for the UI
+    const hasOrder = (s && (s.order_number || s.name)) ? true : false;
+    const customerEmail = s?.email || (s?.customer && s?.customer.email) || msg.sender || 'No Email';
     const cleanSender = (msg.sender || 'Customer').split('<')[0].replace(/"/g, '').trim();
 // 3. Prevent Manual Loop: Only draft if the Worker missed it
     if (!msg.ai_draft || msg.ai_draft === 'No draft found.' || msg.ai_draft.length < 5) {

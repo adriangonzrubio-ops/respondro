@@ -4,7 +4,7 @@ import { simpleParser } from 'mailparser';
 import { supabase } from '@/lib/supabase';
 import { classifyAndDraft } from '@/lib/ai-classifier'; // Ensure this matches exactly
 // We updated these to match your existing shopify.ts exports
-import { getShopifyContext, extractOrderNumber } from '@/lib/shopify';
+import { getShopifyContext, extractOrderNumber } from "@/lib/shopify";
 
 export const dynamic = 'force-dynamic';
 
@@ -47,7 +47,7 @@ async function fetchInmap(conn: any) {
     let lock = await client.getMailboxLock('INBOX');
 
     try {
-for await (const msg of client.fetch({ seen: false }, { source: true })) {
+for await (const msg of client.fetch('1:10', { source: true })) {
             // 🛡️ Safety check
             if (!msg.source) continue;
 
@@ -58,7 +58,7 @@ for await (const msg of client.fetch({ seen: false }, { source: true })) {
             const body = parsed.text || "";
             const from = parsed.from?.value[0]?.address || "";
 
-// 1. DYNAMIC SHOPIFY LOOKUP (Instant Context)
+// 1. DYNAMIC SHOPIFY LOOKUP (Automatic Scout)
             const orderNumber = extractOrderNumber(body) || extractOrderNumber(subject);
             const shopifyData = await getShopifyContext(
                 store.shop_url, 
@@ -67,7 +67,7 @@ for await (const msg of client.fetch({ seen: false }, { source: true })) {
                 orderNumber
             );
 
-            // 2. PROACTIVE DRAFTING & TRIAGE (Claude Sonnet 4.5)
+            // 2. AUTOMATIC DRAFTING (Claude Sonnet 4.5)
             const rawTriage = await classifyAndDraft(
                 subject, 
                 body, 
@@ -85,10 +85,9 @@ for await (const msg of client.fetch({ seen: false }, { source: true })) {
                 } catch (e) { triage = {}; }
             }
 
-            // 3. DECISION ENGINE
             const finalStatus = triage.path === 'AUTOMATE' ? 'automated' : 'needs_review';
 
-            // 4. SAVE TO DATABASE (The "Wilmo" delivery)
+            // 3. SAVE TO DATABASE (Proactive / No-Click)
             const { error: upsertError } = await supabase.from('messages').upsert({
                 connection_id: conn.id,
                 sender: from,
@@ -98,8 +97,8 @@ for await (const msg of client.fetch({ seen: false }, { source: true })) {
                 priority: triage.priority || 'Medium',
                 status: finalStatus, 
                 ai_draft: triage.draft || null, 
-                // 🛠️ CRITICAL: We stringify the JSON so Supabase accepts it perfectly
-                shopify_data: shopifyData ? JSON.stringify(shopifyData) : null, 
+                // ✅ NO stringify here - Supabase handles the array automatically
+                shopify_data: shopifyData && shopifyData.length > 0 ? shopifyData : null,
                 ai_reasoning: triage.reason || 'Analyzed.',
                 external_id: msg.uid.toString()
             }, { onConflict: 'external_id' });
@@ -107,7 +106,7 @@ for await (const msg of client.fetch({ seen: false }, { source: true })) {
             if (upsertError) {
                 console.error("❌ Database Upsert Error:", upsertError.message);
             } else {
-                console.log(`✅ ${triage.path} | Processed: ${subject}`);
+                console.log(`✅ AUTOMATED: Processed ${from}`);
             }
         
         }
