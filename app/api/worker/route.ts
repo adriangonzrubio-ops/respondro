@@ -58,8 +58,17 @@ async function fetchImap(conn: any) {
 
                 console.log(`📩 Processing email from: ${from}`);
 
-                // 1. AI Classification
-                const triage = await classifyEmail(subject, body);
+                // 1. Fetch the store's rulebook for Sonnet 4.5 context
+            const { data: storeData } = await supabase
+                .from('settings')
+                .select('rulebook')
+                .eq('store_id', conn.store_id)
+                .single();
+
+            const rulebook = storeData?.rulebook || "Standard professional store policies.";
+
+            // 2. AI Classification (Now with 3 arguments)
+            const triage = await classifyEmail(subject, body, rulebook);
 
                 // 2. Shopify Order Lookup (SaaS Optimized)
                 let shopifyData = null;
@@ -84,27 +93,17 @@ async function fetchImap(conn: any) {
                     }
                 }
 
-                // 3. Status Determination
-                let currentStatus = 'pending'; 
-                const reviewNeeded = ['refund_request', 'customer_complaint', 'cancellation'];
-                
-                if (reviewNeeded.includes(triage.category) || (needsData && !shopifyData)) {
-                    currentStatus = 'needs_review';
-                } else if (['spam', 'marketing'].includes(triage.category)) {
-                    currentStatus = 'archived';
-                }
+                // 3. Path-based Status Determination
+let currentStatus = 'needs_review'; // Default
 
-                // 4. Fetch Settings & Generate Draft
-                const { data: settings } = await supabase.from('settings').select('*').eq('store_id', conn.store_id).single();
+if (triage.path === 'AUTOMATE') {
+    currentStatus = 'automated'; 
+} else {
+    currentStatus = 'needs_review';
+}
 
-                const aiDraft = await generateAiDraft({
-                    category: triage.category,
-                    body: body,
-                    rulebook: settings?.rulebook || "Be professional.",
-                    shopifyData: shopifyData,
-                    toneExamples: settings?.signature || "", 
-                    logoUrl: settings?.logo_url || "" // This is the final SaaS piece!
-                });
+// Use triage.draft directly so you don't have to call the AI twice!
+const finalDraft = triage.draft || "";
 
                 // 5. Save to Database
                 await supabase.from('messages').upsert({
@@ -117,7 +116,7 @@ async function fetchImap(conn: any) {
                     ai_reasoning: triage.reason,
                     status: currentStatus,
                     shopify_data: shopifyData,
-                    ai_draft: aiDraft,
+                    ai_draft: finalDraft,
                     external_id: msg.uid.toString(),
                 }, { onConflict: 'external_id' });
             }

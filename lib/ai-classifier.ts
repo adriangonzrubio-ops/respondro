@@ -1,36 +1,57 @@
-export async function classifyEmail(subject: string, body: string) {
-  const prompt = `
-    You are an e-commerce customer service expert. Categorize this email into EXACTLY one of these categories:
-    - tracking_update (Asking where their order is)
-    - refund_request (Wants money back)
-    - cancellation (Wants to stop an order)
-    - product_question (Details about items)
-    - customer_complaint (Faulty product, bad experience)
-    - marketing (Newsletters, ads)
-    - spam (Junk)
-    - other (General inquiries)
+// --- Respondro AI Classifier & Gatekeeper ---
 
-    Email Subject: ${subject}
-    Email Body: ${body.substring(0, 1000)}
+export async function classifyEmail(subject: string, body: string, rulebook: string) {
+    const prompt = `
+    You are the "Gatekeeper" for a high-end Shopify store. Your goal is to automate 90% of customer service.
+    
+    TASK: Analyze this email and categorize it into ONE of two paths:
+    
+    PATH 1: AUTOMATE
+    - For "Easy" emails: Tracking updates, shipping times, general store info, or policy questions found in the rulebook.
+    - If you have enough info to answer perfectly, choose this path.
+    
+    PATH 2: REVIEW
+    - For "Complex" emails: Refund requests, cancellation requests, complaints about broken/wrong items, or angry customers.
+    - These MUST be reviewed by the store owner in the Review Board.
+    
+    RULEBOOK:
+    ${rulebook || "Standard professional store policies apply."}
+    
+    CUSTOMER EMAIL:
+    Subject: ${subject}
+    Body: ${body}
+    
+    Respond ONLY in JSON format:
+    {
+      "path": "AUTOMATE" or "REVIEW",
+      "category": "tracking_update" | "refund_request" | "product_question" | "cancellation" | "other",
+      "priority": "high" | "medium" | "low",
+      "reason": "Brief explanation why",
+      "draft": "Write a complete, professional reply if path is AUTOMATE. Otherwise, leave empty."
+    }`;
 
-    Respond only in JSON format: { "category": "category_name", "priority": "high/medium/low", "reason": "brief explanation" }
-  `;
+    try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'x-api-key': process.env.ANTHROPIC_API_KEY!,
+                'anthropic-version': '2023-06-01',
+                'content-type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'claude-sonnet-4-5', // Locked in for Respondro
+                max_tokens: 1000,
+                messages: [{ role: 'user', content: prompt }]
+            })
+        });
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': process.env.ANTHROPIC_API_KEY!,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: "claude-3-haiku-20240307", // Fast and cheap for classification
-      max_tokens: 150,
-      messages: [{ role: "user", content: prompt }]
-    })
-  });
-
-  const data = await response.json();
-  // Clean up the text response into actual JSON
-  return JSON.parse(data.content[0].text);
+        const data = await response.json();
+        const result = JSON.parse(data.content[0].text);
+        
+        return result;
+    } catch (error) {
+        console.error("Classification Error:", error);
+        // Fallback to human review if AI fails
+        return { path: "REVIEW", category: "other", priority: "high", reason: "AI error", draft: "" };
+    }
 }
