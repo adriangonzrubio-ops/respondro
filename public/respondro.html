@@ -1086,34 +1086,31 @@ async function fetchMessages() {
     const list = document.getElementById('ticket-list');
     if (!list) return;
 
+    // 1. Fetch from Supabase using the correct timestamp column
     const { data: messages, error } = await sb
         .from('messages')
         .select('*')
+        .order('received_at', { ascending: false }) // Fixed column name
         .limit(50);
 
-    if (messages) {
-        console.log("📬 Messages found:", messages.length);
-        console.log("Column names available:", Object.keys(messages[0] || {}));
-    }
+    if (error) return console.error("Supabase error:", error);
 
-    if (messages && messages.length > 0) {
-        console.log("✅ SUCCESS! Found columns:", Object.keys(messages[0]));
-        console.log("First message object:", messages[0]);
-    }
-
-    if (error) {
-        console.error("Supabase error:", error);
-        // If it still says "column does not exist", try removing the .eq line entirely
-        // just to see if the messages show up!
+    if (!messages || messages.length === 0) {
+        list.innerHTML = '<div class="text-gray-600 text-[10px] text-center mt-20 px-4">No tickets found.</div>';
         return;
     }
 
     list.innerHTML = messages.map(msg => {
         const cleanName = (msg.sender ? msg.sender.split('<')[0] : 'Customer').replace(/"/g, '').trim();
-        const timeAgo = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         
-        const statusClass = msg.ai_draft ? 'text-emerald-500/80 bg-emerald-500/10' : 'text-amber-500/80 bg-amber-500/10';
-        const statusDot = msg.ai_draft ? 'bg-emerald-500' : 'bg-amber-500';
+        // 2. Fixed Date Parsing
+        const dateObj = new Date(msg.received_at);
+        const timeAgo = isNaN(dateObj) ? 'Recently' : dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        // Since ai_draft is missing from DB, we'll check status instead
+        const isDrafted = msg.status === 'drafted' || !!msg.ai_action_summary;
+        const statusClass = isDrafted ? 'text-emerald-500/80 bg-emerald-500/10' : 'text-amber-500/80 bg-amber-500/10';
+        const statusDot = isDrafted ? 'bg-emerald-500' : 'bg-amber-500';
 
         return `
         <div onclick='renderTicketWorkspace(${JSON.stringify(msg).replace(/'/g, "&apos;")})' 
@@ -1126,7 +1123,7 @@ async function fetchMessages() {
             <div class="flex items-center gap-2 mt-2">
                 <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase flex items-center gap-1.5 ${statusClass}">
                     <span class="w-1.5 h-1.5 rounded-full ${statusDot}"></span>
-                    ${msg.ai_draft ? 'Draft Ready' : 'Needs Review'}
+                    ${isDrafted ? 'Draft Ready' : 'Needs Review'}
                 </span>
             </div>
         </div>`;
@@ -1153,13 +1150,16 @@ function renderTicketWorkspace(msg) {
                     </div>
                 </div>
                 <div class="bg-[#16191f] border border-white/5 rounded-2xl p-6 shadow-2xl">
-                    <div class="text-xs font-bold text-white mb-4 flex items-center gap-2">
-                        <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div> Respondro AI Draft
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="text-xs font-bold text-white flex items-center gap-2">
+                            <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div> 
+                            Respondro AI Draft
+                        </div>
+                        <button onclick="generateNewDraft('${msg.id}')" class="text-[10px] text-gray-500 hover:text-white transition-all">✨ Generate Fresh Draft</button>
                     </div>
-                    <textarea class="w-full h-48 bg-transparent border-none text-sm text-gray-300 outline-none resize-none">${msg.ai_draft || 'Drafting...'}</textarea>
-                    <button class="w-full bg-white text-black py-2.5 rounded-xl text-sm font-bold mt-4">Send Response</button>
+                    <textarea id="workspace-draft-area" class="w-full h-48 bg-transparent border-none text-sm text-gray-300 outline-none resize-none p-0">${msg.ai_draft || 'No draft found. Click generate to create one...'}</textarea>
+                    <button onclick="sendResponse()" class="w-full bg-white text-black py-2.5 rounded-xl text-sm font-bold mt-4 hover:bg-gray-200 transition-all">Send Response</button>
                 </div>
-            </div>
         </div>`;
 }
 async function sendResponse() {
