@@ -9,29 +9,18 @@ export async function POST(req: Request) {
     try {
         const { agentType, userMessage, currentRulebook } = await req.json();
 
-        const systemPrompt = `
-        You are a Knowledge Base Architect for a Shopify Support Agent.
-        Agent Type: ${agentType}
+        const systemPrompt = `Update the rulebook for a ${agentType} support agent.
         
-        YOUR TASK:
-        1. Take the User's Instruction.
-        2. Update the Current Rulebook by adding, removing, or modifying rules based on that instruction.
-        3. Maintain a professional, clear, and structured list format.
-        4. Keep existing rules that weren't mentioned.
-
         CURRENT RULEBOOK:
         ${currentRulebook}
 
         USER INSTRUCTION:
         "${userMessage}"
 
-        RESPONSE FORMAT:
-        You must return a JSON object ONLY:
-        {
-            "updatedRulebook": "The full updated rulebook text here",
-            "aiResponse": "A short, friendly confirmation message to the merchant (e.g., 'Got it! I've updated the shipping rules to 3-5 days.')"
-        }
-        `;
+        Return ONLY a JSON object with:
+        "updatedRulebook": (the full text),
+        "aiResponse": (short confirmation).
+        DO NOT include any other text.`;
 
         const response = await anthropic.messages.create({
             model: 'claude-3-5-sonnet-20240620',
@@ -39,8 +28,13 @@ export async function POST(req: Request) {
             messages: [{ role: 'user', content: systemPrompt }],
         });
 
-        const content = response.content[0].type === 'text' ? response.content[0].text : '';
-        return NextResponse.json(JSON.parse(content));
+        const text = response.content[0].type === 'text' ? response.content[0].text : '';
+        
+        // Use a regex to find the JSON block if Claude adds extra chatter
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        const cleanJson = jsonMatch ? JSON.parse(jsonMatch[0]) : { error: "Invalid AI response" };
+
+        return NextResponse.json(cleanJson);
     } catch (error) {
         console.error("Agent Chat Error:", error);
         return NextResponse.json({ error: "Failed to update agent knowledge" }, { status: 500 });

@@ -710,30 +710,48 @@ let currentConfigAgent = null;
 async function configureAgent(type) {
     currentConfigAgent = type;
     
-    // 1. UI Setup: Update the header and chat intro text
-    const configTitle = document.getElementById('config-agent-name');
-    const chatType = document.getElementById('chat-agent-type');
+    document.getElementById('config-agent-name').innerText = type.replace('_', ' ').toUpperCase() + " Agent";
+    document.getElementById('chat-agent-type').innerText = type.replace('_', ' ');
     
-    if (configTitle) configTitle.innerText = type.replace('_', ' ').toUpperCase() + " Agent";
-    if (chatType) chatType.innerText = type.replace('_', ' ');
-    
-    // 2. Switch View to the new config screen
     switchView('agent-config');
 
-    // 3. Fetch latest rules from DB using 'sb' (your Supabase client)
+    // Fetch rules - removing .single() to avoid the 406 error if not found
     const { data, error } = await sb
         .from('support_agents')
-        .select('rulebook, internal_history')
+        .select('rulebook')
         .eq('store_id', ST.settings.store_id)
-        .eq('agent_type', type)
-        .single();
+        .eq('agent_type', type);
 
     const rulebookArea = document.getElementById('agent-rulebook-display');
     if (rulebookArea) {
-        if (data) {
-            rulebookArea.value = data.rulebook || "No rules defined yet.";
+        // If data exists and has at least one row
+        if (data && data.length > 0) {
+            rulebookArea.value = data[0].rulebook || "No rules defined yet.";
         } else {
-            rulebookArea.value = "Primary rules inherited from Store Rulebook.";
+            rulebookArea.value = "Inheriting primary store rules. Talk to me to add specific rules for " + type + ".";
+        }
+    }
+}
+
+// Fixes the "manualSaveRules is not defined" error
+async function manualSaveRules() {
+    const rulebookArea = document.getElementById('agent-rulebook-display');
+    if (rulebookArea.readOnly) {
+        rulebookArea.readOnly = false;
+        rulebookArea.classList.add('border-emerald-500/50');
+        showToast("Manual edit enabled.");
+    } else {
+        const { error } = await sb.from('support_agents').upsert({
+            store_id: ST.settings.store_id,
+            agent_type: currentConfigAgent,
+            rulebook: rulebookArea.value,
+            updated_at: new Date()
+        }, { onConflict: 'store_id,agent_type' });
+
+        if (!error) {
+            rulebookArea.readOnly = true;
+            rulebookArea.classList.remove('border-emerald-500/50');
+            showToast("Manual rules saved!");
         }
     }
 }
