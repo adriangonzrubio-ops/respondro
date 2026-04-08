@@ -26,17 +26,34 @@ export async function POST(req: Request) {
     const storeName = settings?.store_name || "the store";
 
     // 4. Generate with Claude Sonnet 4.5
+// 4. Generate with Claude Sonnet 4.5
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-5', 
       max_tokens: 1000,
       messages: [{ 
         role: 'user', 
-        content: `Agent for: ${storeName}\nRules: ${rulebook}\nCustomer Email: ${message.body_text}\n\nDraft a professional reply:` 
+        content: `
+          You are a senior CS agent for ${storeName}.
+          
+          RULEBOOK: ${rulebook}
+          
+          CUSTOMER EMAIL: ${message.body_text}
+          
+          STRICT INSTRUCTIONS:
+          1. Do NOT use Markdown (no **, no ##).
+          2. Do NOT use placeholders like [Your Name] or [Store Name].
+          3. Sign off exactly as: "Best regards, ${storeName} Support Team".
+          4. If you have Shopify data, use it to be specific.
+          5. Write in a friendly, human, helpful tone.
+          
+          Draft the response now:
+        ` 
       }],
     });
 
-    const draft = response.content[0].type === 'text' ? response.content[0].text : '';
-
+    // Clean up any remaining quotes or bold marks
+    const rawContent = response.content[0].type === 'text' ? response.content[0].text : '';
+    const draft = rawContent.replace(/\*\*/g, '').replace(/^["']|["']$/g, '').trim();
     // 5. Update DB
     await supabase.from('messages').update({ ai_draft: draft, status: 'drafted' }).eq('id', messageId);
 
