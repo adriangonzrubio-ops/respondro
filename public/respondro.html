@@ -326,6 +326,16 @@ select.form-input option{background:#0F1623}
     </div>
 </div>
 
+<div id="view-agents" class="hidden p-8">
+    <div class="mb-10">
+        <h2 class="text-2xl font-bold text-white tracking-tight text-left">Support Agents</h2>
+        <p class="text-gray-400 text-sm mt-1 text-left">Manage and configure your specialized AI support team.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="agents-grid">
+        </div>
+</div>
+
     <div id="view-rules" class="p-6 hidden">
         <div class="flex items-center justify-between mb-5">
             <h2 class="font-display font-700 text-xl mb-1">Rules</h2>
@@ -593,6 +603,73 @@ const sbKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJl
 const sb = window.supabase.createClient(sbUrl, sbKey);
 console.log("Connection 'sb' initialized!");
 // ═══ PROVIDERS ═══
+// --- AGENT MANAGEMENT LOGIC (Wilmo Style) ---
+
+async function loadAgentsView() {
+    const grid = document.getElementById('agents-grid');
+    if (!grid) return;
+    
+    grid.innerHTML = '<div class="text-gray-500 animate-pulse">Loading your AI team...</div>';
+
+    // Fetch agents for this store
+    const { data: agents, error } = await sb
+        .from('support_agents')
+        .select('*')
+        .eq('store_id', ST.settings.store_id);
+
+    if (error) return console.error("Error loading agents:", error);
+
+    const agentTypes = [
+        { type: 'customer_service', name: 'Customer Service Agent', icon: '🤖', isPrimary: true },
+        { type: 'shipping_logistics', name: 'Shipping & Logistics Agent', icon: '📦', isPrimary: false },
+        { type: 'product', name: 'Product Agent', icon: '🏷️', isPrimary: false }
+    ];
+
+    grid.innerHTML = agentTypes.map(meta => {
+        const data = agents?.find(a => a.agent_type === meta.type) || { is_enabled: meta.isPrimary };
+        return `
+        <div class="bg-[#16191f] border border-white/5 rounded-2xl p-6 hover:border-emerald-500/30 transition-all flex flex-col h-full group">
+            <div class="flex justify-between items-start mb-6">
+                <div class="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center text-2xl group-hover:bg-emerald-500/10 transition-colors">${meta.icon}</div>
+                ${meta.isPrimary ? 
+                    '<span class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-2 py-1 rounded">Primary</span>' :
+                    `<label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" onchange="toggleAgent('${meta.type}', this.checked)" class="sr-only peer" ${data.is_enabled ? 'checked' : ''}>
+                        <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                    </label>`
+                }
+            </div>
+            <h3 class="text-white font-bold mb-2">${meta.name}</h3>
+            <p class="text-gray-500 text-xs leading-relaxed mb-6">
+                ${meta.type === 'customer_service' ? 'Handles general inquiries and follows your core store rulebook.' : 
+                  meta.type === 'shipping_logistics' ? 'Specialized in tracking, address changes, and delivery issues.' : 
+                  'Expert in product specifications, stock levels, and technical details.'}
+            </p>
+            <button onclick="configureAgent('${meta.type}')" class="mt-auto w-full py-2 bg-white/5 hover:bg-white/10 text-white text-xs font-semibold rounded-lg border border-white/5 transition-all">Configure Agent</button>
+        </div>`;
+    }).join('');
+}
+
+async function toggleAgent(type, isEnabled) {
+    if (!ST.settings?.store_id) return showToast("Error: Store ID not found");
+    // Note: using 'sb' because that is what you named your client on line 603
+    const { error } = await sb
+        .from('support_agents')
+        .upsert({ 
+            store_id: ST.settings.store_id, 
+            agent_type: type, 
+            is_enabled: isEnabled, 
+            updated_at: new Date() 
+        }, { onConflict: 'store_id,agent_type' });
+        
+    if (error) showToast("Failed to update agent status");
+    else showToast(`${type.replace('_', ' ')} is now ${isEnabled ? 'ON' : 'OFF'}`);
+}
+
+function configureAgent(type) {
+    showToast(`Opening config for ${type}...`);
+}
+
 // ═══ 1. DATA & STATE (Preserving your full list) ═══
 const PROVIDERS = [
     { id: 'gmail', name: 'Gmail', sub: 'Google Workspace', type: 'oauth', icon: 'G', color: '#EA4335', oauthLabel: 'Sign in with Google', oauthBg: '#fff', oauthColor: '#202223' },
@@ -847,24 +924,20 @@ function showDashboard(){
   renderRules();
   renderOverviewRules();
 }
-function switchView(name, el) {
-    // 1. Handle Sidebar Highlighting
-    document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active', 'bg-white/10', 'text-white'));
-    
-    const targetLink = el || document.getElementById('link-' + name);
-    if (targetLink) targetLink.classList.add('active', 'bg-white/10', 'text-white');
-
-    // 2. Switch the Views
+function switchView(viewId, el) {
+    // 1. Hide all view containers
     document.querySelectorAll('#main-content > div').forEach(v => v.classList.add('hidden'));
-    const v = document.getElementById('view-' + name);
-    if (v) v.classList.remove('hidden');
+    
+    // 2. Show selected view
+    const target = document.getElementById('view-' + viewId);
+    if (target) target.classList.remove('hidden');
 
-    // 3. Update the URL Memory
-    const url = new URL(window.location);
-    url.searchParams.set('tab', name);
-    window.history.pushState({}, '', url);
+    // 3. TRIGGER THE LOADER (Crucial for Step 2 to work!)
+    if (viewId === 'agents') loadAgentsView();
 
-    if (name === 'rules') renderRules();
+    // 4. Update Sidebar CSS
+    document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+    if (el) el.classList.add('active');
 }
 // ═══ API KEY ═══
 function saveApiKey(){const k=document.getElementById('api-key-input').value.trim();if(!k){alert('Please enter a key');return;}sessionStorage.setItem('respondro_apikey',k);ST.apiKey=k;updateApiStatusUI();document.getElementById('api-key-indicator').innerHTML='<div class="api-dot" style="background:#00C896"></div><span class="text-xs" style="color:#00C896">API key saved ✓ — Live mode</span>';showToast('API key saved ✓');}
