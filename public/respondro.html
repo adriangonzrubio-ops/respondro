@@ -1089,9 +1089,13 @@ async function fetchMessages() {
     const { data: messages, error } = await sb
         .from('messages')
         .select('*')
-        // Change 'store_id' to 'store' (or whatever your column is named)
-        .eq('store', ST.settings.store_id) 
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+    if (messages && messages.length > 0) {
+        console.log("✅ SUCCESS! Found columns:", Object.keys(messages[0]));
+        console.log("First message object:", messages[0]);
+    }
 
     if (error) {
         console.error("Supabase error:", error);
