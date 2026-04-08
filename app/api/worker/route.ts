@@ -66,10 +66,9 @@ for await (const msg of client.fetch({ seen: false }, { source: true })) {
                 from, 
                 orderNumber
             );
-
+            
             // 2. PROACTIVE DRAFTING & TRIAGE (Claude Sonnet 4.5)
-            // This ensures the draft is sitting in the DB before you open the ticket
-            const triage = await classifyAndDraft(
+            const rawTriage = await classifyAndDraft(
                 subject, 
                 body, 
                 store.rulebook, 
@@ -77,10 +76,20 @@ for await (const msg of client.fetch({ seen: false }, { source: true })) {
                 shopifyData
             );
             
-            // 3. DECISION ENGINE: Automated vs. Manual
+            // Robust parsing: Strips out any extra text Claude might add
+            let triage = rawTriage;
+            if (typeof rawTriage === 'string') {
+                try {
+                    const jsonMatch = rawTriage.match(/\{[\s\S]*\}/);
+                    triage = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+                } catch (e) { triage = {}; }
+            }
+
+            // 3. DECISION ENGINE
             const finalStatus = triage.path === 'AUTOMATE' ? 'automated' : 'needs_review';
 
             // 4. SAVE TO DATABASE (Pre-populated for the UI)
+            // ✅ Added "const { error: upsertError }" to fix the Line 98 crash
             const { error: upsertError } = await supabase.from('messages').upsert({
                 connection_id: conn.id,
                 sender: from,
@@ -89,12 +98,11 @@ for await (const msg of client.fetch({ seen: false }, { source: true })) {
                 category: triage.category || 'General Inquiry',
                 priority: triage.priority || 'Medium',
                 status: finalStatus, 
-                ai_draft: triage.draft, 
+                ai_draft: triage.draft || null, 
                 shopify_data: shopifyData,
-                ai_reasoning: triage.reason,
+                ai_reasoning: triage.reason || 'Analyzed inquiry.',
                 external_id: msg.uid.toString()
             }, { onConflict: 'external_id' });
-
             if (upsertError) {
                 console.error("❌ Database Upsert Error:", upsertError.message);
             } else {
