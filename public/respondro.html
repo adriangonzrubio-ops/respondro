@@ -1052,24 +1052,42 @@ function handleSignupRulebookFile(input){
 function handleToneFile(input){if(input.files.length){let combined='';Array.from(input.files).forEach((f,i)=>{const r=new FileReader();r.onload=e=>{combined+=(i>0?'\n---\n':'')+e.target.result;const t=document.getElementById('tone-emails-text');if(t)t.value=combined;};r.readAsText(f);});showToast(input.files.length+' file(s) loaded ✓');}}
 
 // ═══ DASHBOARD ═══
-function showDashboard(){
-  document.getElementById('landing').classList.add('hidden');
-  const d=document.getElementById('dashboard');d.classList.add('active');d.style.display='flex';d.style.flexDirection='column';
-  
-  if(ST.user){
-    document.getElementById('user-avatar').textContent=ST.user.name.charAt(0).toUpperCase();
-    document.getElementById('user-name-nav').textContent=ST.user.name;
-    document.getElementById('welcome-name').textContent=ST.user.name;
-  }
-  
-  document.getElementById('store-name-sb').textContent=ST.storeName;
-  document.getElementById('store-logo-sm').textContent=ST.storeName.charAt(0).toUpperCase();
-  
-  updateApiStatusUI();
-  syncShopifyUI(); // This is the magic line that fixes the button colors
-  renderKanban();
-  renderRules();
-  renderOverviewRules();
+function showDashboard() {
+    // 1. Show the main dashboard container
+    const landing = document.getElementById('landing');
+    const dashboard = document.getElementById('dashboard');
+    
+    if (landing) landing.classList.add('hidden');
+    if (dashboard) {
+        dashboard.classList.add('active');
+        dashboard.style.display = 'flex';
+        dashboard.style.flexDirection = 'column';
+    }
+
+    if (ST.user) {
+        const avatar = document.getElementById('user-avatar');
+        if (avatar) avatar.textContent = ST.user.name.charAt(0).toUpperCase();
+        
+        const nameNav = document.getElementById('user-name-nav');
+        if (nameNav) nameNav.textContent = ST.user.name;
+        
+        const welcome = document.getElementById('welcome-name');
+        if (welcome) welcome.textContent = ST.user.name;
+    }
+
+    // 2. Safe Store updates (Fixes the Console Errors)
+    const storeNameEl = document.getElementById('store-name-sb');
+    if (storeNameEl) storeNameEl.textContent = ST.storeName;
+
+    const storeLogoEl = document.getElementById('store-logo-sm');
+    if (storeLogoEl) storeLogoEl.textContent = ST.storeName.charAt(0).toUpperCase();
+
+    // 3. Trigger Sub-renders
+    updateApiStatusUI();
+    syncShopifyUI();
+    renderKanban();
+    renderRules();
+    renderOverviewRules();
 }
 function switchView(viewId, el) {
     // 1. Hide all view containers
