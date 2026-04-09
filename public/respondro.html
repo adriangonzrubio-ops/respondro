@@ -294,34 +294,130 @@ select.form-input option{background:#0F1623}
     </div>
 
 <div id="view-review-board" class="hidden h-full flex flex-col overflow-hidden">
-    <div class="flex justify-between items-center px-8 py-4 border-b border-white/5 bg-[#0f1115]">
+  <div class="flex justify-between items-center px-6 py-4 border-b border-white/5 bg-[#0b1120] flex-shrink-0">
+    <div>
+      <h2 class="text-lg font-display font-700 text-white">Review Board</h2>
+      <p class="text-[10px] text-gray-500 uppercase tracking-widest mt-0.5">Human review queue</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 text-xs font-mono px-3 py-1.5 rounded-full" style="background:rgba(240,165,0,0.08);border:1px solid rgba(240,165,0,0.2);color:#F0A500">
+        <span style="width:6px;height:6px;border-radius:50%;background:#F0A500;animation:flash 2s infinite;display:inline-block"></span>
+        <span id="rb-pending-count">0 pending</span>
+      </div>
+      <button onclick="fetchMessages()" class="flex items-center gap-2 text-xs px-4 py-2 rounded-lg border transition-all" style="background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.08);color:#8B96B0">
+        <span id="rb-sync-icon">↻</span> Refresh
+      </button>
+    </div>
+  </div>
+  <div class="flex flex-1 overflow-hidden">
+    <div class="flex flex-col border-r border-white/5" style="width:280px;flex-shrink:0;background:#0b1120">
+      <div class="p-3 border-b border-white/5">
+        <input type="text" id="rb-search" placeholder="Search tickets..." oninput="filterTickets(this.value)" class="w-full text-xs px-3 py-2 rounded-lg outline-none" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#E8EBF2">
+      </div>
+      <div class="flex gap-1 p-2 border-b border-white/5">
+        <button onclick="setRbFilter('all')" id="rbf-all" class="rb-filter-btn flex-1 text-[10px] font-mono py-1.5 rounded-md transition-all" style="background:rgba(0,200,150,0.1);color:#00C896">ALL</button>
+        <button onclick="setRbFilter('needs_review')" id="rbf-needs_review" class="rb-filter-btn flex-1 text-[10px] font-mono py-1.5 rounded-md transition-all" style="background:transparent;color:#5A6785">REVIEW</button>
+        <button onclick="setRbFilter('automated')" id="rbf-automated" class="rb-filter-btn flex-1 text-[10px] font-mono py-1.5 rounded-md transition-all" style="background:transparent;color:#5A6785">AUTO</button>
+      </div>
+      <div id="rb-ticket-list" class="flex-1 overflow-y-auto p-2 space-y-1">
+        <div class="text-center text-[10px] uppercase tracking-widest text-gray-600 mt-10">Loading tickets...</div>
+      </div>
+    </div>
+    <div id="rb-workspace" class="flex-1 flex flex-col overflow-hidden" style="background:#080D1A">
+      <div id="rb-empty-state" class="flex-1 flex flex-col items-center justify-center gap-3 text-gray-600">
+        <div style="font-size:36px;opacity:0.2">✉️</div>
+        <p class="text-sm">Select a ticket to review</p>
+        <p class="text-xs opacity-60">Drafts are generated automatically</p>
+      </div>
+      <div id="rb-active-ticket" class="hidden flex-1 flex flex-col overflow-hidden">
+        <div class="px-6 py-4 border-b border-white/5 flex-shrink-0" style="background:#0b1120">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span id="rb-ticket-badge" class="badge badge-a text-[10px]">review</span>
+                <span id="rb-ticket-category" class="text-[10px] font-mono text-gray-500"></span>
+              </div>
+              <h3 id="rb-ticket-subject" class="font-display font-600 text-sm text-white truncate"></h3>
+              <p id="rb-ticket-from" class="text-xs text-gray-500 mt-0.5"></p>
+            </div>
+            <button onclick="rbCloseTicket()" class="text-gray-600 hover:text-white transition text-sm px-2 py-1 rounded" style="background:rgba(255,255,255,0.04)">✕</button>
+          </div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-6 space-y-4">
+          <div>
+            <p class="text-[10px] font-mono text-gray-600 mb-2 uppercase tracking-wider">Customer Email</p>
+            <div class="flex gap-3">
+              <div id="rb-sender-avatar" class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-display font-700 flex-shrink-0 mt-0.5" style="background:#1D4E3A;color:#00C896">?</div>
+              <div class="flex-1 rounded-xl p-4 text-sm leading-relaxed" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07);color:#C8D0E0;white-space:pre-wrap;font-size:13px"><span id="rb-ticket-body">—</span></div>
+            </div>
+          </div>
+          <div id="rb-reasoning-block" class="hidden">
+            <div class="flex items-start gap-2 px-3 py-2 rounded-lg text-xs" style="background:rgba(240,165,0,0.06);border:1px solid rgba(240,165,0,0.15);color:#C9A040">
+              <span class="flex-shrink-0 mt-0.5">🤖</span>
+              <span id="rb-reasoning-text"></span>
+            </div>
+          </div>
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-[10px] font-mono uppercase tracking-wider" style="color:#00C896">
+                <span style="width:6px;height:6px;border-radius:50%;background:#00C896;display:inline-block;margin-right:5px;animation:flash 2.5s infinite"></span>
+                Respondro AI Draft
+              </p>
+              <button onclick="rbRegenerateDraft()" id="rb-regen-btn" class="text-[10px] px-2 py-1 rounded transition-all" style="background:rgba(255,255,255,0.04);color:#5A6785;border:1px solid rgba(255,255,255,0.08)">↺ Regenerate</button>
+            </div>
+            <div class="flex gap-3">
+              <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-display font-700 flex-shrink-0 mt-0.5" style="background:rgba(0,200,150,0.15);color:#00C896">AI</div>
+              <div class="flex-1 rounded-xl overflow-hidden" style="border:2px solid rgba(0,200,150,0.2);background:#0F1623">
+                <textarea id="rb-draft-textarea" class="w-full p-4 text-sm leading-relaxed resize-none outline-none" style="background:transparent;color:#E8EBF2;font-family:'DM Sans',sans-serif;min-height:180px;font-size:13px;line-height:1.7" placeholder="Draft will appear here..."></textarea>
+                <div id="rb-draft-loading" class="hidden p-4 flex items-center gap-3">
+                  <div class="spinner"></div>
+                  <span class="text-sm text-gray-500">AI is drafting a response...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="flex gap-2 p-4 border-t flex-shrink-0" style="border-color:rgba(255,255,255,0.07);background:#0b1120">
+          <button onclick="rbApproveSend()" class="btn-primary flex-1 justify-center" style="padding:11px;font-size:13px">✓ Approve &amp; Send</button>
+          <button onclick="rbMarkResolved()" class="btn-ghost" style="padding:11px;font-size:12px;color:#00C896;border-color:rgba(0,200,150,0.2)">Mark Resolved</button>
+          <button onclick="rbMarkClosed()" class="btn-ghost" style="padding:11px;font-size:12px;color:#F87171;border-color:rgba(248,113,113,0.15)">Close</button>
+        </div>
+      </div>
+    </div>
+    <div id="rb-shopify-sidebar" class="flex flex-col border-l border-white/5 overflow-y-auto flex-shrink-0" style="width:260px;background:#0b1120">
+      <div class="p-4 border-b border-white/5">
+        <p class="text-[10px] font-mono uppercase tracking-widest text-gray-600">Shopify Orders</p>
+      </div>
+      <div id="rb-shopify-empty" class="flex-1 flex flex-col items-center justify-center gap-2 p-6">
+        <div style="font-size:28px;opacity:0.15">🛍️</div>
+        <p class="text-[10px] text-gray-600 text-center uppercase tracking-wider">Select a ticket<br>to see order data</p>
+      </div>
+      <div id="rb-shopify-loading" class="hidden p-4">
+        <div class="flex items-center gap-2 text-xs text-gray-500">
+          <div class="spinner"></div> Looking up orders...
+        </div>
+      </div>
+      <div id="rb-shopify-data" class="hidden flex-1 overflow-y-auto p-4 space-y-4">
         <div>
-            <h2 class="text-xl font-bold text-white tracking-tight">Review Board</h2>
-            <p class="text-[10px] text-gray-500 uppercase tracking-widest">Human Review Queue</p>
-        </div>
-        <button onclick="fetchMessages()" class="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white text-xs px-4 py-2 rounded-lg border border-white/5 transition-all">
-            Refresh Sync
-        </button>
-    </div>
-
-    <div class="flex flex-1 overflow-hidden">
-        <div class="w-80 border-r border-white/5 flex flex-col bg-[#111318]">
-            <div id="ticket-list" class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
-                <div class="text-gray-600 text-[10px] text-center mt-10">Fetching tickets...</div>
+          <p class="text-[10px] font-mono uppercase tracking-widest text-gray-600 mb-2">Contact</p>
+          <div class="flex items-center gap-2">
+            <div id="rb-shop-avatar" class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-700 flex-shrink-0" style="background:#1D2A3D;color:#8B96B0">?</div>
+            <div>
+              <div id="rb-shop-name" class="text-xs font-600 text-white"></div>
+              <div id="rb-shop-email" class="text-[10px] text-gray-500 truncate" style="max-width:180px"></div>
             </div>
+          </div>
         </div>
-
-        <div id="active-ticket-workspace" class="flex-1 flex overflow-hidden bg-[#0a0b0e] border-r border-white/5">
-            <div class="flex-1 flex items-center justify-center text-gray-600 flex-col gap-4">
-                <div class="text-4xl opacity-20">✉️</div>
-                <div class="text-sm">Select a ticket to begin review</div>
-            </div>
+        <div id="rb-orders-list" class="space-y-3"></div>
+        <div id="rb-no-orders" class="hidden py-6 text-center">
+          <div style="font-size:24px;opacity:0.2;margin-bottom:6px">📦</div>
+          <p class="text-[10px] text-gray-600 uppercase tracking-wider">No orders found</p>
+          <p class="text-[10px] text-gray-700 mt-1">Customer may have used<br>a different email</p>
         </div>
-
-        <div id="active-ticket-details" class="w-80 bg-[#0f1115] overflow-y-auto custom-scrollbar p-6">
-            <div class="text-gray-600 text-[10px] text-center mt-20">Select a ticket for order details</div>
-        </div>
+      </div>
     </div>
+  </div>
+</div>
 </div>
 
 <div id="view-agents" class="hidden p-8">
@@ -2271,6 +2367,207 @@ try {
         btn.innerText = originalText;
         btn.disabled = false;
     }
+}
+// ── REVIEW BOARD STATE ──
+let rbAllMessages = [];
+let rbActiveMessage = null;
+let rbCurrentFilter = 'all';
+
+async function fetchMessages() {
+  const syncIcon = document.getElementById('rb-sync-icon');
+  if (syncIcon) syncIcon.style.animation = 'spin 0.7s linear infinite';
+  try {
+    try { await fetch('/api/worker'); } catch(e) {}
+    const { data: messages, error } = await sb.from('messages').select('*').in('status', ['needs_review','automated','pending']).order('received_at', { ascending: false }).limit(100);
+    if (error) throw error;
+    rbAllMessages = messages || [];
+    renderRbTicketList(rbAllMessages);
+    updateRbPendingCount();
+  } catch(err) {
+    console.error('fetchMessages error:', err);
+    const c = document.getElementById('rb-ticket-list');
+    if (c) c.innerHTML = '<div class="text-center text-[10px] text-red-400 mt-10 px-3">Failed to load tickets.</div>';
+  } finally {
+    if (syncIcon) syncIcon.style.animation = '';
+  }
+}
+
+function renderRbTicketList(messages) {
+  const container = document.getElementById('rb-ticket-list');
+  if (!container) return;
+  const filtered = messages.filter(m => rbCurrentFilter === 'all' || m.status === rbCurrentFilter);
+  if (filtered.length === 0) { container.innerHTML = '<div class="text-center text-[10px] uppercase tracking-widest text-gray-700 mt-10 px-3">No tickets</div>'; return; }
+  container.innerHTML = filtered.map(msg => {
+    const cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
+    const isActive = rbActiveMessage?.id === msg.id;
+    const date = new Date(msg.received_at);
+    const timeStr = date.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + ' ' + date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    const hasDraft = msg.ai_draft && msg.ai_draft.length > 10;
+    const statusBadge = msg.status === 'automated' ? '<span class="badge badge-g" style="font-size:9px">AUTO</span>' : hasDraft ? '<span class="badge badge-g" style="font-size:9px;background:rgba(0,200,150,0.1)">DRAFT READY</span>' : '<span class="badge badge-a" style="font-size:9px">NEEDS DRAFT</span>';
+    const priorityColor = msg.priority === 'High' ? '#F87171' : msg.priority === 'Medium' ? '#F0A500' : '#5A6785';
+    return `<div onclick="rbOpenTicket('${msg.id}')" id="rb-ticket-card-${msg.id}" class="p-3 rounded-xl cursor-pointer transition-all relative" style="background:${isActive?'rgba(0,200,150,0.07)':'rgba(255,255,255,0.02)'};border:1px solid ${isActive?'rgba(0,200,150,0.25)':'rgba(255,255,255,0.05)'};margin-bottom:4px">
+      <div style="position:absolute;left:0;top:8px;bottom:8px;width:2px;border-radius:1px;background:${priorityColor};opacity:0.7"></div>
+      <div class="flex justify-between items-start mb-1 pl-2"><span class="text-[10px] font-600 text-gray-300 truncate" style="max-width:160px">${cleanName}</span><span class="text-[9px] font-mono text-gray-600 flex-shrink-0 ml-1">${timeStr}</span></div>
+      <div class="text-[11px] text-gray-400 truncate mb-2 pl-2">${msg.subject || 'No Subject'}</div>
+      <div class="flex items-center gap-1.5 pl-2">${statusBadge}${msg.category?`<span class="text-[9px] font-mono text-gray-600">${msg.category}</span>`:''}</div>
+    </div>`;
+  }).join('');
+}
+
+async function rbOpenTicket(msgId) {
+  const msg = rbAllMessages.find(m => m.id === msgId);
+  if (!msg) return;
+  rbActiveMessage = msg;
+  document.querySelectorAll('[id^="rb-ticket-card-"]').forEach(el => { el.style.background='rgba(255,255,255,0.02)'; el.style.border='1px solid rgba(255,255,255,0.05)'; });
+  const ac = document.getElementById('rb-ticket-card-'+msgId);
+  if (ac) { ac.style.background='rgba(0,200,150,0.07)'; ac.style.border='1px solid rgba(0,200,150,0.25)'; }
+  document.getElementById('rb-empty-state').classList.add('hidden');
+  document.getElementById('rb-active-ticket').classList.remove('hidden');
+  const cleanName = (msg.sender||'Customer').split('<')[0].replace(/"/g,'').trim();
+  document.getElementById('rb-ticket-subject').textContent = msg.subject||'No Subject';
+  document.getElementById('rb-ticket-from').textContent = msg.sender||'';
+  document.getElementById('rb-ticket-category').textContent = msg.category||'';
+  document.getElementById('rb-ticket-body').textContent = msg.body_text||'';
+  const av = document.getElementById('rb-sender-avatar'); if(av) av.textContent = cleanName.charAt(0).toUpperCase();
+  const badge = document.getElementById('rb-ticket-badge');
+  if(badge){ badge.className = msg.status==='automated'?'badge badge-g text-[10px]':'badge badge-a text-[10px]'; badge.textContent = msg.status==='automated'?'automated':'review'; }
+  const rb = document.getElementById('rb-reasoning-block'), rt = document.getElementById('rb-reasoning-text');
+  if(msg.ai_reasoning && rt){ rt.textContent=msg.ai_reasoning; rb.classList.remove('hidden'); } else { rb.classList.add('hidden'); }
+  const draftArea = document.getElementById('rb-draft-textarea'), draftLoad = document.getElementById('rb-draft-loading');
+  if(msg.ai_draft && msg.ai_draft.length > 10){ draftArea.classList.remove('hidden'); draftLoad.classList.add('hidden'); draftArea.value=msg.ai_draft; }
+  else { draftArea.classList.add('hidden'); draftLoad.classList.remove('hidden'); await rbGenerateDraftForMessage(msg); }
+  rbLoadShopifySidebar(msg);
+}
+
+async function rbGenerateDraftForMessage(msg) {
+  const draftArea = document.getElementById('rb-draft-textarea'), draftLoad = document.getElementById('rb-draft-loading');
+  try {
+    const res = await fetch('/api/agents/generate-draft', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({messageId:msg.id}) });
+    const data = await res.json();
+    if(data.draft){
+      await sb.from('messages').update({ai_draft:data.draft,status:'needs_review'}).eq('id',msg.id);
+      const lm = rbAllMessages.find(m=>m.id===msg.id); if(lm) lm.ai_draft=data.draft;
+      draftArea.value=data.draft; draftArea.classList.remove('hidden'); draftLoad.classList.add('hidden');
+      renderRbTicketList(rbAllMessages);
+    } else throw new Error('No draft returned');
+  } catch(err) {
+    console.error('Draft generation error:',err);
+    draftArea.value='Hi,\n\nThank you for reaching out. We\'ll get back to you as soon as possible.\n\nBest regards,\nCustomer Service Team';
+    draftArea.classList.remove('hidden'); draftLoad.classList.add('hidden');
+  }
+}
+
+async function rbRegenerateDraft() {
+  if(!rbActiveMessage) return;
+  const btn = document.getElementById('rb-regen-btn');
+  if(btn){ btn.textContent='⟳ Generating...'; btn.disabled=true; }
+  const draftArea=document.getElementById('rb-draft-textarea'), draftLoad=document.getElementById('rb-draft-loading');
+  draftArea.classList.add('hidden'); draftLoad.classList.remove('hidden');
+  await sb.from('messages').update({ai_draft:null}).eq('id',rbActiveMessage.id);
+  rbActiveMessage.ai_draft=null;
+  await rbGenerateDraftForMessage(rbActiveMessage);
+  if(btn){ btn.textContent='↺ Regenerate'; btn.disabled=false; }
+}
+
+async function rbLoadShopifySidebar(msg) {
+  const emptyEl=document.getElementById('rb-shopify-empty'), loadEl=document.getElementById('rb-shopify-loading'), dataEl=document.getElementById('rb-shopify-data'), noOrd=document.getElementById('rb-no-orders'), ordList=document.getElementById('rb-orders-list');
+  emptyEl.classList.add('hidden'); dataEl.classList.add('hidden'); loadEl.classList.remove('hidden');
+  try {
+    let shopifyData = null;
+    if(msg.shopify_data){ shopifyData = typeof msg.shopify_data==='string'?JSON.parse(msg.shopify_data):msg.shopify_data; }
+    if(!shopifyData||(Array.isArray(shopifyData)&&shopifyData.length===0)){
+      try {
+        const res = await fetch('/api/shopify/lookup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:msg.sender,messageId:msg.id})});
+        if(res.ok){ const d=await res.json(); shopifyData=d.orders||[]; }
+      } catch(e){ console.warn('Live Shopify lookup failed'); }
+    }
+    const orders = Array.isArray(shopifyData)?shopifyData:(shopifyData?[shopifyData]:[]);
+    loadEl.classList.add('hidden'); dataEl.classList.remove('hidden');
+    const cleanName=(msg.sender||'Customer').split('<')[0].replace(/"/g,'').trim();
+    const cleanEmail=msg.sender?.includes('<')?msg.sender.split('<')[1]?.replace('>','')?.trim():msg.sender;
+    document.getElementById('rb-shop-name').textContent=cleanName;
+    document.getElementById('rb-shop-email').textContent=cleanEmail||'';
+    const sa=document.getElementById('rb-shop-avatar'); if(sa) sa.textContent=cleanName.charAt(0).toUpperCase();
+    if(orders.length===0){ noOrd.classList.remove('hidden'); ordList.innerHTML=''; }
+    else {
+      noOrd.classList.add('hidden');
+      ordList.innerHTML=orders.map(o=>{
+        const sc={'fulfilled':'#00C896','unfulfilled':'#F0A500','partial':'#A78BFA','refunded':'#F87171'}[o.fulfillment_status?.toLowerCase()]||'#5A6785';
+        const pc=o.financial_status==='paid'?'#00C896':'#F87171';
+        return `<div class="rounded-xl overflow-hidden" style="border:1px solid rgba(255,255,255,0.07)">
+          <div class="px-3 py-2 flex justify-between items-center" style="background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.05)">
+            <span class="text-xs font-display font-700 text-white">${o.name||'#'+o.order_number}</span>
+            <span class="text-[9px] font-mono font-700 px-2 py-0.5 rounded-full" style="background:${sc}18;color:${sc}">${(o.fulfillment_status||'unfulfilled').toUpperCase()}</span>
+          </div>
+          <div class="p-3 space-y-2">
+            <div class="text-[11px] text-gray-400 leading-relaxed">${o.items||'No items'}</div>
+            <div class="flex justify-between items-center pt-1" style="border-top:1px solid rgba(255,255,255,0.05)">
+              <span class="text-[10px] text-gray-600">Total</span>
+              <div class="flex items-center gap-2"><span class="text-xs font-700 text-white">${o.total_price} ${o.currency||''}</span><span class="text-[9px] font-mono px-1.5 py-0.5 rounded" style="background:${pc}18;color:${pc}">${(o.financial_status||'').toUpperCase()}</span></div>
+            </div>
+            ${o.tracking_number?`<div class="flex items-center justify-between" style="border-top:1px solid rgba(255,255,255,0.05);padding-top:8px"><span class="text-[10px] text-gray-600">Tracking</span>${o.tracking_url?`<a href="${o.tracking_url}" target="_blank" class="text-[10px] font-mono hover:underline" style="color:#00C896">${o.tracking_number}</a>`:`<span class="text-[10px] font-mono" style="color:#5A6785">${o.tracking_number}</span>`}</div>`:''}
+            ${o.shipping_address?`<div style="border-top:1px solid rgba(255,255,255,0.05);padding-top:8px"><span class="text-[10px] text-gray-600 block mb-1">Ship to</span><span class="text-[10px] text-gray-400">${o.shipping_address}</span></div>`:''}
+            <div class="text-[9px] text-gray-700 font-mono">${new Date(o.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  } catch(err){ console.error('Shopify sidebar error:',err); loadEl.classList.add('hidden'); dataEl.classList.remove('hidden'); noOrd.classList.remove('hidden'); }
+}
+
+async function rbApproveSend() {
+  if(!rbActiveMessage) return;
+  const draft=document.getElementById('rb-draft-textarea').value.trim();
+  if(!draft){ showToast('Draft is empty'); return; }
+  if(!confirm('Send this reply to '+rbActiveMessage.sender+'?')) return;
+  try {
+    const res=await fetch(`/api/messages/${rbActiveMessage.id}/send`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:draft,customerEmail:rbActiveMessage.sender})});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    await sb.from('messages').update({status:'done'}).eq('id',rbActiveMessage.id);
+    rbAllMessages=rbAllMessages.filter(m=>m.id!==rbActiveMessage.id);
+    renderRbTicketList(rbAllMessages); rbCloseTicket(); updateRbPendingCount(); showToast('✓ Reply sent');
+  } catch(err){ console.error('Send error:',err); showToast('Failed to send'); }
+}
+
+async function rbMarkResolved() {
+  if(!rbActiveMessage) return;
+  await sb.from('messages').update({status:'done'}).eq('id',rbActiveMessage.id);
+  rbAllMessages=rbAllMessages.filter(m=>m.id!==rbActiveMessage.id);
+  renderRbTicketList(rbAllMessages); rbCloseTicket(); updateRbPendingCount(); showToast('Resolved ✓');
+}
+
+async function rbMarkClosed() {
+  if(!rbActiveMessage) return;
+  await sb.from('messages').update({status:'closed'}).eq('id',rbActiveMessage.id);
+  rbAllMessages=rbAllMessages.filter(m=>m.id!==rbActiveMessage.id);
+  renderRbTicketList(rbAllMessages); rbCloseTicket(); updateRbPendingCount(); showToast('Ticket closed');
+}
+
+function rbCloseTicket() {
+  rbActiveMessage=null;
+  document.getElementById('rb-empty-state').classList.remove('hidden');
+  document.getElementById('rb-active-ticket').classList.add('hidden');
+  document.getElementById('rb-shopify-empty').classList.remove('hidden');
+  document.getElementById('rb-shopify-data').classList.add('hidden');
+  document.getElementById('rb-shopify-loading').classList.add('hidden');
+}
+
+function setRbFilter(filter) {
+  rbCurrentFilter=filter;
+  document.querySelectorAll('.rb-filter-btn').forEach(btn=>{ btn.style.background='transparent'; btn.style.color='#5A6785'; });
+  const a=document.getElementById('rbf-'+filter); if(a){ a.style.background='rgba(0,200,150,0.1)'; a.style.color='#00C896'; }
+  renderRbTicketList(rbAllMessages);
+}
+
+function filterTickets(query) {
+  if(!query.trim()){ renderRbTicketList(rbAllMessages); return; }
+  const q=query.toLowerCase();
+  renderRbTicketList(rbAllMessages.filter(m=>m.subject?.toLowerCase().includes(q)||m.sender?.toLowerCase().includes(q)||m.category?.toLowerCase().includes(q)));
+}
+
+function updateRbPendingCount() {
+  const p=rbAllMessages.filter(m=>m.status==='needs_review'||m.status==='pending');
+  const el=document.getElementById('rb-pending-count'); if(el) el.textContent=p.length+' pending';
 }
 
 </script>
