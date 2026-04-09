@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -11,52 +12,27 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const { text } = await req.json();
     const id = params.id;
 
-    // 1. Get the message
-    const { data: msg } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('id', id)
-      .single();
-
+    const { data: msg } = await supabase.from('messages').select('*').eq('id', id).single();
     if (!msg) return NextResponse.json({ error: 'Message not found' }, { status: 404 });
 
-    // 2. Get email connection directly (not via join)
-    const { data: conn } = await supabase
-      .from('user_connections')
-      .select('*')
-      .not('imap_host', 'is', null)
-      .single();
-
+    const { data: conn } = await supabase.from('user_connections').select('*').not('imap_host', 'is', null).single();
     if (!conn) return NextResponse.json({ error: 'No email connection found' }, { status: 400 });
 
-    // 3. Send via SMTP
     const transporter = nodemailer.createTransport({
       host: 'mail.privateemail.com',
       port: 465,
       secure: true,
-      auth: {
-        user: conn.imap_user,
-        pass: conn.imap_pass,
-      },
+      auth: { user: conn.imap_user, pass: conn.imap_pass },
     });
-
-    const replySubject = msg.subject?.startsWith('Re:')
-      ? msg.subject
-      : `Re: ${msg.subject || ''}`;
 
     await transporter.sendMail({
       from: `"Xhale Support" <${conn.imap_user}>`,
       to: msg.sender,
-      subject: replySubject,
+      subject: msg.subject?.startsWith('Re:') ? msg.subject : `Re: ${msg.subject || ''}`,
       text: text,
     });
 
-    // 4. Mark as done
-    await supabase
-      .from('messages')
-      .update({ status: 'done' })
-      .eq('id', id);
-
+    await supabase.from('messages').update({ status: 'done' }).eq('id', id);
     return NextResponse.json({ success: true });
 
   } catch (error: any) {
