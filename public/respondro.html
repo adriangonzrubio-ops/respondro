@@ -217,7 +217,7 @@ select.form-input option{background:#0F1623}
     <div class="flex items-center gap-3 ml-4">
       <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-display font-700" style="background:#1D4E3A;color:#00C896" id="user-avatar">?</div>
       <span class="text-sm font-500 hidden md:block" id="user-name-nav">User</span>
-      <button onclick="document.body.classList.toggle('light')" class="theme-toggle">☀️ Light</button>
+      <button onclick="toggleTheme()" class="theme-toggle">☀️ Light</button>
       <button onclick="logout()" class="btn-ghost" style="padding:5px 12px;font-size:12px">Log out</button>
     </div>
   </div>
@@ -1081,10 +1081,14 @@ function switchSignupTab(tab){
   document.getElementById('ss-tone').classList.toggle('active',tab==='tone');
 }
 function switchSubTab(tab){
-  document.getElementById('subt-rulebook').classList.toggle('hidden',tab!=='rulebook');
-  document.getElementById('subt-tone').classList.toggle('hidden',tab!=='tone');
-  document.getElementById('st-rulebook').classList.toggle('active',tab==='rulebook');
-  document.getElementById('st-tone').classList.toggle('active',tab==='tone');
+  const rb=document.getElementById('subt-rulebook');
+  const rt=document.getElementById('subt-tone');
+  const sbr=document.getElementById('st-rulebook');
+  const sbt=document.getElementById('st-tone');
+  if(rb) rb.classList.toggle('hidden',tab!=='rulebook');
+  if(rt) rt.classList.toggle('hidden',tab!=='tone');
+  if(sbr) sbr.classList.toggle('active',tab==='rulebook');
+  if(sbt) sbt.classList.toggle('active',tab==='tone');
 }
 
 // ═══ SHOPIFY SIGNUP FLOW ═══
@@ -2574,9 +2578,14 @@ function updateRbPendingCount() {
 // Theme persistence
 const savedTheme = localStorage.getItem('respondro_theme');
 if (savedTheme === 'light') document.body.classList.add('light');
-document.querySelector('.theme-toggle')?.addEventListener('click', () => {
-  localStorage.setItem('respondro_theme', document.body.classList.contains('light') ? 'light' : 'dark');
-});
+function toggleTheme() {
+  document.body.classList.toggle('light');
+  const isLight = document.body.classList.contains('light');
+  localStorage.setItem('respondro_theme', isLight ? 'light' : 'dark');
+  const btn = document.querySelector('.theme-toggle');
+  if (btn) btn.textContent = isLight ? '🌙 Dark' : '☀️ Light';
+}
+if (localStorage.getItem('respondro_theme') === 'light') document.body.classList.add('light');
 
 </script>
 <div id="review-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] items-center justify-center p-4">
