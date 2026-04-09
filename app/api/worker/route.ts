@@ -13,13 +13,11 @@ export async function GET() {
         const { data: connections } = await supabase.from('user_connections').select('*');
         if (!connections) return NextResponse.json({ success: true, processed: 0 });
 
-        console.log(`🚀 [WORKER] Starting Full Inbox Sync for ${connections.length} stores...`);
-
         for (const conn of connections) {
             try {
                 totalProcessed += await fetchInImap(conn);
             } catch (e: any) {
-                console.error(`❌ Worker Error for ${conn.imap_user}:`, e.message);
+                console.error(`❌ Worker Error:`, e.message);
             }
         }
         return NextResponse.json({ success: true, processed: totalProcessed });
@@ -40,36 +38,47 @@ async function fetchInImap(conn: any) {
         port: 993,
         secure: true,
         auth: { user: conn.imap_user, pass: conn.imap_pass },
-        connectionTimeout: 30000, // 30s timeout for large inboxes
+        connectionTimeout: 15000,
         logger: false
     });
 
     await client.connect();
+    
+    // 1. Lock the mailbox
     let lock = await client.getMailboxLock('INBOX');
 
     try {
-        // ✅ COMPLETE FIX: Use '1:*' to fetch ALL emails.
-        // We cast as 'any' to bypass the TS(2488) error you saw.
-        const messages: any = client.fetch('1:*', { source: true });
+        // 🛠️ THE FIX: Use 'as any' so TypeScript stops complaining about the mailbox status
+        const mailbox = client.mailbox as any;
+        const last = mailbox.exists || 0;
+        const first = Math.max(1, last - 9); 
+        
+        // 🛠️ THE FIX: Ensure you use BACKTICKS ( ` ) here, not single quotes
+        const messages: any = client.fetch(`${first}:${last}`, { source: true });
         
         for await (const msg of messages) {
             if (!msg.source) continue;
+            
+            // 2. Check if already processed
+            const { data: exists } = await supabase.from('messages')
+                .select('id')
+                .eq('external_id', msg.uid.toString())
+                .single();
+
+            if (exists) continue; 
+
             const parsed = await simpleParser(msg.source);
             const from = parsed.from?.value[0]?.address || "";
             const body = parsed.text || "";
             const subject = parsed.subject || "";
 
-            // A. Scout Shopify
             const orderNum = extractOrderNumber(body) || extractOrderNumber(subject);
             const shopifyData = await getShopifyContext(store.shop_url, store.shopify_access_token, from, orderNum);
-
-            // B. AI Analysis (Claude Sonnet 4.5)
             const triage = await classifyAndDraft(subject, body, store.rulebook, store.store_name, shopifyData);
 
-            // C. Proactive Automation Logic
             const finalStatus = triage?.path === 'AUTOMATE' ? 'automated' : 'needs_review';
 
-            // D. Database Payload (Casting 'supabase.from' as 'any' stops all red squiggles)
+            // 3. Force save to DB
             const { error: upsertError } = await (supabase.from('messages') as any).upsert({
                 connection_id: conn.id,
                 store_id: conn.store_id,
@@ -77,18 +86,14 @@ async function fetchInImap(conn: any) {
                 subject: subject,
                 body_text: body,
                 category: triage?.category || 'General',
-                priority: triage?.priority || 'Medium',
                 status: finalStatus, 
                 ai_draft: triage?.draft || null, 
                 shopify_data: shopifyData && shopifyData.length > 0 ? shopifyData : null,
-                ai_reasoning: triage?.reason || 'Automatic analysis complete.',
-                external_id: msg.uid?.toString() || Date.now().toString()
+                ai_reasoning: triage?.reason || 'Proactive sync.',
+                external_id: msg.uid.toString()
             }, { onConflict: 'external_id' });
 
-            if (!upsertError) {
-                console.log(`✅ [${finalStatus.toUpperCase()}] Saved: ${subject}`);
-                emailsProcessed++;
-            }
+            if (!upsertError) emailsProcessed++;
         }
     } finally {
         lock.release();

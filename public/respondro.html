@@ -634,35 +634,19 @@ select.form-input option{background:#0F1623}
 <script>
   async function fetchMessages() {
     console.log("📡 Diagnostic Sync Started...");
-    const container = document.getElementById('message-list-container');
-    
-    // Show loading state manually if not already there
-    if (container) container.innerHTML = '<div class="p-8 text-center text-gray-500">Fetching tickets...</div>';
-
     try {
-        const res = await fetch('/api/worker');
-        const report = await res.json();
-        console.log(`📊 Worker Report:`, report);
-        
-        // Wait 4 seconds for AI to finish writing
-        await new Promise(r => setTimeout(r, 4000)); 
-    } catch (e) {
-        console.error("❌ Sync Request Failed:", e);
-    }
+        await fetch('/api/worker');
+        await new Promise(r => setTimeout(r, 2000)); // Lower wait time since worker is faster
+    } catch (e) { console.error(e); }
 
-    // Now pull data from Supabase regardless of success/fail
+    // ✅ FIX: Fetch both 'needs_review' AND 'automated' so you see the AI's work
     const { data: messages, error } = await sb
         .from('messages')
         .select('*')
-        .eq('status', 'needs_review')
+        .in('status', ['needs_review', 'automated']) // Show both!
         .order('received_at', { ascending: false });
 
-    if (!error) {
-        renderMessageList(messages);
-        console.log("✅ Sync Cycle Complete.");
-    } else {
-        if (container) container.innerHTML = '<div class="p-8 text-center text-red-500">Failed to load messages from database.</div>';
-    }
+    if (!error) renderMessageList(messages);
 }
 // Replace Lines 588-596 with this:
 const sbUrl = 'https://vlwhwkxmjfwzpvspkldc.supabase.co'; 
