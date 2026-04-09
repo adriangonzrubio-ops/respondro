@@ -87,7 +87,7 @@ TASK: Write a professional, warm, complete email reply.
 - Address the customer by first name if available
 - Be specific using the Shopify data if relevant  
 - Follow the rulebook exactly
-- Sign off as: "${storeName} Support Team"
+- DO NOT write any sign-off or signature. End the email body just before where a signature would go.
 - Output ONLY the email body, no subject line, no placeholders like [Name]`
       }],
     });

@@ -2,32 +2,48 @@ import { Anthropic } from '@anthropic-ai/sdk';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
-export async function classifyAndDraft(subject: string, body: string, rulebook: string, storeName: string, shopifyData: any) {
+export async function classifyAndDraft(
+  subject: string,
+  body: string,
+  rulebook: string,
+  storeName: string,
+  shopifyData: any,
+  signature?: string
+) {
     try {
         const response = await anthropic.messages.create({
-            model: 'claude-sonnet-4-5', 
+            model: 'claude-sonnet-4-5',
             max_tokens: 1500,
             messages: [{
                 role: 'user',
                 content: `
-                You are the Lead Support Automation for ${storeName}. 
-                MANDATE: Automate customer service responses.
+You are the Lead Support Agent for ${storeName}.
 
-                ### CONTEXT:
-                RULEBOOK: ${rulebook}
-                CUSTOMER EMAIL: ${body}
-                SHOPIFY DATA: ${JSON.stringify(shopifyData)}
+RULEBOOK: ${rulebook}
+CUSTOMER EMAIL: ${body}
+SHOPIFY DATA: ${JSON.stringify(shopifyData)}
 
-                ### TASK:
-                1. If Shopify Data provides a clear answer (e.g., status is "Fulfilled" or tracking is there), set path to "AUTOMATE".
-                2. Write a professional, human response. Sign off as "${storeName} Support Team".
+TASK:
+1. If Shopify data gives a clear answer, set path to "AUTOMATE".
+2. Write a warm, professional reply addressing the customer's issue.
+3. Start with "Hi [first name]," if you can identify their name.
+4. DO NOT write any sign-off or signature — it will be added automatically.
+5. End the email body just before where a signature would go.
 
-                Return JSON: { "path": "AUTOMATE" | "REVIEW", "category": "string", "priority": "Low" | "Medium" | "High", "draft": "string", "reason": "string" }`
+Return ONLY valid JSON: { "path": "AUTOMATE" | "REVIEW", "category": "string", "priority": "Low" | "Medium" | "High", "draft": "string", "reason": "string" }`
             }],
         });
         const content = response.content[0].type === 'text' ? response.content[0].text : '';
-        return JSON.parse(content);
+        const parsed = JSON.parse(content);
+        
+        // Append stored signature if provided
+        if (signature && parsed.draft) {
+            parsed.draft = parsed.draft.trim() + '\n\n' + signature;
+        }
+        
+        return parsed;
     } catch (error) {
-        return { path: "REVIEW", category: "General", priority: "Medium", draft: `Hi,\n\nThank you for reaching out. We have received your message and will get back to you as soon as possible.\n\nBest regards,\nCustomer Service Team`, reason: "AI error — fallback used." };
+        const fallbackDraft = `Hi,\n\nThank you for reaching out. We have received your message and will get back to you as soon as possible.${signature ? '\n\n' + signature : ''}`;
+        return { path: "REVIEW", category: "General", priority: "Medium", draft: fallbackDraft, reason: "AI error — fallback used." };
     }
 }
