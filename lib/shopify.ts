@@ -1,20 +1,26 @@
 export async function getShopifyContext(shop: string, token: string, email: string, orderNumber?: string) {
     try {
+        if (!shop || !token || !email) return [];
+
         const cleanShop = shop.replace(/^https?:\/\//, '').replace(/\/$/, '').trim();
         const cleanEmail = email.includes('<') ? email.split('<')[1].split('>')[0] : email.trim();
 
-        console.log(`📡 [SCOUT] Searching ${cleanShop} for ${cleanEmail}`);
-
-        // 1. Find the Customer ID first
+        // 1. Search for Customer by Email
         const customerSearch = await fetch(`https://${cleanShop}/admin/api/2024-04/customers/search.json?query=email:${cleanEmail}`, {
             headers: { 'X-Shopify-Access-Token': token }
         });
+
+        if (customerSearch.status === 401) {
+            console.error("❌ [SHOPIFY] Unauthorized. Check your Admin API Token.");
+            return [];
+        }
+
         const customerData = await customerSearch.json();
         const customerId = customerData.customers?.[0]?.id;
 
         let orders = [];
 
-        // 2. Fetch orders by Customer ID
+        // 2. Fetch Customer Orders
         if (customerId) {
             const orderRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders.json?customer_id=${customerId}&status=any`, {
                 headers: { 'X-Shopify-Access-Token': token }
@@ -23,9 +29,10 @@ export async function getShopifyContext(shop: string, token: string, email: stri
             orders = orderData.orders || [];
         }
 
-        // 3. Fallback: Search by Order Name (e.g., #3296)
+        // 3. Fallback: Search by Order Number
         if (orders.length === 0 && orderNumber) {
-            const cleanNum = orderNumber.replace('#', '').trim();
+            // Safety: Ensure it's a string before calling replace
+            const cleanNum = String(orderNumber).replace('#', '').trim();
             const nameRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders.json?name=${cleanNum}&status=any`, {
                 headers: { 'X-Shopify-Access-Token': token }
             });
@@ -33,7 +40,6 @@ export async function getShopifyContext(shop: string, token: string, email: stri
             orders = nameData.orders || [];
         }
 
-        // 4. Return formatted data for the AI and UI
         return orders.map((o: any) => ({
             id: o.id,
             name: o.name,
@@ -46,7 +52,7 @@ export async function getShopifyContext(shop: string, token: string, email: stri
             customer: { email: o.customer?.email, first_name: o.customer?.first_name }
         }));
     } catch (error) {
-        console.error("Shopify Error:", error);
+        console.error("❌ [SHOPIFY SCOUT ERROR]:", error);
         return [];
     }
 }
