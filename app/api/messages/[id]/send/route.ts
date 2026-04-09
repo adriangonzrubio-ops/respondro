@@ -1,61 +1,66 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '../../../../../lib/supabase';
-import nodemailer from 'nodemailer';
+import * as nodemailer from 'nodemailer';
+import { createClient } from '@supabase/supabase-js';
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-    try {
-        const { id } = await params;
-        const { draftText } = await req.json();
+export async function POST(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const { text } = await req.json();
+    const id = params.id;
 
-        // 1. Fetch the message and the user's email connection details
-        // We use .single() to get one object back
-        const { data: msg, error: msgError } = await supabase
-            .from('messages')
-            .select('*, user_connections(*)')
-            .eq('id', id)
-            .single();
+    // 1. Get the message
+    const { data: msg } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('id', id)
+      .single();
 
-        if (msgError || !msg) {
-            return NextResponse.json({ error: "Message not found" }, { status: 404 });
-        }
+    if (!msg) return NextResponse.json({ error: 'Message not found' }, { status: 404 });
 
-        // TypeScript safety: check if user_connections exists
-        const conn = msg.user_connections;
-        if (!conn) {
-            return NextResponse.json({ error: "No email connection found" }, { status: 400 });
-        }
+    // 2. Get email connection directly (not via join)
+    const { data: conn } = await supabase
+      .from('user_connections')
+      .select('*')
+      .not('imap_host', 'is', null)
+      .single();
 
-        // 2. Setup SMTP
-        const transporter = nodemailer.createTransport({
-            host: conn.imap_host.replace('imap', 'smtp'), 
-            port: 465,
-            secure: true,
-            auth: { 
-                user: conn.imap_user, 
-                pass: conn.imap_pass 
-            }
-        });
+    if (!conn) return NextResponse.json({ error: 'No email connection found' }, { status: 400 });
 
-        // 3. Send the Email
-        await transporter.sendMail({
-            from: `"Respondro Support" <${conn.imap_user}>`,
-            to: msg.sender,
-            subject: `Re: ${msg.subject}`,
-            text: draftText
-        });
+    // 3. Send via SMTP
+    const transporter = nodemailer.createTransport({
+      host: 'mail.privateemail.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: conn.imap_user,
+        pass: conn.imap_pass,
+      },
+    });
 
-        // 4. Update status to 'done'
-        await supabase
-            .from('messages')
-            .update({ 
-                status: 'done', 
-                updated_at: new Date().toISOString() 
-            })
-            .eq('id', id);
+    const replySubject = msg.subject?.startsWith('Re:')
+      ? msg.subject
+      : `Re: ${msg.subject || ''}`;
 
-        return NextResponse.json({ success: true });
-    } catch (error: any) {
-        console.error("Mailman Error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    await transporter.sendMail({
+      from: `"Xhale Support" <${conn.imap_user}>`,
+      to: msg.sender,
+      subject: replySubject,
+      text: text,
+    });
+
+    // 4. Mark as done
+    await supabase
+      .from('messages')
+      .update({ status: 'done' })
+      .eq('id', id);
+
+    return NextResponse.json({ success: true });
+
+  } catch (error: any) {
+    console.error('❌ Send failed:', error.message);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
