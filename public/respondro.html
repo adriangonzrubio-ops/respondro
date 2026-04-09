@@ -634,23 +634,23 @@ select.form-input option{background:#0F1623}
 <script>
   async function fetchMessages() {
     console.log("📡 Diagnostic Sync Started...");
-    showToast("Syncing with Inbox...");
+    const container = document.getElementById('message-list-container');
     
+    // Show loading state manually if not already there
+    if (container) container.innerHTML = '<div class="p-8 text-center text-gray-500">Fetching tickets...</div>';
+
     try {
-        // 1. Kick the worker (The "Automatic" Brain)
         const res = await fetch('/api/worker');
         const report = await res.json();
-        console.log(`📊 Worker Report: Found ${report.processed} emails.`);
+        console.log(`📊 Worker Report:`, report);
         
-        // 2. ⏳ THE WAIT: Give the AI 4 seconds to finish drafting in the background.
-        // This is why the drafts will appear automatically without you clicking.
+        // Wait 4 seconds for AI to finish writing
         await new Promise(r => setTimeout(r, 4000)); 
-        
     } catch (e) {
-        console.error("Sync Fetch Failed", e);
+        console.error("❌ Sync Request Failed:", e);
     }
 
-    // 3. Pull the messages from Supabase (Drafts are now ready!)
+    // Now pull data from Supabase regardless of success/fail
     const { data: messages, error } = await sb
         .from('messages')
         .select('*')
@@ -659,7 +659,9 @@ select.form-input option{background:#0F1623}
 
     if (!error) {
         renderMessageList(messages);
-        console.log("✅ Sync Complete. Tickets updated with AI drafts.");
+        console.log("✅ Sync Cycle Complete.");
+    } else {
+        if (container) container.innerHTML = '<div class="p-8 text-center text-red-500">Failed to load messages from database.</div>';
     }
 }
 // Replace Lines 588-596 with this:

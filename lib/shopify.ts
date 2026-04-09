@@ -4,23 +4,32 @@
  */
 export async function getShopifyContext(shop: string, token: string, email: string, orderNumber?: string) {
     try {
-        const cleanShop = shop.replace('https://', '').replace('http://', '').replace(/\/$/, '');
+        // 1. Clean the Shop URL (SaaS Safe-Guard)
+        const cleanShop = shop
+            .replace(/^https?:\/\//, '') 
+            .replace(/\/$/, '')          
+            .trim();
         
+        // 2. Clean the Email (Only declare this ONCE)
         const cleanEmail = email.includes('<') 
             ? email.split('<')[1].split('>')[0] 
             : email.trim();
 
-        console.log(`📡 [SCOUT] Searching ${cleanShop} for customer: ${cleanEmail}`);
+        console.log(`📡 [SCOUT] Universal Fetch for: ${cleanEmail} at ${cleanShop}`);
 
+        // 3. Primary Search: By Email
         const query = encodeURIComponent(`email:${cleanEmail}`);
         const response = await fetch(`https://${cleanShop}/admin/api/2024-01/orders.json?query=${query}&status=any`, {
-            headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' }
+            headers: { 
+                'X-Shopify-Access-Token': token, 
+                'Content-Type': 'application/json' 
+            }
         });
 
         const data = await response.json();
         let orders = data.orders || [];
 
-        // Fallback: Search by Order Number if email found nothing
+        // 4. Fallback: Search by Order Number
         if (orders.length === 0 && orderNumber) {
             const cleanNum = orderNumber.replace('#', '').trim();
             const numResponse = await fetch(`https://${cleanShop}/admin/api/2024-01/orders.json?name=${cleanNum}&status=any`, {
@@ -30,6 +39,7 @@ export async function getShopifyContext(shop: string, token: string, email: stri
             orders = numData.orders || [];
         }
 
+        // 5. Map results for UI
         return orders.map((o: any) => ({
             id: o.id,
             name: o.name,
@@ -42,6 +52,7 @@ export async function getShopifyContext(shop: string, token: string, email: stri
             items: o.line_items.map((i: any) => i.title).join(', '),
             customer: { email: o.customer?.email, first_name: o.customer?.first_name }
         }));
+
     } catch (error) {
         console.error("❌ [SCOUT ERROR]:", error);
         return [];
