@@ -28,39 +28,31 @@ export async function GET() {
 
 async function fetchInImap(conn: any) {
     let emailsProcessed = 0;
-    if (!conn.store_id) return 0;
-
     const { data: store } = await supabase.from('settings').select('*').eq('store_id', conn.store_id).single();
     if (!store) return 0;
 
     const client = new ImapFlow({
-        host: conn.imap_host,
-        port: 993,
-        secure: true,
+        host: conn.imap_host, port: 993, secure: true,
         auth: { user: conn.imap_user, pass: conn.imap_pass },
-        connectionTimeout: 15000,
-        logger: false
+        connectionTimeout: 15000, logger: false
     });
 
     await client.connect();
-    
-    // 1. Lock the mailbox
     let lock = await client.getMailboxLock('INBOX');
 
     try {
-        // 🛠️ THE FIX: Use 'as any' so TypeScript stops complaining about the mailbox status
+        // ✅ FIX: Robust mailbox check to remove the VS Code error
         const mailbox = client.mailbox as any;
-        const last = mailbox.exists || 0;
-        const first = Math.max(1, last - 9); 
+        const last = mailbox?.exists || 0;
+        const first = Math.max(1, last - 14); // Process latest 15
         
-        // 🛠️ THE FIX: Ensure you use BACKTICKS ( ` ) here, not single quotes
         const messages: any = client.fetch(`${first}:${last}`, { source: true });
         
         for await (const msg of messages) {
             if (!msg.source) continue;
             
-            // 2. Check if already processed
-            const { data: exists } = await supabase.from('messages')
+            // Check if processed
+            const { data: exists } = await (supabase.from('messages') as any)
                 .select('id')
                 .eq('external_id', msg.uid.toString())
                 .single();
@@ -72,13 +64,17 @@ async function fetchInImap(conn: any) {
             const body = parsed.text || "";
             const subject = parsed.subject || "";
 
+            // A. Scout & Analyze
             const orderNum = extractOrderNumber(body) || extractOrderNumber(subject);
             const shopifyData = await getShopifyContext(store.shop_url, store.shopify_access_token, from, orderNum);
             const triage = await classifyAndDraft(subject, body, store.rulebook, store.store_name, shopifyData);
 
-            const finalStatus = triage?.path === 'AUTOMATE' ? 'automated' : 'needs_review';
+            // B. SPAM FILTER: Map 'IGNORE' to 'spam' status
+            let finalStatus = 'needs_review';
+            if (triage?.path === 'IGNORE') finalStatus = 'spam';
+            else if (triage?.path === 'AUTOMATE') finalStatus = 'automated';
 
-            // 3. Force save to DB
+            // C. Save
             const { error: upsertError } = await (supabase.from('messages') as any).upsert({
                 connection_id: conn.id,
                 store_id: conn.store_id,
@@ -89,7 +85,7 @@ async function fetchInImap(conn: any) {
                 status: finalStatus, 
                 ai_draft: triage?.draft || null, 
                 shopify_data: shopifyData && shopifyData.length > 0 ? shopifyData : null,
-                ai_reasoning: triage?.reason || 'Proactive sync.',
+                ai_reasoning: triage?.reason || 'Sync completed.',
                 external_id: msg.uid.toString()
             }, { onConflict: 'external_id' });
 
