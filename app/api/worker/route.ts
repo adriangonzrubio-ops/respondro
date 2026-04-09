@@ -7,44 +7,30 @@ import { getShopifyContext, extractOrderNumber } from "@/lib/shopify";
 
 export const dynamic = 'force-dynamic';
 
-// 1. THE MAIN TRIGGER (Triggered by "Refresh Sync")
 export async function GET() {
-    let processedCount = 0;
-    let errors = [];
-
+    let totalProcessed = 0;
     try {
         const { data: connections } = await supabase.from('user_connections').select('*');
-        
-        for (const conn of connections || []) {
+        if (!connections) return NextResponse.json({ success: true, processed: 0 });
+
+        for (const conn of connections) {
             try {
-                // We call the background worker for this specific email connection
-                const count = await fetchInImap(conn);
-                processedCount += (count || 0);
+                totalProcessed += await fetchInImap(conn);
             } catch (e: any) {
-                errors.push(`${conn.imap_user}: ${e.message || 'Connection failed'}`);
+                console.error(`❌ Worker Error for ${conn.imap_user}:`, e.message);
             }
         }
-
-        return NextResponse.json({ 
-            success: true, 
-            processed: processedCount, 
-            errors: errors 
-        });
+        return NextResponse.json({ success: true, processed: totalProcessed });
     } catch (error: any) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
 
-// 2. THE BACKGROUND WORKER (The "Brain")
 async function fetchInImap(conn: any) {
     let emailsProcessed = 0;
+    if (!conn.store_id) return 0;
 
-    const { data: store } = await supabase
-        .from('settings')
-        .select('*')
-        .eq('store_id', conn.store_id)
-        .single();
-
+    const { data: store } = await supabase.from('settings').select('*').eq('store_id', conn.store_id).single();
     if (!store) return 0;
 
     const client = new ImapFlow({
@@ -59,70 +45,39 @@ async function fetchInImap(conn: any) {
     let lock = await client.getMailboxLock('INBOX');
 
     try {
-        // Look at the last 10 emails so we don't miss anything
         for await (const msg of client.fetch('1:10', { source: true })) {
-            // 🛡️ Safety check: If the email has no content, skip it
-            if (!msg.source) continue; 
-
-            const sourceBuffer = Buffer.from(msg.source);
-            const parsed = await simpleParser(sourceBuffer);
-
-            const subject = parsed.subject || "";
-            const body = parsed.text || "";
+            if (!msg.source) continue;
+            const parsed = await simpleParser(msg.source);
             const from = parsed.from?.value[0]?.address || "";
+            const body = parsed.text || "";
+            const subject = parsed.subject || "";
 
             // A. SCOUT SHOPIFY
-            const orderNumber = extractOrderNumber(body) || extractOrderNumber(subject);
-            const shopifyData = await getShopifyContext(
-                store.shop_url, 
-                store.shopify_access_token, 
-                from, 
-                orderNumber
-            );
+            const orderNum = extractOrderNumber(body) || extractOrderNumber(subject);
+            const shopifyData = await getShopifyContext(store.shop_url, store.shopify_access_token, from, orderNum);
 
-            // B. AUTOMATIC AI DRAFTING (Claude Sonnet 4.5)
-            const rawTriage = await classifyAndDraft(
-                subject, 
-                body, 
-                store.rulebook, 
-                store.store_name || "The Store", 
-                shopifyData
-            );
-            
-            // Handle Claude's potential JSON formatting
-            let triage = rawTriage;
-            if (typeof rawTriage === 'string') {
-                try {
-                    const jsonMatch = rawTriage.match(/\{[\s\S]*\}/);
-                    triage = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
-                } catch (e) { triage = {}; }
-            }
+            // B. CLAUDE SONNET 4.5 DRAFTING
+            const triage = await classifyAndDraft(subject, body, store.rulebook, store.store_name, shopifyData);
 
-            const finalStatus = triage.path === 'AUTOMATE' ? 'automated' : 'needs_review';
-
-            // C. SAVE TO SUPABASE (Proactive / Instant)
+            // C. PROACTIVE SAVE
             const { error: upsertError } = await supabase.from('messages').upsert({
                 connection_id: conn.id,
+                store_id: conn.store_id,
                 sender: from,
                 subject: subject,
                 body_text: body,
-                category: triage.category || 'General Inquiry',
-                priority: triage.priority || 'Medium',
-                status: finalStatus, 
-                ai_draft: triage.draft || null, 
+                category: triage?.category || 'General',
+                status: triage?.path === 'AUTOMATE' ? 'automated' : 'needs_review', 
+                ai_draft: triage?.draft || null, 
                 shopify_data: shopifyData && shopifyData.length > 0 ? shopifyData : null,
-                ai_reasoning: triage.reason || 'Analyzed automatically.',
                 external_id: msg.uid.toString()
             }, { onConflict: 'external_id' });
 
-            if (!upsertError) {
-                emailsProcessed++;
-            }
+            if (!upsertError) emailsProcessed++;
         }
     } finally {
         lock.release();
         await client.logout();
     }
-
     return emailsProcessed;
 }
