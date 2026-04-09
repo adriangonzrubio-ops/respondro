@@ -632,21 +632,31 @@ select.form-input option{background:#0F1623}
   </div>
 </div>
 <script>
+  
   async function fetchMessages() {
-    console.log("📡 Diagnostic Sync Started...");
-    try {
-        await fetch('/api/worker');
-        await new Promise(r => setTimeout(r, 2000)); // Lower wait time since worker is faster
-    } catch (e) { console.error(e); }
+    console.log("📡 Automated Sync Initiated...");
+    const container = document.getElementById('ticket-list');
+    if (container) container.innerHTML = '<div class="p-8 text-center text-[10px] uppercase tracking-widest opacity-40">Syncing with Store...</div>';
 
-    // ✅ FIX: Fetch both 'needs_review' AND 'automated' so you see the AI's work
+    try {
+        // 🚀 Wait for the background worker to actually finish its job
+        const syncResponse = await fetch('/api/worker');
+        const syncData = await syncResponse.json();
+        console.log("✅ Sync Cycle Complete:", syncData);
+    } catch (e) {
+        console.error("❌ Sync failed:", e);
+    }
+
+    // Now pull the results from the database
     const { data: messages, error } = await sb
         .from('messages')
         .select('*')
-        .in('status', ['needs_review', 'automated']) // Show both!
+        .in('status', ['needs_review', 'automated'])
         .order('received_at', { ascending: false });
 
-    if (!error) renderMessageList(messages);
+    if (!error) {
+        renderMessageList(messages);
+    }
 }
 // Replace Lines 588-596 with this:
 const sbUrl = 'https://vlwhwkxmjfwzpvspkldc.supabase.co'; 
