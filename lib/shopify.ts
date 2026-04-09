@@ -1,45 +1,30 @@
-/**
- * Generic Shopify Scout: 
- * Works for ANY store and ANY customer based on provided credentials.
- */
 export async function getShopifyContext(shop: string, token: string, email: string, orderNumber?: string) {
     try {
-        // 1. Clean the Shop URL (SaaS Safe-Guard)
-        const cleanShop = shop
-            .replace(/^https?:\/\//, '') 
-            .replace(/\/$/, '')          
-            .trim();
-        
-        // 2. Clean the Email (Only declare this ONCE)
-        const cleanEmail = email.includes('<') 
-            ? email.split('<')[1].split('>')[0] 
-            : email.trim();
+        const cleanShop = shop.replace(/^https?:\/\//, '').replace(/\/$/, '').trim();
+        const cleanEmail = email.includes('<') ? email.split('<')[1].split('>')[0] : email.trim();
 
-        console.log(`📡 [SCOUT] Universal Fetch for: ${cleanEmail} at ${cleanShop}`);
+        console.log(`📡 [SCOUT] Fetching for ${cleanEmail} at ${cleanShop}`);
 
-        // 3. Primary Search: By Email
-        const query = encodeURIComponent(`email:${cleanEmail}`);
-        const response = await fetch(`https://${cleanShop}/admin/api/2024-01/orders.json?query=${query}&status=any`, {
-            headers: { 
-                'X-Shopify-Access-Token': token, 
-                'Content-Type': 'application/json' 
-            }
+        // 1. Search by Email
+        const emailQuery = encodeURIComponent(`email:${cleanEmail}`);
+        const response = await fetch(`https://${cleanShop}/admin/api/2024-01/orders.json?query=${emailQuery}&status=any`, {
+            headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' }
         });
-
         const data = await response.json();
         let orders = data.orders || [];
 
-        // 4. Fallback: Search by Order Number
+        // 2. Fallback: Search by Order Number (More robust search)
         if (orders.length === 0 && orderNumber) {
             const cleanNum = orderNumber.replace('#', '').trim();
-            const numResponse = await fetch(`https://${cleanShop}/admin/api/2024-01/orders.json?name=${cleanNum}&status=any`, {
+            // We search for both "3296" and "#3296" to be safe
+            const nameQuery = encodeURIComponent(`name:${cleanNum} OR name:#${cleanNum}`);
+            const nameRes = await fetch(`https://${cleanShop}/admin/api/2024-01/orders.json?query=${nameQuery}&status=any`, {
                 headers: { 'X-Shopify-Access-Token': token }
             });
-            const numData = await numResponse.json();
-            orders = numData.orders || [];
+            const nameData = await nameRes.json();
+            orders = nameData.orders || [];
         }
 
-        // 5. Map results for UI
         return orders.map((o: any) => ({
             id: o.id,
             name: o.name,
@@ -52,7 +37,6 @@ export async function getShopifyContext(shop: string, token: string, email: stri
             items: o.line_items.map((i: any) => i.title).join(', '),
             customer: { email: o.customer?.email, first_name: o.customer?.first_name }
         }));
-
     } catch (error) {
         console.error("❌ [SCOUT ERROR]:", error);
         return [];
