@@ -13,46 +13,98 @@ export async function POST(req: Request) {
     const { messageId } = await req.json();
 
     // 1. Get the message
-    const { data: message } = await supabase.from('messages').select('*').eq('id', messageId).single();
-    if (!message) throw new Error("Message not found");
+    const { data: message } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('id', messageId)
+      .single();
 
-    // 2. Get the store context
-    const { data: conn } = await supabase.from('user_connections').select('store_id').eq('id', message.connection_id).single();
-    const { data: settings } = await supabase.from('settings').select('*').eq('store_id', conn?.store_id).single();
+    if (!message) throw new Error('Message not found');
 
-    // 3. Generate with the correct Claude Sonnet 4.5 identifier
+    // 2. Get settings — try message.store_id first, then fall back to first store
+    let settings = null;
+    let storeName = 'Our Store';
+
+    if (message.store_id) {
+      const { data: s } = await supabase
+        .from('settings')
+        .select('*')
+        .eq('store_id', message.store_id)
+        .single();
+      settings = s;
+
+      const { data: store } = await supabase
+        .from('stores')
+        .select('store_name')
+        .eq('id', message.store_id)
+        .single();
+      storeName = store?.store_name || 'Our Store';
+    }
+
+    // Fallback: if still no settings, grab the first store's settings
+    if (!settings) {
+      console.warn('⚠️ No store_id on message, falling back to first store');
+      const { data: firstStore } = await supabase
+        .from('stores')
+        .select('*')
+        .limit(1)
+        .single();
+
+      if (firstStore) {
+        storeName = firstStore.store_name || 'Our Store';
+        const { data: s } = await supabase
+          .from('settings')
+          .select('*')
+          .eq('store_id', firstStore.id)
+          .single();
+        settings = s;
+
+        // Also patch the message with the correct store_id
+        await supabase
+          .from('messages')
+          .update({ store_id: firstStore.id })
+          .eq('id', messageId);
+      }
+    }
+
+    const rulebook = settings?.rulebook || 'Be helpful, professional and empathetic.';
+
+    // 3. Generate with Claude
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250929', 
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: 1200,
-      messages: [{ 
-        role: 'user', 
-        content: `
-          You are a senior Support Lead for ${settings?.store_name || 'the store'}.
-          
-          RULEBOOK: ${settings?.rulebook || 'Be professional.'}
-          CUSTOMER EMAIL: ${message.body_text}
-          SHOPIFY DATA: ${JSON.stringify(message.shopify_data || {})}
-          
-          TASK: Draft a professional, branded response. No placeholders like [Name]. 
-          Sign off as: "${settings?.store_name || 'Store'} Support Team".
-        ` 
+      messages: [{
+        role: 'user',
+        content: `You are a senior Support Lead for ${storeName}.
+
+RULEBOOK: ${rulebook}
+
+CUSTOMER EMAIL: ${message.body_text}
+
+SHOPIFY DATA: ${JSON.stringify(message.shopify_data || {})}
+
+TASK: Write a professional, warm, complete email reply. 
+- Address the customer by first name if available
+- Be specific using the Shopify data if relevant  
+- Follow the rulebook exactly
+- Sign off as: "${storeName} Support Team"
+- Output ONLY the email body, no subject line, no placeholders like [Name]`
       }],
     });
 
     const rawContent = response.content[0].type === 'text' ? response.content[0].text : '';
-    // Clean up any remaining quotes or bold marks
-    const draft = rawContent.replace(/\*\*/g, '').replace(/^["']|["']$/g, '').trim();
+    const draft = rawContent.replace(/^["']|["']$/g, '').trim();
 
-    // 4. Update DB - Setting status to 'needs_review' so it stays on your board
-    await supabase.from('messages').update({ 
-        ai_draft: draft, 
-        status: 'needs_review' 
-    }).eq('id', messageId);
+    // 4. Save draft to DB
+    await supabase
+      .from('messages')
+      .update({ ai_draft: draft, status: 'needs_review' })
+      .eq('id', messageId);
 
     return NextResponse.json({ draft });
 
   } catch (error: any) {
-    console.error("❌ Manual Draft Failed:", error.message);
+    console.error('❌ Draft Failed:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
