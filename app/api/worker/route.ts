@@ -84,7 +84,7 @@ async function fetchAndDraft(conn: any, storeId: string, rulebook: string, store
 }
 
 async function healMissingDrafts(storeId: string, rulebook: string, storeName: string) {
-    const { data: broken } = await supabase.from('messages').select('id, subject, body_text, shopify_data, category').or('ai_draft.is.null,ai_draft.eq.').in('status', ['needs_review', 'pending']).limit(15);
+    const { data: broken } = await supabase.from('messages').select('id, subject, body_text, shopify_data, category').or('ai_draft.is.null,ai_draft.eq.').in('status', ['needs_review', 'pending']).limit(5);
     if (!broken?.length) return;
     console.log(`🔧 Healing ${broken.length} messages...`);
     for (const msg of broken) {
