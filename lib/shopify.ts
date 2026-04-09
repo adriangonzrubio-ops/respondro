@@ -3,20 +3,30 @@ export async function getShopifyContext(shop: string, token: string, email: stri
         const cleanShop = shop.replace(/^https?:\/\//, '').replace(/\/$/, '').trim();
         const cleanEmail = email.includes('<') ? email.split('<')[1].split('>')[0] : email.trim();
 
-        console.log(`📡 [SCOUT] Fetching for ${cleanEmail} at ${cleanShop}`);
+        console.log(`📡 [SCOUT] Universal Fetch for: ${cleanEmail} at ${cleanShop}`);
 
-        // 1. Search by Email
-        const emailQuery = encodeURIComponent(`email:${cleanEmail}`);
-        const response = await fetch(`https://${cleanShop}/admin/api/2024-01/orders.json?query=${emailQuery}&status=any`, {
-            headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' }
+        let orders = [];
+
+        // 1. Search for Customer by Email to get their unique ID
+        const customerSearch = await fetch(`https://${cleanShop}/admin/api/2024-01/customers/search.json?query=email:${cleanEmail}`, {
+            headers: { 'X-Shopify-Access-Token': token }
         });
-        const data = await response.json();
-        let orders = data.orders || [];
+        const customerData = await customerSearch.json();
+        const customerId = customerData.customers?.[0]?.id;
 
-        // 2. Fallback: Search by Order Number (More robust search)
+        // 2. If customer exists, fetch ALL their orders
+        if (customerId) {
+            const orderRes = await fetch(`https://${cleanShop}/admin/api/2024-01/orders.json?customer_id=${customerId}&status=any`, {
+                headers: { 'X-Shopify-Access-Token': token }
+            });
+            const orderData = await orderRes.json();
+            orders = orderData.orders || [];
+        }
+
+        // 3. FALLBACK: Search by Order Name if email found nothing (e.g. #3296)
         if (orders.length === 0 && orderNumber) {
             const cleanNum = orderNumber.replace('#', '').trim();
-            // We search for both "3296" and "#3296" to be safe
+            // Search for both "3296" and "#3296"
             const nameQuery = encodeURIComponent(`name:${cleanNum} OR name:#${cleanNum}`);
             const nameRes = await fetch(`https://${cleanShop}/admin/api/2024-01/orders.json?query=${nameQuery}&status=any`, {
                 headers: { 'X-Shopify-Access-Token': token }
@@ -25,6 +35,7 @@ export async function getShopifyContext(shop: string, token: string, email: stri
             orders = nameData.orders || [];
         }
 
+        // 4. Map for the UI
         return orders.map((o: any) => ({
             id: o.id,
             name: o.name,
@@ -38,7 +49,7 @@ export async function getShopifyContext(shop: string, token: string, email: stri
             customer: { email: o.customer?.email, first_name: o.customer?.first_name }
         }));
     } catch (error) {
-        console.error("❌ [SCOUT ERROR]:", error);
+        console.error("❌ [SHOPIFY ERROR]:", error);
         return [];
     }
 }

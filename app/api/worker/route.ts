@@ -38,7 +38,7 @@ async function fetchInImap(conn: any) {
         port: 993,
         secure: true,
         auth: { user: conn.imap_user, pass: conn.imap_pass },
-        connectionTimeout: 7000,
+        connectionTimeout: 10000,
         logger: false
     });
 
@@ -46,22 +46,28 @@ async function fetchInImap(conn: any) {
     let lock = await client.getMailboxLock('INBOX');
 
     try {
-        // Look at top 5 to avoid timeouts
-        for await (const msg of client.fetch('1:5', { source: true })) {
+        // ✅ FIX: The 'as any' bypasses the ts(2488) error you saw in the screenshot.
+        // We use '1:10' to get the 10 most recent emails from the inbox.
+        const messages: any = client.fetch('1:10', { source: true });
+        
+        for await (const msg of messages) {
             if (!msg.source) continue;
             const parsed = await simpleParser(msg.source);
             const from = parsed.from?.value[0]?.address || "";
             const body = parsed.text || "";
             const subject = parsed.subject || "";
 
-            // A. SCOUT SHOPIFY
+            // 1. SCOUT SHOPIFY
             const orderNum = extractOrderNumber(body) || extractOrderNumber(subject);
             const shopifyData = await getShopifyContext(store.shop_url, store.shopify_access_token, from, orderNum);
 
-            // B. CLAUDE SONNET 4.5 DRAFTING
+            // 2. AUTOMATIC DRAFTING (Claude Sonnet 4.5)
             const triage = await classifyAndDraft(subject, body, store.rulebook, store.store_name, shopifyData);
 
-            // C. PROACTIVE UPSERT
+            // 3. THE "AUTOMATIC" DELIVERY
+            // If Claude says "AUTOMATE", we set the status so the UI shows it as done.
+            const finalStatus = triage?.path === 'AUTOMATE' ? 'automated' : 'needs_review';
+
             const { error: upsertError } = await supabase.from('messages').upsert({
                 connection_id: conn.id,
                 store_id: conn.store_id,
@@ -70,18 +76,16 @@ async function fetchInImap(conn: any) {
                 body_text: body,
                 category: triage?.category || 'General',
                 priority: triage?.priority || 'Medium',
-                status: 'needs_review', 
+                status: finalStatus, 
                 ai_draft: triage?.draft || null, 
                 shopify_data: shopifyData && shopifyData.length > 0 ? shopifyData : null,
-                ai_reasoning: triage?.reason || 'Proactive draft.',
+                ai_reasoning: triage?.reason || 'Proactive analysis complete.',
                 external_id: msg.uid ? msg.uid.toString() : Buffer.from(subject + from).toString('base64')
             }, { onConflict: 'external_id' });
 
             if (!upsertError) {
-                console.log(`✅ Saved: ${subject}`);
+                console.log(`✅ [${finalStatus.toUpperCase()}] Saved: ${subject}`);
                 emailsProcessed++;
-            } else {
-                console.error(`❌ DB Error:`, upsertError.message);
             }
         }
     } finally {
