@@ -11,19 +11,13 @@ export async function GET() {
     let totalProcessed = 0;
     try {
         const { data: connections } = await supabase.from('user_connections').select('*');
-        if (!connections || connections.length === 0) return NextResponse.json({ success: true, processed: 0 });
-
-        console.log(`🚀 [WORKER] Starting sync for ${connections.length} connections...`);
+        if (!connections) return NextResponse.json({ success: true, processed: 0 });
 
         for (const conn of connections) {
-            if (!conn.store_id) {
-                console.error(`⚠️ Skipping ${conn.email}: No store_id linked.`);
-                continue;
-            }
             try {
                 totalProcessed += await fetchInImap(conn);
             } catch (e: any) {
-                console.error(`❌ Worker Error for ${conn.imap_user}:`, e.message);
+                console.error(`❌ Worker Error:`, e.message);
             }
         }
         return NextResponse.json({ success: true, processed: totalProcessed });
@@ -34,10 +28,10 @@ export async function GET() {
 
 async function fetchInImap(conn: any) {
     let emailsProcessed = 0;
-    
-    // Fetch store settings for this specific store
+    if (!conn.store_id) return 0;
+
     const { data: store } = await supabase.from('settings').select('*').eq('store_id', conn.store_id).single();
-    if (!store) throw new Error("Store settings missing from DB");
+    if (!store) return 0;
 
     const client = new ImapFlow({
         host: conn.imap_host,
@@ -52,8 +46,8 @@ async function fetchInImap(conn: any) {
     let lock = await client.getMailboxLock('INBOX');
 
     try {
-        // ✅ IMAP Sequence: Fetch top 5 recent emails from the inbox
-        const messages: any = client.fetch('1:5', { source: true });
+        // Cast as any to bypass the TypeScript iterator error
+        const messages: any = client.fetch('1:10', { source: true });
         
         for await (const msg of messages) {
             if (!msg.source) continue;
@@ -62,19 +56,17 @@ async function fetchInImap(conn: any) {
             const body = parsed.text || "";
             const subject = parsed.subject || "";
 
-            console.log(`📩 Processing: ${subject} from ${from}`);
-
-            // A. SCOUT SHOPIFY
+            // A. Scout Shopify Data
             const orderNum = extractOrderNumber(body) || extractOrderNumber(subject);
             const shopifyData = await getShopifyContext(store.shop_url, store.shopify_access_token, from, orderNum);
 
-            // B. CLAUDE SONNET 4.5 PROACTIVE DRAFTING
+            // B. AI Analysis via Sonnet 4.5
             const triage = await classifyAndDraft(subject, body, store.rulebook, store.store_name, shopifyData);
 
-            // C. THE "AUTOMATIC" DELIVERY (SAVING)
-            // ✅ FIX: Directly respects triage.path. If AI says 'AUTOMATE', status becomes 'automated'.
+            // C. Proactive Status Assignment
             const finalStatus = triage?.path === 'AUTOMATE' ? 'automated' : 'needs_review';
 
+            // D. Save result
             const { error: upsertError } = await supabase.from('messages').upsert({
                 connection_id: conn.id,
                 store_id: conn.store_id,
@@ -82,20 +74,13 @@ async function fetchInImap(conn: any) {
                 subject: subject,
                 body_text: body,
                 category: triage?.category || 'General',
-                priority: triage?.priority || 'Medium',
-                status: finalStatus, // Saves as automatic or needs_review
+                status: finalStatus, 
                 ai_draft: triage?.draft || null, 
                 shopify_data: shopifyData && shopifyData.length > 0 ? shopifyData : null,
-                ai_reasoning: triage?.reason || 'Proactive analysis generated.',
-                external_id: msg.uid ? msg.uid.toString() : Buffer.from(subject + from).toString('base64')
+                external_id: msg.uid.toString()
             }, { onConflict: 'external_id' });
 
-            if (!upsertError) {
-                console.log(`✅ [${finalStatus.toUpperCase()}] Saved ticket for: ${subject}`);
-                emailsProcessed++;
-            } else {
-                console.error(`❌ DB Save failed:`, upsertError.message);
-            }
+            if (!upsertError) emailsProcessed++;
         }
     } finally {
         lock.release();

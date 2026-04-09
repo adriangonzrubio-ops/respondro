@@ -1,58 +1,39 @@
 export async function getShopifyContext(shop: string, token: string, email: string, orderNumber?: string) {
     try {
-        // 1. UNIVERSAL SaaS Clean: Standardize any URL input to the store domain
-        const cleanShop = shop
-            .replace(/^https?:\/\//, '') // Remove protocols
-            .replace(/\/$/, '')          // Remove trailing slash
-            .trim();
-        
-        // 2. Extract clean email (Handles "Name <email@address.com>")
+        const cleanShop = shop.replace(/^https?:\/\//, '').replace(/\/$/, '').trim();
         const cleanEmail = email.includes('<') ? email.split('<')[1].split('>')[0] : email.trim();
 
-        console.log(`📡 [SCOUT] Attempting fetch for ${cleanEmail} at https://${cleanShop}/admin/`);
+        console.log(`📡 [SCOUT] Searching ${cleanShop} for ${cleanEmail}`);
 
-        // 3. Robust Customer Search
-        const customerSearchRes = await fetch(`https://${cleanShop}/admin/api/2024-01/customers/search.json?query=email:${cleanEmail}`, {
-            headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' }
+        // 1. Find the Customer ID first
+        const customerSearch = await fetch(`https://${cleanShop}/admin/api/2024-04/customers/search.json?query=email:${cleanEmail}`, {
+            headers: { 'X-Shopify-Access-Token': token }
         });
-        
-        // Logging the response code is key to finding the error
-        console.log(`📡 [SCOUT] Customer Search Status: ${customerSearchRes.status}`);
-        
-        const customerData = await customerSearchRes.json();
-        const customer = customerData.customers?.[0];
+        const customerData = await customerSearch.json();
+        const customerId = customerData.customers?.[0]?.id;
 
         let orders = [];
 
-        // 4. If customer found, fetch ALL their orders
-        if (customer?.id) {
-            const orderRes = await fetch(`https://${cleanShop}/admin/api/2024-01/orders.json?customer_id=${customer.id}&status=any`, {
+        // 2. Fetch orders by Customer ID
+        if (customerId) {
+            const orderRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders.json?customer_id=${customerId}&status=any`, {
                 headers: { 'X-Shopify-Access-Token': token }
             });
-            console.log(`📡 [SCOUT] Orders Search Status: ${orderRes.status}`);
             const orderData = await orderRes.json();
             orders = orderData.orders || [];
         }
 
-        // 5. Robust Fallback: Search by Order Name (e.g. #3296)
+        // 3. Fallback: Search by Order Name (e.g., #3296)
         if (orders.length === 0 && orderNumber) {
-            console.log(`📡 [SCOUT] No customer found, attempting fallback search for: ${orderNumber}`);
-            // Search by exact name.
-            const nameRes = await fetch(`https://${cleanShop}/admin/api/2024-01/orders.json?name=${orderNumber}&status=any`, {
+            const cleanNum = orderNumber.replace('#', '').trim();
+            const nameRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders.json?name=${cleanNum}&status=any`, {
                 headers: { 'X-Shopify-Access-Token': token }
             });
-            console.log(`📡 [SCOUT] Fallback Search Status: ${nameRes.status}`);
             const nameData = await nameRes.json();
             orders = nameData.orders || [];
         }
 
-        // 6. Return mapped results for UI
-        if (orders.length > 0) {
-            console.log(`✅ [SCOUT] Found ${orders.length} orders for ${cleanEmail}`);
-        } else {
-            console.warn(`⚠️ [SCOUT] No orders found for ${cleanEmail}`);
-        }
-
+        // 4. Return formatted data for the AI and UI
         return orders.map((o: any) => ({
             id: o.id,
             name: o.name,
@@ -60,22 +41,18 @@ export async function getShopifyContext(shop: string, token: string, email: stri
             created_at: o.created_at,
             total_price: o.total_price,
             currency: o.currency,
-            financial_status: o.financial_status,
             fulfillment_status: o.fulfillment_status || 'Unfulfilled',
             items: o.line_items.map((i: any) => i.title).join(', '),
             customer: { email: o.customer?.email, first_name: o.customer?.first_name }
         }));
-
-    } catch (error: any) {
-        console.error("❌ [SHOPIFY ERROR]:", error.message || error);
-        return []; // Return empty array to prevent application crash
+    } catch (error) {
+        console.error("Shopify Error:", error);
+        return [];
     }
 }
 
 export function extractOrderNumber(text: string): string | undefined {
     if (!text) return undefined;
-    // Looking for a # followed by numbers, or "Order" followed by numbers
     const match = text.match(/(?:#|Order\s+)(\d{4,})/i);
-    // Return the whole string with the # if it exists
-    return match ? match[0] : undefined;
+    return match ? match[1] : undefined;
 }
