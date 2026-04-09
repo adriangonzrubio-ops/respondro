@@ -7,10 +7,10 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { text } = await req.json();
-    const id = params.id;
+    const { id } = await params;
 
     const { data: msg } = await supabase.from('messages').select('*').eq('id', id).single();
     if (!msg) return NextResponse.json({ error: 'Message not found' }, { status: 404 });
