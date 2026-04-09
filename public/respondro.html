@@ -2420,8 +2420,13 @@ function renderRbTicketList(messages) {
 }
 
 async function rbOpenTicket(msgId) {
-  const msg = rbAllMessages.find(m => m.id === msgId);
+  // Always fetch fresh from DB to get latest ai_draft
+  const { data: freshMsg } = await sb.from('messages').select('*').eq('id', msgId).single();
+  const msg = freshMsg || rbAllMessages.find(m => m.id === msgId);
   if (!msg) return;
+  // Update local cache
+  const idx = rbAllMessages.findIndex(m => m.id === msgId);
+  if (idx > -1) rbAllMessages[idx] = msg;
   rbActiveMessage = msg;
   document.querySelectorAll('[id^="rb-ticket-card-"]').forEach(el => { el.style.background='rgba(255,255,255,0.02)'; el.style.border='1px solid rgba(255,255,255,0.05)'; });
   const ac = document.getElementById('rb-ticket-card-'+msgId);
