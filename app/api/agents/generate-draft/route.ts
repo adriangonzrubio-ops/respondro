@@ -16,49 +16,43 @@ export async function POST(req: Request) {
     const { data: message } = await supabase.from('messages').select('*').eq('id', messageId).single();
     if (!message) throw new Error("Message not found");
 
-    // 2. Get the store ID through the connection
+    // 2. Get the store context
     const { data: conn } = await supabase.from('user_connections').select('store_id').eq('id', message.connection_id).single();
-    
-    // 3. Get the rulebook using the store ID
-    const { data: settings } = await supabase.from('settings').select('rulebook, store_name').eq('store_id', conn?.store_id).single();
+    const { data: settings } = await supabase.from('settings').select('*').eq('store_id', conn?.store_id).single();
 
-    const rulebook = settings?.rulebook || "Be professional and helpful.";
-    const storeName = settings?.store_name || "the store";
-
-    // 4. Generate with Claude Sonnet 4.5
-// 4. Generate with Claude Sonnet 4.5
+    // 3. Generate with the correct Claude Sonnet 4.5 identifier
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5', 
-      max_tokens: 1000,
+      model: 'claude-sonnet-4-5-20250929', 
+      max_tokens: 1200,
       messages: [{ 
         role: 'user', 
         content: `
-          You are a senior CS agent for ${storeName}.
+          You are a senior Support Lead for ${settings?.store_name || 'the store'}.
           
-          RULEBOOK: ${rulebook}
-          
+          RULEBOOK: ${settings?.rulebook || 'Be professional.'}
           CUSTOMER EMAIL: ${message.body_text}
+          SHOPIFY DATA: ${JSON.stringify(message.shopify_data || {})}
           
-          STRICT INSTRUCTIONS:
-          1. Do NOT use Markdown (no **, no ##).
-          2. Do NOT use placeholders like [Your Name] or [Store Name].
-          3. Sign off exactly as: "Best regards, ${storeName} Support Team".
-          4. If you have Shopify data, use it to be specific.
-          5. Write in a friendly, human, helpful tone.
-          
-          Draft the response now:
+          TASK: Draft a professional, branded response. No placeholders like [Name]. 
+          Sign off as: "${settings?.store_name || 'Store'} Support Team".
         ` 
       }],
     });
 
-    // Clean up any remaining quotes or bold marks
     const rawContent = response.content[0].type === 'text' ? response.content[0].text : '';
+    // Clean up any remaining quotes or bold marks
     const draft = rawContent.replace(/\*\*/g, '').replace(/^["']|["']$/g, '').trim();
-    // 5. Update DB
-    await supabase.from('messages').update({ ai_draft: draft, status: 'drafted' }).eq('id', messageId);
+
+    // 4. Update DB - Setting status to 'needs_review' so it stays on your board
+    await supabase.from('messages').update({ 
+        ai_draft: draft, 
+        status: 'needs_review' 
+    }).eq('id', messageId);
 
     return NextResponse.json({ draft });
+
   } catch (error: any) {
+    console.error("❌ Manual Draft Failed:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

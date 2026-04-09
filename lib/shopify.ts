@@ -31,13 +31,15 @@ export async function getShopifyContext(shop: string, token: string, email: stri
 
         // 3. Fallback: Search by Order Number
         if (orders.length === 0 && orderNumber) {
-            // Safety: Ensure it's a string before calling replace
+            // 🚀 SENIOR FIX: Safety check for orderNumber
             const cleanNum = String(orderNumber).replace('#', '').trim();
-            const nameRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders.json?name=${cleanNum}&status=any`, {
-                headers: { 'X-Shopify-Access-Token': token }
-            });
-            const nameData = await nameRes.json();
-            orders = nameData.orders || [];
+            if (cleanNum && cleanNum !== "undefined") {
+                const nameRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders.json?name=${cleanNum}&status=any`, {
+                    headers: { 'X-Shopify-Access-Token': token }
+                });
+                const nameData = await nameRes.json();
+                orders = nameData.orders || [];
+            }
         }
 
         return orders.map((o: any) => ({

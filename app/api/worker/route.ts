@@ -41,17 +41,17 @@ async function fetchInImap(conn: any) {
     let lock = await client.getMailboxLock('INBOX');
 
     try {
-        // ✅ FIX: Robust mailbox check to remove the VS Code error
         const mailbox = client.mailbox as any;
         const last = mailbox?.exists || 0;
-        const first = Math.max(1, last - 14); // Process latest 15
+        // 🚀 SENIOR FIX: Limit to 3 to prevent Vercel Timeouts
+        const first = Math.max(1, last - 2); 
         
         const messages: any = client.fetch(`${first}:${last}`, { source: true });
         
         for await (const msg of messages) {
             if (!msg.source) continue;
             
-            // Check if processed
+            // Check if already processed
             const { data: exists } = await (supabase.from('messages') as any)
                 .select('id')
                 .eq('external_id', msg.uid.toString())
@@ -59,37 +59,42 @@ async function fetchInImap(conn: any) {
 
             if (exists) continue; 
 
-            const parsed = await simpleParser(msg.source);
-            const from = parsed.from?.value[0]?.address || "";
-            const body = parsed.text || "";
-            const subject = parsed.subject || "";
+            try {
+                const parsed = await simpleParser(msg.source);
+                const from = parsed.from?.value[0]?.address || "";
+                const body = parsed.text || "";
+                const subject = parsed.subject || "";
 
-            // A. Scout & Analyze
-            const orderNum = extractOrderNumber(body) || extractOrderNumber(subject);
-            const shopifyData = await getShopifyContext(store.shop_url, store.shopify_access_token, from, orderNum);
-            const triage = await classifyAndDraft(subject, body, store.rulebook, store.store_name, shopifyData);
+                // A. Scout & Analyze
+                const orderNum = extractOrderNumber(body) || extractOrderNumber(subject);
+                const shopifyData = await getShopifyContext(store.shop_url, store.shopify_access_token, from, orderNum);
+                
+                // B. Claude Sonnet 4.5
+                const triage = await classifyAndDraft(subject, body, store.rulebook, store.store_name, shopifyData);
 
-            // B. SPAM FILTER: Map 'IGNORE' to 'spam' status
-            let finalStatus = 'needs_review';
-            if (triage?.path === 'IGNORE') finalStatus = 'spam';
-            else if (triage?.path === 'AUTOMATE') finalStatus = 'automated';
+                let finalStatus = triage?.path === 'IGNORE' ? 'spam' : 
+                                 (triage?.path === 'AUTOMATE' ? 'automated' : 'needs_review');
 
-            // C. Save
-            const { error: upsertError } = await (supabase.from('messages') as any).upsert({
-                connection_id: conn.id,
-                store_id: conn.store_id,
-                sender: from,
-                subject: subject,
-                body_text: body,
-                category: triage?.category || 'General',
-                status: finalStatus, 
-                ai_draft: triage?.draft || null, 
-                shopify_data: shopifyData && shopifyData.length > 0 ? shopifyData : null,
-                ai_reasoning: triage?.reason || 'Sync completed.',
-                external_id: msg.uid.toString()
-            }, { onConflict: 'external_id' });
+                // C. Save with full data
+                await (supabase.from('messages') as any).upsert({
+                    connection_id: conn.id,
+                    store_id: conn.store_id,
+                    sender: from,
+                    subject: subject,
+                    body_text: body,
+                    category: triage?.category || 'General',
+                    status: finalStatus, 
+                    ai_draft: triage?.draft || "I'm looking into this for you.", 
+                    shopify_data: shopifyData && shopifyData.length > 0 ? shopifyData : null,
+                    ai_reasoning: triage?.reason || 'Proactive sync completed.',
+                    external_id: msg.uid.toString()
+                }, { onConflict: 'external_id' });
 
-            if (!upsertError) emailsProcessed++;
+                emailsProcessed++;
+            } catch (innerError) {
+                console.error("❌ Email Skip (Error):", innerError);
+                continue; // Don't let one bad email break the whole sync
+            }
         }
     } finally {
         lock.release();
