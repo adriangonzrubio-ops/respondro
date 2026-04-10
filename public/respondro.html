@@ -2415,184 +2415,115 @@ async function fetchMessages() {
 function renderRbTicketList(messages) {
   const container = document.getElementById('rb-ticket-list');
   if (!container) return;
-  const filtered = messages.filter(m => {
-  if(rbCurrentFilter === 'all') return m.status !== 'done' && m.status !== 'closed';
-  if(rbCurrentFilter === 'archived') return m.status === 'done' || m.status === 'closed';
-  return m.status === rbCurrentFilter;
-});
+  const filtered = messages.filter(function(m) {
+    if(rbCurrentFilter === 'all') return m.status !== 'done' && m.status !== 'closed';
+    if(rbCurrentFilter === 'archived') return m.status === 'done' || m.status === 'closed';
+    return m.status === rbCurrentFilter;
+  });
   if (filtered.length === 0) { container.innerHTML = '<div class="text-center text-[10px] uppercase tracking-widest text-gray-700 mt-10 px-3">No tickets</div>'; return; }
-  container.innerHTML = filtered.map(msg => {
+  container.innerHTML = filtered.map(function(msg) {
     const cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
-    const isActive = rbActiveMessage?.id === msg.id;
+    const isActive = rbActiveMessage && rbActiveMessage.id === msg.id;
     const date = new Date(msg.received_at);
     const timeStr = date.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + ' ' + date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
     const hasDraft = msg.ai_draft && msg.ai_draft.length > 10;
     const statusBadge = msg.status === 'automated' ? '<span class="badge badge-g" style="font-size:9px">AUTO</span>' : hasDraft ? '<span class="badge badge-g" style="font-size:9px;background:rgba(0,200,150,0.1)">DRAFT READY</span>' : '<span class="badge badge-a" style="font-size:9px">NEEDS DRAFT</span>';
     const isArchived = msg.status === 'done' || msg.status === 'closed';
     const priorityColor = msg.priority === 'High' ? '#F87171' : msg.priority === 'Medium' ? '#F0A500' : '#5A6785';
-    return `<div onclick="rbOpenTicket('${msg.id}')" id="rb-ticket-card-${msg.id}" class="p-3 rounded-xl cursor-pointer transition-all relative" style="background:${isActive?'rgba(0,200,150,0.07)':'rgba(255,255,255,0.02)'};border:1px solid ${isActive?'rgba(0,200,150,0.25)':'rgba(255,255,255,0.05)'};margin-bottom:4px;opacity:${isArchived?'0.45':'1'}">
-      <div style="position:absolute;left:0;top:8px;bottom:8px;width:2px;border-radius:1px;background:${priorityColor};opacity:0.7"></div>
-      <div class="flex justify-between items-start mb-1 pl-2"><span class="text-[10px] font-600 text-gray-300 truncate" style="max-width:160px">${cleanName}</span><span class="text-[9px] font-mono text-gray-600 flex-shrink-0 ml-1">${timeStr}</span></div>
-      <div class="text-[11px] text-gray-400 truncate mb-2 pl-2">${msg.subject || 'No Subject'}</div>
-      <div class="flex items-center gap-1.5 pl-2">${statusBadge}${msg.category?`<span class="text-[9px] font-mono text-gray-600">${msg.category}</span>`:''}</div>
-    </div>`;
+    return '<div onclick="rbOpenTicket(\'' + msg.id + '\')" id="rb-ticket-card-' + msg.id + '" class="p-3 rounded-xl cursor-pointer transition-all relative" style="background:' + (isActive?'rgba(0,200,150,0.07)':'rgba(255,255,255,0.02)') + ';border:1px solid ' + (isActive?'rgba(0,200,150,0.25)':'rgba(255,255,255,0.05)') + ';margin-bottom:4px;opacity:' + (isArchived?'0.45':'1') + '">'
+      + '<div style="position:absolute;left:0;top:8px;bottom:8px;width:2px;border-radius:1px;background:' + priorityColor + ';opacity:0.7"></div>'
+      + '<div class="flex justify-between items-start mb-1 pl-2"><span class="text-[10px] font-600 text-gray-300 truncate" style="max-width:160px">' + cleanName + '</span><span class="text-[9px] font-mono text-gray-600 flex-shrink-0 ml-1">' + timeStr + '</span></div>'
+      + '<div class="text-[11px] text-gray-400 truncate mb-2 pl-2">' + (msg.subject || 'No Subject') + '</div>'
+      + '<div class="flex items-center gap-1.5 pl-2">' + statusBadge + (msg.category ? '<span class="text-[9px] font-mono text-gray-600">' + msg.category + '</span>' : '') + '</div>'
+      + '</div>';
   }).join('');
 }
 
-// ══════════════════════════════════════════════════════════════════
-// 🛠️ WORKSPACE RESTORATION (FIXES BLANK SCREEN & TIMELINE)
-// ══════════════════════════════════════════════════════════════════
-
 async function rbOpenTicket(msgId) {
-    const workspace = document.getElementById('rb-active-ticket');
-    const emptyState = document.getElementById('rb-empty-state');
-    if (!workspace) return;
+  const emptyState = document.getElementById('rb-empty-state');
+  const workspace = document.getElementById('rb-active-ticket');
+  if (emptyState) emptyState.classList.add('hidden');
+  if (workspace) workspace.classList.remove('hidden');
 
-    // Show Workspace and Hide Empty State
-    if(emptyState) emptyState.classList.add('hidden');
-    workspace.classList.remove('hidden');
+  try {
+    const { data: msg } = await sb.from('messages').select('*').eq('id', msgId).single();
+    if (!msg) return;
 
-    try {
-        // 1. Fetch latest version of this message
-        const { data: msg } = await sb.from('messages').select('*').eq('id', msgId).single();
-        if (!msg) return;
+    const idx = rbAllMessages.findIndex(function(m) { return m.id === msgId; });
+    if (idx > -1) rbAllMessages[idx] = msg;
+    rbActiveMessage = msg;
 
-        // 2. Re-render Timeline area with history
-        const timelineContainer = document.getElementById('rb-timeline-container');
-        if (timelineContainer) timelineContainer.innerHTML = '<div class="p-10 text-center opacity-20 text-[10px] uppercase tracking-widest">Constructing Conversation...</div>';
+    document.querySelectorAll('[id^="rb-ticket-card-"]').forEach(function(el) {
+      el.style.background = 'rgba(255,255,255,0.02)';
+      el.style.border = '1px solid rgba(255,255,255,0.05)';
+    });
+    const ac = document.getElementById('rb-ticket-card-' + msgId);
+    if (ac) { ac.style.background = 'rgba(0,200,150,0.07)'; ac.style.border = '1px solid rgba(0,200,150,0.25)'; }
 
-        const senderEmail = msg.sender?.includes('<') ? msg.sender.split('<')[1]?.replace('>','')?.trim() : msg.sender;
-        const { data: history } = await sb.from('messages')
-            .select('*')
-            .ilike('sender', `%${senderEmail?.split('@')[0] || 'noreply'}%`)
-            .order('received_at', { ascending: true })
-            .limit(15);
+    document.getElementById('rb-ticket-subject').textContent = msg.subject || 'No Subject';
+    document.getElementById('rb-ticket-from').textContent = msg.sender || '';
+    document.getElementById('rb-ticket-category').textContent = msg.category || '';
 
-        // 3. Update UI Elements
-        document.getElementById('rb-ticket-subject').textContent = msg.subject || 'No Subject';
-        document.getElementById('rb-ticket-from').textContent = msg.sender || '';
-        document.getElementById('rb-ticket-category').textContent = msg.category || 'General';
-        
-        const badge = document.getElementById('rb-ticket-badge');
-        if(badge) {
-            badge.className = msg.status === 'automated' ? 'badge badge-g text-[10px]' : 'badge badge-a text-[10px]';
-            badge.textContent = msg.status === 'automated' ? 'automated' : 'review';
-        }
-
-        // 4. Render Timeline
-        if (timelineContainer) {
-            timelineContainer.innerHTML = buildConversationTimeline(history || [], msg);
-            setTimeout(() => { timelineContainer.scrollTop = timelineContainer.scrollHeight; }, 150);
-        }
-
-        // 5. Load Shopify Sidebar
-        rbLoadShopifySidebar(msg);
-
-        // 6. Recovery: Generate draft if missing
-        if (!msg.ai_draft || msg.ai_draft.length < 10) {
-            generateNewDraft(msg.id);
-        }
-
-    } catch (error) {
-        console.error("❌ Workspace Load Failed:", error);
+    const badge = document.getElementById('rb-ticket-badge');
+    if (badge) {
+      badge.className = msg.status === 'automated' ? 'badge badge-g text-[10px]' : 'badge badge-a text-[10px]';
+      badge.textContent = msg.status === 'automated' ? 'automated' : 'review';
     }
+
+    const rb = document.getElementById('rb-reasoning-block');
+    const rt = document.getElementById('rb-reasoning-text');
+    if (msg.ai_reasoning && rt) { rt.textContent = msg.ai_reasoning; if(rb) rb.classList.remove('hidden'); }
+    else { if(rb) rb.classList.add('hidden'); }
+
+    // Fetch conversation history
+    const senderEmail = msg.sender && msg.sender.includes('<') ? msg.sender.split('<')[1].replace('>','').trim() : msg.sender;
+    const emailUser = senderEmail ? senderEmail.split('@')[0] : 'noreply';
+    const { data: history } = await sb.from('messages')
+      .select('id, subject, body_text, sender, received_at, sent_reply, sent_at, ai_reasoning, status')
+      .ilike('sender', '%' + emailUser + '%')
+      .order('received_at', { ascending: true })
+      .limit(20);
+
+    // Build timeline
+    const timelineContainer = document.getElementById('rb-timeline-container');
+    if (timelineContainer) {
+      timelineContainer.innerHTML = buildConversationTimeline(history || [], msg);
+      setTimeout(function() { timelineContainer.scrollTop = timelineContainer.scrollHeight; }, 100);
+    }
+
+    // Handle draft
+    const draftArea = document.getElementById('rb-draft-textarea');
+    const draftLoad = document.getElementById('rb-draft-loading');
+    if (msg.ai_draft && msg.ai_draft.length > 10) {
+      if (draftArea) { draftArea.classList.remove('hidden'); draftArea.value = msg.ai_draft; }
+      if (draftLoad) draftLoad.classList.add('hidden');
+    } else {
+      if (draftArea) draftArea.classList.add('hidden');
+      if (draftLoad) draftLoad.classList.remove('hidden');
+      rbGenerateDraftForMessage(msg);
+    }
+
+    rbLoadShopifySidebar(msg);
+
+  } catch(error) {
+    console.error('rbOpenTicket error:', error);
+  }
 }
 
 function buildConversationTimeline(history, currentMsg) {
-    if (!history || history.length === 0) return `<div class="p-10 text-center text-gray-400">Message: ${currentMsg.body_text}</div>`;
-
-    return history.map(item => {
-        const isCurrent = item.id === currentMsg.id;
-        const dateStr = new Date(item.received_at).toLocaleDateString();
-        const timeStr = new Date(item.received_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const cleanSender = (item.sender || 'Customer').split('<')[0].replace(/"/g, '').trim();
-
-        return `
-            <div class="space-y-6 ${!isCurrent ? 'opacity-50 grayscale hover:opacity-100 hover:grayscale-0 transition-all' : 'animate-slide-up'}">
-                ${!isCurrent ? `<div class="flex items-center gap-2 text-[9px] font-bold text-gray-400 uppercase tracking-widest"><div class="h-px flex-1 bg-gray-100"></div> Archive ${dateStr}<div class="h-px flex-1 bg-gray-100"></div></div>` : ''}
-                
-                <div class="flex gap-4 text-left">
-                    <div class="w-10 h-10 ${isCurrent ? 'bg-surface2 text-accent border-accent/20' : 'bg-gray-100 text-gray-400 border-gray-200'} rounded-full flex items-center justify-center font-bold border shadow-sm">
-                        ${cleanSender.charAt(0).toUpperCase()}
-                    </div>
-                    <div class="flex-1 space-y-2">
-                        <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wide text-left">${cleanSender} • ${timeStr}</div>
-                        <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm text-[13px] leading-relaxed text-gray-700 text-left">
-                            ${item.body_text}
-                        </div>
-                    </div>
-                </div>
-
-                ${item.ai_draft && isCurrent ? `
-                    <div class="flex gap-4 animate-slide-up text-left">
-                        <div class="w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 font-bold border border-emerald-100 shadow-sm">AI</div>
-                        <div class="flex-1 bg-emerald-50/20 border border-emerald-100 p-6 rounded-2xl shadow-sm text-left">
-                            <div class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                <div class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div> Proposed AI Response
-                            </div>
-                            <div class="text-[13px] text-gray-800 whitespace-pre-wrap leading-relaxed">${item.ai_draft}</div>
-                        </div>
-                    </div>
-                ` : ''}
-            </div>`;
-    }).join('');
-}
-
-function rbLoadShopifySidebar(msg) {
-    const sidebar = document.getElementById('rb-shopify-sidebar-container') || document.getElementById('active-ticket-details');
-    if (!sidebar) return;
-
-    let s = msg.shopify_data;
-    if (typeof s === 'string') { try { s = JSON.parse(s); } catch(e) { s = null; } }
-    
-    const order = Array.isArray(s) ? s[0] : s;
-    const cleanSender = (msg.sender || 'Customer').split('<')[0].replace(/"/g, '').trim();
-
-    sidebar.innerHTML = `
-        <div class="p-6 space-y-8 bg-white h-full border-l border-gray-100">
-            <div>
-                <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 text-left">Customer</h4>
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center font-bold text-gray-400 border border-gray-100">${cleanSender.charAt(0).toUpperCase()}</div>
-                    <div class="text-left overflow-hidden">
-                        <div class="text-sm font-bold text-gray-900 truncate">${cleanSender}</div>
-                        <div class="text-[10px] text-gray-500 truncate w-32">${msg.sender}</div>
-                    </div>
-                </div>
-            </div>
-
-            <div>
-                <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 text-left">Shopify Order Context</h4>
-                ${order ? `
-                    <div class="border border-gray-100 rounded-xl p-4 bg-gray-50/50 space-y-3 shadow-sm text-gray-900 text-left">
-                        <div class="flex justify-between items-center">
-                            <span class="text-xs font-bold">#${order.order_number || order.name}</span>
-                            <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-600 uppercase border border-blue-200">${order.fulfillment_status || 'Paid'}</span>
-                        </div>
-                        <div class="text-[11px] text-gray-600 leading-snug">${order.items || 'Order Package'}</div>
-                        <div class="pt-3 border-t border-gray-100 flex justify-between text-xs font-bold">
-                            <span class="text-gray-400 font-medium">Total</span>
-                            <span>${order.total_price} ${order.currency || 'USD'}</span>
-                        </div>
-                    </div>
-                ` : `<div class="text-center py-12 border-2 border-dashed border-gray-100 rounded-xl text-[10px] text-gray-400 font-bold uppercase tracking-widest">No Active History</div>`}
-            </div>
-        </div>`;
-}
-
-function buildConversationTimeline(history, currentMsg, cleanName) {
-  const allItems = [];
+  var allItems = [];
+  var cleanName = (currentMsg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
 
   history.forEach(function(m) {
-    const isCurrentMsg = m.id === currentMsg.id;
-    const date = new Date(m.received_at).toLocaleString('en-GB', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
-    const initial = cleanName.charAt(0).toUpperCase();
-    const currentBadge = isCurrentMsg ? '<span class="text-[9px] px-1.5 py-0.5 rounded font-mono" style="background:rgba(0,200,150,0.1);color:#00C896">current</span>' : '';
-    const msgBg = isCurrentMsg ? '#0F1623' : 'rgba(255,255,255,0.02)';
-    const msgBorder = isCurrentMsg ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)';
-    const msgOpacity = isCurrentMsg ? '1' : '0.7';
+    var isCurrentMsg = m.id === currentMsg.id;
+    var date = new Date(m.received_at).toLocaleString('en-GB', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+    var initial = cleanName.charAt(0).toUpperCase();
+    var currentBadge = isCurrentMsg ? '<span class="text-[9px] px-1.5 py-0.5 rounded font-mono" style="background:rgba(0,200,150,0.1);color:#00C896">current</span>' : '';
+    var msgBg = isCurrentMsg ? '#0F1623' : 'rgba(255,255,255,0.02)';
+    var msgBorder = isCurrentMsg ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)';
+    var msgOpacity = isCurrentMsg ? '1' : '0.7';
 
-    const customerHtml = '<div class="mb-4">'
+    var customerHtml = '<div class="mb-4">'
       + '<div class="flex items-center gap-2 mb-2">'
       + '<div class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-700 flex-shrink-0" style="background:#1D4E3A;color:#00C896">' + initial + '</div>'
       + '<span class="text-[10px] font-600 text-white">' + cleanName + '</span>'
@@ -2605,15 +2536,11 @@ function buildConversationTimeline(history, currentMsg, cleanName) {
     allItems.push({ time: new Date(m.received_at).getTime(), html: customerHtml });
 
     if (m.sent_reply && m.sent_at) {
-      const sentDate = new Date(m.sent_at).toLocaleString('en-GB', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
-      const reasoningHtml = m.ai_reasoning
-        ? '<div class="ml-8 mt-1 flex items-start gap-1.5 px-2 py-1.5 rounded-lg" style="background:rgba(240,165,0,0.05);border:1px solid rgba(240,165,0,0.1)">'
-          + '<span class="text-[9px] flex-shrink-0" style="color:#F0A500">&#x1F916;</span>'
-          + '<span class="text-[9px]" style="color:#8B7040">' + m.ai_reasoning + '</span>'
-          + '</div>'
+      var sentDate = new Date(m.sent_at).toLocaleString('en-GB', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+      var reasoningHtml = m.ai_reasoning
+        ? '<div class="ml-8 mt-1 flex items-start gap-1.5 px-2 py-1.5 rounded-lg" style="background:rgba(240,165,0,0.05);border:1px solid rgba(240,165,0,0.1)"><span class="text-[9px] flex-shrink-0" style="color:#F0A500">&#x1F916;</span><span class="text-[9px]" style="color:#8B7040">' + m.ai_reasoning + '</span></div>'
         : '';
-
-      const replyHtml = '<div class="mb-4">'
+      var replyHtml = '<div class="mb-4">'
         + '<div class="flex items-center gap-2 mb-2">'
         + '<div class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-700 flex-shrink-0" style="background:rgba(0,200,150,0.2);color:#00C896">AI</div>'
         + '<span class="text-[10px] font-600" style="color:#00C896">Respondro</span>'
@@ -2623,231 +2550,175 @@ function buildConversationTimeline(history, currentMsg, cleanName) {
         + '<div class="rounded-xl p-3 text-xs leading-relaxed ml-8" style="background:rgba(0,200,150,0.04);border:1px solid rgba(0,200,150,0.15);white-space:pre-wrap;color:#C8D0E0">' + m.sent_reply + '</div>'
         + reasoningHtml
         + '</div>';
-
       allItems.push({ time: new Date(m.sent_at).getTime(), html: replyHtml });
     }
-
-// ══════════════════════════════════════════════════════════════════
-// 🛠️ WORKSPACE RESTORATION (FIXES BLANK SCREEN & TIMELINE)
-// ══════════════════════════════════════════════════════════════════
-
-// ✅ SENIOR FIX: Added 'async' to allow the use of 'await'
-async function rbOpenTicket(msgId) {
-    const workspace = document.getElementById('rb-active-ticket');
-    const emptyState = document.getElementById('rb-empty-state');
-    if (!workspace) return;
-
-    // Show Workspace and Hide Empty State
-    if(emptyState) emptyState.classList.add('hidden');
-    workspace.classList.remove('hidden');
-
-    try {
-        // 1. Fetch the absolute latest version of this message
-        const { data: msg } = await sb.from('messages').select('*').eq('id', msgId).single();
-        if (!msg) return;
-
-        // 2. Clear and show loading for the timeline area
-        const timelineContainer = document.getElementById('rb-timeline-container');
-        if (timelineContainer) timelineContainer.innerHTML = '<div class="p-10 text-center opacity-20 text-[10px] uppercase tracking-widest">Reconstructing Conversation...</div>';
-
-        // 3. Fetch full History (Archived Threads)
-        const senderEmail = msg.sender?.includes('<') ? msg.sender.split('<')[1]?.replace('>','')?.trim() : msg.sender;
-        const { data: history } = await sb.from('messages')
-            .select('*')
-            .ilike('sender', `%${senderEmail?.split('@')[0] || 'noreply'}%`)
-            .order('received_at', { ascending: true })
-            .limit(15);
-
-        // 4. Update UI Elements
-        document.getElementById('rb-ticket-subject').textContent = msg.subject || 'No Subject';
-        document.getElementById('rb-ticket-from').textContent = msg.sender || '';
-        document.getElementById('rb-ticket-category').textContent = msg.category || 'General';
-        
-        const badge = document.getElementById('rb-ticket-badge');
-        if(badge) {
-            badge.className = msg.status === 'automated' ? 'badge badge-g text-[10px]' : 'badge badge-a text-[10px]';
-            badge.textContent = msg.status === 'automated' ? 'automated' : 'review';
-        }
-
-        // 5. Render Timeline (History + Current)
-        if (timelineContainer) {
-            timelineContainer.innerHTML = buildConversationTimeline(history || [], msg);
-            // Auto-scroll to latest message
-            setTimeout(() => { timelineContainer.scrollTop = timelineContainer.scrollHeight; }, 100);
-        }
-
-        // 6. Load Shopify Data into Sidebar
-        rbLoadShopifySidebar(msg);
-
-        // 7. Trigger draft generation if missing
-        if (!msg.ai_draft || msg.ai_draft.length < 10) {
-            generateNewDraft(msg.id);
-        }
-
-    } catch (error) {
-        console.error("❌ Workspace Load Failed:", error);
-    }
-}
-
-// ✅ FIX: Consolidated timeline builder to prevent "allItems" scope errors
-function buildConversationTimeline(history, currentMsg) {
-    if (!history || history.length === 0) return `<div class="p-10 text-center text-gray-400">Message body: ${currentMsg.body_text}</div>`;
-
-    return history.map(item => {
-        const isCurrent = item.id === currentMsg.id;
-        const dateStr = new Date(item.received_at).toLocaleDateString();
-        const timeStr = new Date(item.received_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const cleanSender = (item.sender || 'Customer').split('<')[0].replace(/"/g, '').trim();
-
-        return `
-            <div class="space-y-6 ${!isCurrent ? 'opacity-50 grayscale hover:opacity-100 hover:grayscale-0 transition-all' : 'animate-slide-up'}">
-                ${!isCurrent ? `<div class="flex items-center gap-2 text-[9px] font-bold text-gray-400 uppercase tracking-widest"><div class="h-px flex-1 bg-gray-100"></div> Past Thread — ${dateStr}<div class="h-px flex-1 bg-gray-100"></div></div>` : ''}
-                
-                <div class="flex gap-4">
-                    <div class="w-10 h-10 ${isCurrent ? 'bg-surface2 text-accent border-accent/20' : 'bg-gray-100 text-gray-400 border-gray-200'} rounded-full flex items-center justify-center font-bold border shadow-sm">
-                        ${cleanSender.charAt(0).toUpperCase()}
-                    </div>
-                    <div class="flex-1 space-y-2 text-left">
-                        <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">${cleanSender} • ${timeStr}</div>
-                        <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm text-[13px] leading-relaxed text-gray-700">
-                            ${item.body_text}
-                        </div>
-                    </div>
-                </div>
-
-                ${item.ai_draft && isCurrent ? `
-                    <div class="flex gap-4 animate-slide-up">
-                        <div class="w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 font-bold border border-emerald-100 shadow-sm">AI</div>
-                        <div class="flex-1 bg-emerald-50/20 border border-emerald-100 p-6 rounded-2xl shadow-sm text-left">
-                            <div class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                <div class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div> Proposed Response
-                            </div>
-                            <div class="text-[13px] text-gray-800 whitespace-pre-wrap leading-relaxed">${item.ai_draft}</div>
-                        </div>
-                    </div>
-                ` : ''}
-            </div>`;
-    }).join('');
-}
-
-function rbLoadShopifySidebar(msg) {
-    const sidebar = document.getElementById('rb-shopify-sidebar-container') || document.getElementById('active-ticket-details');
-    if (!sidebar) return;
-
-    let s = msg.shopify_data;
-    if (typeof s === 'string') { try { s = JSON.parse(s); } catch(e) { s = null; } }
-    
-    const order = Array.isArray(s) ? s[0] : s;
-    const cleanSender = (msg.sender || 'Customer').split('<')[0].replace(/"/g, '').trim();
-
-    sidebar.innerHTML = `
-        <div class="p-6 space-y-8 bg-white h-full border-l border-gray-100">
-            <div>
-                <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 text-left">Customer Details</h4>
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center font-bold text-gray-400 border border-gray-100">${cleanSender.charAt(0).toUpperCase()}</div>
-                    <div class="overflow-hidden text-left">
-                        <div class="text-sm font-bold text-gray-900 truncate">${cleanSender}</div>
-                        <div class="text-[10px] text-gray-500 truncate w-32">${msg.sender}</div>
-                    </div>
-                </div>
-            </div>
-
-            <div>
-                <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 text-left">Shopify Order Context</h4>
-                ${order ? `
-                    <div class="border border-gray-100 rounded-xl p-4 bg-gray-50/50 space-y-3 shadow-sm text-gray-900 text-left">
-                        <div class="flex justify-between items-center">
-                            <span class="text-xs font-bold">#${order.order_number || order.name}</span>
-                            <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-600 uppercase border border-blue-200">${order.fulfillment_status || 'Paid'}</span>
-                        </div>
-                        <div class="text-[11px] text-gray-600 leading-snug">${order.items || 'Standard Package'}</div>
-                        <div class="pt-3 border-t border-gray-100 flex justify-between text-xs font-bold">
-                            <span class="text-gray-400 font-medium">Total</span>
-                            <span>${order.total_price} ${order.currency || 'USD'}</span>
-                        </div>
-                        <button class="w-full mt-2 py-2 bg-white border border-gray-200 rounded-lg text-[10px] font-bold text-gray-700 hover:bg-gray-50 transition">VIEW IN SHOPIFY</button>
-                    </div>
-                ` : `<div class="text-center py-12 border-2 border-dashed border-gray-100 rounded-xl text-[10px] text-gray-400 font-bold uppercase tracking-widest">No Active Order</div>`}
-            </div>
-        </div>`;
-}
   });
 
   allItems.sort(function(a, b) { return a.time - b.time; });
 
-  const divider = history.length > 1
+  var divider = history.length > 1
     ? '<div class="flex items-center gap-2 mb-3"><div style="flex:1;height:1px;background:rgba(255,255,255,0.05)"></div><span class="text-[9px] font-mono px-2" style="color:#3A4760">CONVERSATION HISTORY</span><div style="flex:1;height:1px;background:rgba(255,255,255,0.05)"></div></div>'
     : '';
 
   return '<div>' + divider + allItems.map(function(i) { return i.html; }).join('') + '</div>';
 }
 
-  // Sort by time
-  allItems.sort((a,b) => a.time - b.time);
+async function rbGenerateDraftForMessage(msg) {
+  const draftArea = document.getElementById('rb-draft-textarea');
+  const draftLoad = document.getElementById('rb-draft-loading');
+  try {
+    const res = await fetch('/api/agents/generate-draft', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({messageId:msg.id}) });
+    const data = await res.json();
+    if (data.draft) {
+      await sb.from('messages').update({ai_draft:data.draft,status:'needs_review'}).eq('id',msg.id);
+      const lm = rbAllMessages.find(function(m) { return m.id === msg.id; });
+      if (lm) lm.ai_draft = data.draft;
+      if (draftArea) { draftArea.value = data.draft; draftArea.classList.remove('hidden'); }
+      if (draftLoad) draftLoad.classList.add('hidden');
+      renderRbTicketList(rbAllMessages);
+    } else throw new Error('No draft returned');
+  } catch(err) {
+    console.error('Draft generation error:', err);
+    if (draftArea) { draftArea.value = 'Hi,\n\nThank you for reaching out. We will get back to you as soon as possible.\n\nBest regards,\nCustomer Service Team'; draftArea.classList.remove('hidden'); }
+    if (draftLoad) draftLoad.classList.add('hidden');
+  }
+}
 
-  const hasHistory = history.length > 1;
-  return `
-    <div>
-      ${hasHistory ? `<div class="flex items-center gap-2 mb-3"><div style="flex:1;height:1px;background:rgba(255,255,255,0.05)"></div><span class="text-[9px] font-mono px-2" style="color:#3A4760">CONVERSATION HISTORY</span><div style="flex:1;height:1px;background:rgba(255,255,255,0.05)"></div></div>` : ''}
-      ${allItems.map(i => i.html).join('')}
-    </div>`;
+async function rbRegenerateDraft() {
+  if (!rbActiveMessage) return;
+  const btn = document.getElementById('rb-regen-btn');
+  if (btn) { btn.textContent = '⟳ Generating...'; btn.disabled = true; }
+  const draftArea = document.getElementById('rb-draft-textarea');
+  const draftLoad = document.getElementById('rb-draft-loading');
+  if (draftArea) draftArea.classList.add('hidden');
+  if (draftLoad) draftLoad.classList.remove('hidden');
+  await sb.from('messages').update({ai_draft:null}).eq('id',rbActiveMessage.id);
+  rbActiveMessage.ai_draft = null;
+  await rbGenerateDraftForMessage(rbActiveMessage);
+  if (btn) { btn.textContent = '↺ Regenerate'; btn.disabled = false; }
+}
 
+async function rbLoadShopifySidebar(msg) {
+  const emptyEl = document.getElementById('rb-shopify-empty');
+  const loadEl = document.getElementById('rb-shopify-loading');
+  const dataEl = document.getElementById('rb-shopify-data');
+  const noOrd = document.getElementById('rb-no-orders');
+  const ordList = document.getElementById('rb-orders-list');
+  if (emptyEl) emptyEl.classList.add('hidden');
+  if (dataEl) dataEl.classList.add('hidden');
+  if (loadEl) loadEl.classList.remove('hidden');
+  try {
+    var shopifyData = null;
+    if (msg.shopify_data) { shopifyData = typeof msg.shopify_data === 'string' ? JSON.parse(msg.shopify_data) : msg.shopify_data; }
+    if (!shopifyData || (Array.isArray(shopifyData) && shopifyData.length === 0)) {
+      try {
+        const res = await fetch('/api/shopify/lookup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:msg.sender,messageId:msg.id})});
+        if (res.ok) { const d = await res.json(); shopifyData = d.orders || []; }
+      } catch(e) { console.warn('Shopify lookup failed'); }
+    }
+    const orders = Array.isArray(shopifyData) ? shopifyData : (shopifyData ? [shopifyData] : []);
+    if (loadEl) loadEl.classList.add('hidden');
+    if (dataEl) dataEl.classList.remove('hidden');
+    const cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
+    const cleanEmail = msg.sender && msg.sender.includes('<') ? msg.sender.split('<')[1].replace('>','').trim() : msg.sender;
+    const nameEl = document.getElementById('rb-shop-name');
+    const emailEl = document.getElementById('rb-shop-email');
+    const avatarEl = document.getElementById('rb-shop-avatar');
+    if (nameEl) nameEl.textContent = cleanName;
+    if (emailEl) emailEl.textContent = cleanEmail || '';
+    if (avatarEl) avatarEl.textContent = cleanName.charAt(0).toUpperCase();
+    if (orders.length === 0) {
+      if (noOrd) noOrd.classList.remove('hidden');
+      if (ordList) ordList.innerHTML = '';
+    } else {
+      if (noOrd) noOrd.classList.add('hidden');
+      if (ordList) ordList.innerHTML = orders.map(function(o) {
+        var sc = {'fulfilled':'#00C896','unfulfilled':'#F0A500','partial':'#A78BFA','refunded':'#F87171'}[(o.fulfillment_status||'').toLowerCase()] || '#5A6785';
+        var pc = o.financial_status === 'paid' ? '#00C896' : '#F87171';
+        return '<div class="rounded-xl overflow-hidden" style="border:1px solid rgba(255,255,255,0.07)">'
+          + '<div class="px-3 py-2 flex justify-between items-center" style="background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.05)">'
+          + '<span class="text-xs font-display font-700 text-white">' + (o.name || '#' + o.order_number) + '</span>'
+          + '<span class="text-[9px] font-mono font-700 px-2 py-0.5 rounded-full" style="background:' + sc + '18;color:' + sc + '">' + (o.fulfillment_status || 'unfulfilled').toUpperCase() + '</span>'
+          + '</div>'
+          + '<div class="p-3 space-y-2">'
+          + '<div class="text-[11px] text-gray-400 leading-relaxed">' + (o.items || 'No items') + '</div>'
+          + '<div class="flex justify-between items-center pt-1" style="border-top:1px solid rgba(255,255,255,0.05)">'
+          + '<span class="text-[10px] text-gray-600">Total</span>'
+          + '<div class="flex items-center gap-2"><span class="text-xs font-700 text-white">' + o.total_price + ' ' + (o.currency || '') + '</span><span class="text-[9px] font-mono px-1.5 py-0.5 rounded" style="background:' + pc + '18;color:' + pc + '">' + (o.financial_status || '').toUpperCase() + '</span></div>'
+          + '</div>'
+          + (o.tracking_number ? '<div class="flex items-center justify-between" style="border-top:1px solid rgba(255,255,255,0.05);padding-top:8px"><span class="text-[10px] text-gray-600">Tracking</span>' + (o.tracking_url ? '<a href="' + o.tracking_url + '" target="_blank" class="text-[10px] font-mono hover:underline" style="color:#00C896">' + o.tracking_number + '</a>' : '<span class="text-[10px] font-mono" style="color:#5A6785">' + o.tracking_number + '</span>') + '</div>' : '')
+          + '<div class="text-[9px] text-gray-700 font-mono">' + new Date(o.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) + '</div>'
+          + '</div></div>';
+      }).join('');
+    }
+  } catch(err) {
+    console.error('Shopify sidebar error:', err);
+    if (loadEl) loadEl.classList.add('hidden');
+    if (dataEl) dataEl.classList.remove('hidden');
+    if (noOrd) noOrd.classList.remove('hidden');
+  }
+}
 
 async function rbApproveSend() {
-  if(!rbActiveMessage) return;
-  const draft=document.getElementById('rb-draft-textarea').value.trim();
-  if(!draft){ showToast('Draft is empty'); return; }
-  if(!confirm('Send this reply to '+rbActiveMessage.sender+'?')) return;
+  if (!rbActiveMessage) return;
+  const draft = document.getElementById('rb-draft-textarea').value.trim();
+  if (!draft) { showToast('Draft is empty'); return; }
+  if (!confirm('Send this reply to ' + rbActiveMessage.sender + '?')) return;
   try {
-    const res=await fetch(`/api/messages/${rbActiveMessage.id}/send`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:draft,customerEmail:rbActiveMessage.sender})});
-    if(!res.ok) throw new Error('HTTP '+res.status);
+    const res = await fetch('/api/messages/' + rbActiveMessage.id + '/send', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:draft,customerEmail:rbActiveMessage.sender})});
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     await sb.from('messages').update({status:'done', sent_reply:draft, sent_at:new Date().toISOString()}).eq('id',rbActiveMessage.id);
-    rbAllMessages=rbAllMessages.filter(m=>m.id!==rbActiveMessage.id);
+    rbAllMessages = rbAllMessages.filter(function(m) { return m.id !== rbActiveMessage.id; });
     renderRbTicketList(rbAllMessages); rbCloseTicket(); updateRbPendingCount(); showToast('✓ Reply sent');
-  } catch(err){ console.error('Send error:',err); showToast('Failed to send'); }
+  } catch(err) { console.error('Send error:', err); showToast('Failed to send'); }
 }
 
 async function rbMarkResolved() {
-  if(!rbActiveMessage) return;
+  if (!rbActiveMessage) return;
   await sb.from('messages').update({status:'done'}).eq('id',rbActiveMessage.id);
-  rbAllMessages=rbAllMessages.filter(m=>m.id!==rbActiveMessage.id);
+  rbAllMessages = rbAllMessages.filter(function(m) { return m.id !== rbActiveMessage.id; });
   renderRbTicketList(rbAllMessages); rbCloseTicket(); updateRbPendingCount(); showToast('Resolved ✓');
 }
 
 async function rbMarkClosed() {
-  if(!rbActiveMessage) return;
+  if (!rbActiveMessage) return;
   await sb.from('messages').update({status:'closed'}).eq('id',rbActiveMessage.id);
-  rbAllMessages=rbAllMessages.filter(m=>m.id!==rbActiveMessage.id);
+  rbAllMessages = rbAllMessages.filter(function(m) { return m.id !== rbActiveMessage.id; });
   renderRbTicketList(rbAllMessages); rbCloseTicket(); updateRbPendingCount(); showToast('Ticket closed');
 }
 
 function rbCloseTicket() {
-  rbActiveMessage=null;
-  document.getElementById('rb-empty-state').classList.remove('hidden');
-  document.getElementById('rb-active-ticket').classList.add('hidden');
-  document.getElementById('rb-shopify-empty').classList.remove('hidden');
-  document.getElementById('rb-shopify-data').classList.add('hidden');
-  document.getElementById('rb-shopify-loading').classList.add('hidden');
+  rbActiveMessage = null;
+  const emptyState = document.getElementById('rb-empty-state');
+  const workspace = document.getElementById('rb-active-ticket');
+  const shopifyEmpty = document.getElementById('rb-shopify-empty');
+  const shopifyData = document.getElementById('rb-shopify-data');
+  const shopifyLoad = document.getElementById('rb-shopify-loading');
+  if (emptyState) emptyState.classList.remove('hidden');
+  if (workspace) workspace.classList.add('hidden');
+  if (shopifyEmpty) shopifyEmpty.classList.remove('hidden');
+  if (shopifyData) shopifyData.classList.add('hidden');
+  if (shopifyLoad) shopifyLoad.classList.add('hidden');
 }
 
 function setRbFilter(filter) {
   rbCurrentFilter = filter;
-  document.querySelectorAll('.rb-filter-btn').forEach(btn => { btn.style.background='transparent'; btn.style.color='#5A6785'; });
-  const a = document.getElementById('rbf-'+filter);
-  if(a) { a.style.background='rgba(0,200,150,0.1)'; a.style.color='#00C896'; }
+  document.querySelectorAll('.rb-filter-btn').forEach(function(btn) { btn.style.background = 'transparent'; btn.style.color = '#5A6785'; });
+  const a = document.getElementById('rbf-' + filter);
+  if (a) { a.style.background = 'rgba(0,200,150,0.1)'; a.style.color = '#00C896'; }
   renderRbTicketList(rbAllMessages);
 }
 
 function filterTickets(query) {
-  if(!query.trim()){ renderRbTicketList(rbAllMessages); return; }
-  const q=query.toLowerCase();
-  renderRbTicketList(rbAllMessages.filter(m=>m.subject?.toLowerCase().includes(q)||m.sender?.toLowerCase().includes(q)||m.category?.toLowerCase().includes(q)));
+  if (!query.trim()) { renderRbTicketList(rbAllMessages); return; }
+  const q = query.toLowerCase();
+  renderRbTicketList(rbAllMessages.filter(function(m) { return m.subject && m.subject.toLowerCase().includes(q) || m.sender && m.sender.toLowerCase().includes(q) || m.category && m.category.toLowerCase().includes(q); }));
 }
 
 function updateRbPendingCount() {
-  const p=rbAllMessages.filter(m=>m.status==='needs_review'||m.status==='pending');
-  const el=document.getElementById('rb-pending-count'); if(el) el.textContent=p.length+' pending';
+  const p = rbAllMessages.filter(function(m) { return m.status === 'needs_review' || m.status === 'pending'; });
+  const el = document.getElementById('rb-pending-count');
+  if (el) el.textContent = p.length + ' pending';
 }
 
 // Theme persistence
