@@ -2669,6 +2669,7 @@ async function rbApproveSend() {
     await sb.from('messages').update({status:'done', sent_reply:draft, sent_at:new Date().toISOString()}).eq('id',rbActiveMessage.id);
     var draftEl = document.getElementById('rb-draft-textarea'); if (draftEl) draftEl.value = '';
     rbAllMessages = rbAllMessages.filter(function(m) { return m.id !== rbActiveMessage.id; });
+    var draftEl = document.getElementById('rb-draft-textarea'); if (draftEl) draftEl.value = '';
     renderRbTicketList(rbAllMessages); rbCloseTicket(); updateRbPendingCount(); showToast('✓ Reply sent');
   } catch(err) { console.error('Send error:', err); showToast('Failed to send'); }
 }
@@ -2734,59 +2735,82 @@ function toggleTheme() {
 if (localStorage.getItem('respondro_theme') === 'light') document.body.classList.add('light');
 // ── DASHBOARD ──
 async function loadDashboardView() {
-  // Load stats
-  const { data: msgs } = await sb.from('messages').select('status, ai_reasoning, subject, sender, id, received_at');
+  const { data: msgs } = await sb.from('messages').select('status, ai_reasoning, subject, sender, id, received_at, category, priority');
   if (!msgs) return;
 
   const review = msgs.filter(m => m.status === 'needs_review' || m.status === 'pending').length;
   const auto = msgs.filter(m => m.status === 'automated').length;
   const done = msgs.filter(m => m.status === 'done' || m.status === 'closed').length;
+  const actionKeywords = ['refund', 'cancel', 'replacement', 'escalat', 'manual', 'process', 'issue', 'partial', 'damage', 'wrong', 'missing'];
+
+  const actionItems = msgs.filter(m =>
+    m.status === 'needs_review' &&
+    actionKeywords.some(k => (m.ai_reasoning || '').toLowerCase().includes(k) || (m.category || '').toLowerCase().includes(k))
+  );
+
+  const resolvedItems = msgs.filter(m =>
+    (m.status === 'done' || m.status === 'closed') &&
+    actionKeywords.some(k => (m.ai_reasoning || '').toLowerCase().includes(k) || (m.category || '').toLowerCase().includes(k))
+  ).slice(0, 15);
 
   const el = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = val; };
   el('dash-stat-review', review);
   el('dash-stat-auto', auto);
-  el('dash-stat-resolved', done);
-
-  // Action queue — find messages where AI reasoning mentions actions needed
-  const actionKeywords = ['refund', 'cancel', 'replacement', 'escalat', 'manual', 'process', 'issue', 'partial'];
-  const actionItems = msgs.filter(m => 
-    m.status === 'needs_review' && 
-    actionKeywords.some(k => (m.ai_reasoning || '').toLowerCase().includes(k))
-  ).slice(0, 10);
-
   el('dash-stat-actions', actionItems.length);
+  el('dash-stat-resolved', done);
 
   const queue = document.getElementById('dash-action-queue');
   if (queue) {
-    if (actionItems.length === 0) {
-      queue.innerHTML = '<div class="text-xs text-center py-6" style="color:#5A6785">✅ No pending actions — you\'re all caught up!</div>';
-    } else {
-      queue.innerHTML = actionItems.map(msg => {
+    const needsActionHTML = actionItems.length === 0
+      ? '<div class="text-xs text-center py-6" style="color:#5A6785">No pending actions</div>'
+      : actionItems.map(msg => {
         const cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
         const date = new Date(msg.received_at).toLocaleDateString('en-GB', {day:'numeric', month:'short'});
-        return `<div class="flex items-start gap-3 p-3 rounded-xl" style="background:rgba(240,165,0,0.06);border:1px solid rgba(240,165,0,0.15)">
-          <span style="font-size:18px;flex-shrink:0">⚠️</span>
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between gap-2 mb-1">
-              <span class="text-xs font-600 text-white truncate">${msg.subject || 'No Subject'}</span>
-              <span class="text-[9px] font-mono flex-shrink-0" style="color:#5A6785">${date}</span>
-            </div>
-            <div class="text-[11px] mb-2" style="color:#8B96B0">${cleanName}</div>
-            <div class="text-[11px] mb-3" style="color:#F0A500">${msg.ai_reasoning || 'Needs manual review'}</div>
-            <div class="flex gap-2">
-              <button onclick="dashOpenTicket('${msg.id}')" class="text-[10px] px-3 py-1.5 rounded-lg font-600 transition-all" style="background:rgba(0,200,150,0.1);color:#00C896;border:1px solid rgba(0,200,150,0.2)">View ticket</button>
-              <button onclick="dashMarkActionDone('${msg.id}', this)" class="text-[10px] px-3 py-1.5 rounded-lg font-600 transition-all" style="background:rgba(255,255,255,0.05);color:#5A6785;border:1px solid rgba(255,255,255,0.1)">Mark done</button>
-            </div>
-          </div>
-        </div>`;
+        const priorityColor = msg.priority === 'High' ? '#F87171' : msg.priority === 'Medium' ? '#F0A500' : '#5A6785';
+        return '<div class="flex items-start gap-3 p-4 rounded-xl mb-2" style="background:rgba(240,165,0,0.06);border:1px solid rgba(240,165,0,0.15)">'
+          + '<span style="font-size:18px;flex-shrink:0">⚠️</span>'
+          + '<div class="flex-1 min-w-0">'
+          + '<div class="flex items-center justify-between gap-2 mb-1">'
+          + '<span class="text-xs font-600 text-white truncate">' + (msg.subject || 'No Subject') + '</span>'
+          + '<div class="flex items-center gap-2"><span class="text-[9px] font-mono" style="color:' + priorityColor + '">' + (msg.priority || '') + '</span><span class="text-[9px] font-mono" style="color:#5A6785">' + date + '</span></div>'
+          + '</div>'
+          + '<div class="text-[11px] mb-1" style="color:#8B96B0">' + cleanName + '</div>'
+          + '<div class="text-[11px] mb-2" style="color:#F0A500">' + (msg.ai_reasoning || 'Needs manual review') + '</div>'
+          + '<div class="flex gap-2">'
+          + '<button onclick="dashOpenTicket(\'' + msg.id + '\')" class="text-[10px] px-3 py-1.5 rounded-lg font-600" style="background:rgba(0,200,150,0.1);color:#00C896;border:1px solid rgba(0,200,150,0.2)">View ticket</button>'
+          + '<button onclick="dashResolveAndNotify(\'' + msg.id + '\', this)" class="text-[10px] px-3 py-1.5 rounded-lg font-600" style="background:rgba(0,200,150,0.06);color:#00C896;border:1px solid rgba(0,200,150,0.15)">✓ Resolve &amp; Notify</button>'
+          + '</div></div></div>';
       }).join('');
-    }
+
+    const resolvedHTML = resolvedItems.length === 0
+      ? '<div class="text-xs text-center py-6" style="color:#5A6785">No resolved actions yet</div>'
+      : resolvedItems.map(msg => {
+        const cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
+        const date = new Date(msg.received_at).toLocaleDateString('en-GB', {day:'numeric', month:'short'});
+        return '<div class="flex items-center gap-3 p-3 rounded-xl mb-2" style="background:rgba(0,200,150,0.04);border:1px solid rgba(0,200,150,0.1)">'
+          + '<span style="font-size:14px;flex-shrink:0">✅</span>'
+          + '<div class="flex-1 min-w-0">'
+          + '<span class="text-xs font-600 text-white truncate block">' + (msg.subject || 'No Subject') + '</span>'
+          + '<span class="text-[10px]" style="color:#5A6785">' + cleanName + ' · ' + date + '</span>'
+          + '</div>'
+          + '<span class="text-[9px] px-2 py-0.5 rounded-full font-mono" style="background:rgba(0,200,150,0.1);color:#00C896">resolved</span>'
+          + '</div>';
+      }).join('');
+
+    queue.innerHTML = ''
+      + '<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">'
+      + '<div>'
+      + '<div class="flex items-center justify-between mb-3"><h4 class="text-xs font-display font-700" style="color:#F0A500">⚠️ Needs Action (' + actionItems.length + ')</h4></div>'
+      + '<div style="max-height:500px;overflow-y:auto">' + needsActionHTML + '</div>'
+      + '</div>'
+      + '<div>'
+      + '<div class="flex items-center justify-between mb-3"><h4 class="text-xs font-display font-700" style="color:#00C896">✅ Resolved (' + resolvedItems.length + ')</h4></div>'
+      + '<div style="max-height:500px;overflow-y:auto">' + resolvedHTML + '</div>'
+      + '</div>'
+      + '</div>';
   }
 
-  // Recent activity
-  const recent = msgs
-    .filter(m => m.status === 'done' || m.status === 'automated')
-    .slice(0, 8);
+  const recent = msgs.filter(m => m.status === 'done' || m.status === 'automated').slice(0, 8);
   const recentEl = document.getElementById('dash-recent');
   if (recentEl) {
     recentEl.innerHTML = recent.length === 0
@@ -2796,12 +2820,38 @@ async function loadDashboardView() {
         const icon = msg.status === 'automated' ? '⚡' : '✅';
         const label = msg.status === 'automated' ? 'Auto-sent' : 'Resolved';
         const color = msg.status === 'automated' ? '#00C896' : '#5A6785';
-        return `<div class="flex items-center gap-3 py-2 text-xs" style="border-bottom:1px solid rgba(255,255,255,0.04)">
-          <span>${icon}</span>
-          <span class="flex-1 truncate">${cleanName} — ${msg.subject || 'No Subject'}</span>
-          <span class="text-[10px] px-2 py-0.5 rounded-full font-mono" style="background:${color}18;color:${color}">${label}</span>
-        </div>`;
+        return '<div class="flex items-center gap-3 py-2 text-xs" style="border-bottom:1px solid rgba(255,255,255,0.04)">'
+          + '<span>' + icon + '</span>'
+          + '<span class="flex-1 truncate">' + cleanName + ' — ' + (msg.subject || 'No Subject') + '</span>'
+          + '<span class="text-[10px] px-2 py-0.5 rounded-full font-mono" style="background:' + color + '18;color:' + color + '">' + label + '</span>'
+          + '</div>';
       }).join('');
+  }
+}
+async function dashResolveAndNotify(msgId, btn) {
+  if (btn) { btn.textContent = 'Sending...'; btn.disabled = true; }
+  try {
+    var msg = null;
+    var result = await sb.from('messages').select('*').eq('id', msgId).single();
+    if (result.data) msg = result.data;
+    if (msg) {
+      var cleanEmail = msg.sender && msg.sender.includes('<') ? msg.sender.split('<')[1].replace('>','').trim() : msg.sender;
+      var cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim().split(' ')[0];
+      var resolutionText = 'Hi ' + cleanName + ',\n\nWe wanted to let you know that the issue you contacted us about (' + (msg.subject || 'your inquiry') + ') has been resolved.\n\nIf you have any other questions, feel free to reach out — we are always happy to help!\n\nBest regards,\nCustomer Support Team';
+      await fetch('/api/messages/' + msgId + '/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: resolutionText, customerEmail: cleanEmail })
+      });
+    }
+    await sb.from('messages').update({ status: 'done', sent_reply: 'Resolution notification sent', sent_at: new Date().toISOString() }).eq('id', msgId);
+    if (btn) { btn.textContent = '✓ Done'; btn.style.color = '#00C896'; }
+    showToast('Resolved & customer notified ✓');
+    setTimeout(function() { loadDashboardView(); }, 800);
+  } catch (err) {
+    console.error('Resolve error:', err);
+    if (btn) { btn.textContent = 'Failed'; btn.disabled = false; }
+    showToast('Error resolving ticket');
   }
 }
 
