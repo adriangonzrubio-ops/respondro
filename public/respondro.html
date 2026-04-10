@@ -367,7 +367,7 @@ select.form-input option{background:#0F1623}
           <div>
             <p class="text-[10px] font-mono text-gray-600 mb-2 uppercase tracking-wider">Conversation</p>
             <div id="rb-timeline-container" class="rounded-xl p-3 overflow-y-auto mb-2" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07);max-height:260px"><span id="rb-ticket-body">—</span></div>
-            <div class="flex items-start gap-2 px-3 py-2 rounded-lg text-xs" style="background:rgba(240,165,0,0.06);border:1px solid rgba(240,165,0,0.15);color:#C9A040">
+            <div id="rb-reasoning-block" class="flex items-start gap-2 px-3 py-2 rounded-lg text-xs" style="background:rgba(240,165,0,0.06);border:1px solid rgba(240,165,0,0.15);color:#C9A040"></div>
               <span class="flex-shrink-0 mt-0.5">🤖</span>
               <span id="rb-reasoning-text"></span>
             </div>
@@ -2343,7 +2343,7 @@ async function sendResponse(msgId) {
     if (!targetId) return showToast("Error: No ticket ID found");
 
     const draftArea = document.getElementById('modal-draft-area');
-    
+    const draftText = draftArea ? draftArea.value : '';
     if (!draftText.trim()) {
         showToast("Cannot send an empty response!");
         return;
@@ -2607,20 +2607,23 @@ async function rbLoadShopifySidebar(msg) {
   if (emptyEl) emptyEl.classList.add('hidden');
   if (dataEl) dataEl.classList.add('hidden');
   if (loadEl) loadEl.classList.remove('hidden');
+
+  // Extract clean email FIRST
+  const cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
+  const cleanEmail = msg.sender && msg.sender.includes('<') ? msg.sender.split('<')[1].replace('>','').trim() : msg.sender;
+
   try {
     var shopifyData = null;
     if (msg.shopify_data) { shopifyData = typeof msg.shopify_data === 'string' ? JSON.parse(msg.shopify_data) : msg.shopify_data; }
     if (!shopifyData || (Array.isArray(shopifyData) && shopifyData.length === 0)) {
       try {
-        const res = await fetch('/api/shopify/lookup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:msg.sender,messageId:msg.id})});
+        const res = await fetch('/api/shopify/lookup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email: cleanEmail, messageId:msg.id})});
         if (res.ok) { const d = await res.json(); shopifyData = d.orders || []; }
-      } catch(e) { console.warn('Shopify lookup failed'); }
+      } catch(e) { console.warn('Shopify lookup failed:', e); }
     }
     const orders = Array.isArray(shopifyData) ? shopifyData : (shopifyData ? [shopifyData] : []);
     if (loadEl) loadEl.classList.add('hidden');
     if (dataEl) dataEl.classList.remove('hidden');
-    const cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
-    const cleanEmail = msg.sender && msg.sender.includes('<') ? msg.sender.split('<')[1].replace('>','').trim() : msg.sender;
     const nameEl = document.getElementById('rb-shop-name');
     const emailEl = document.getElementById('rb-shop-email');
     const avatarEl = document.getElementById('rb-shop-avatar');
