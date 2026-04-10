@@ -368,7 +368,7 @@ select.form-input option{background:#0F1623}
             <p class="text-[10px] font-mono text-gray-600 mb-2 uppercase tracking-wider">Customer Email</p>
             <div class="flex gap-3">
               <div id="rb-sender-avatar" class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-display font-700 flex-shrink-0 mt-0.5" style="background:#1D4E3A;color:#00C896">?</div>
-              <div class="flex-1 rounded-xl p-4 text-sm leading-relaxed" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07);color:#C8D0E0;white-space:pre-wrap;font-size:13px"><span id="rb-ticket-body">—</span></div>
+              <div id="rb-timeline-container" class="rounded-xl p-4 mb-4 overflow-y-auto" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07);max-height:340px"><span id="rb-ticket-body">—</span></div>
             </div>
           </div>
           <div id="rb-reasoning-block" class="hidden">
@@ -2445,109 +2445,124 @@ function renderRbTicketList(messages) {
 }
 
 async function rbOpenTicket(msgId) {
-  // Always fetch fresh from DB to get latest ai_draft
   const { data: freshMsg } = await sb.from('messages').select('*').eq('id', msgId).single();
   const msg = freshMsg || rbAllMessages.find(m => m.id === msgId);
   if (!msg) return;
-  // Update local cache
   const idx = rbAllMessages.findIndex(m => m.id === msgId);
   if (idx > -1) rbAllMessages[idx] = msg;
   rbActiveMessage = msg;
-  document.querySelectorAll('[id^="rb-ticket-card-"]').forEach(el => { el.style.background='rgba(255,255,255,0.02)'; el.style.border='1px solid rgba(255,255,255,0.05)'; });
+
+  document.querySelectorAll('[id^="rb-ticket-card-"]').forEach(el => {
+    el.style.background='rgba(255,255,255,0.02)'; el.style.border='1px solid rgba(255,255,255,0.05)';
+  });
   const ac = document.getElementById('rb-ticket-card-'+msgId);
   if (ac) { ac.style.background='rgba(0,200,150,0.07)'; ac.style.border='1px solid rgba(0,200,150,0.25)'; }
+
   document.getElementById('rb-empty-state').classList.add('hidden');
   document.getElementById('rb-active-ticket').classList.remove('hidden');
+
   const cleanName = (msg.sender||'Customer').split('<')[0].replace(/"/g,'').trim();
   document.getElementById('rb-ticket-subject').textContent = msg.subject||'No Subject';
   document.getElementById('rb-ticket-from').textContent = msg.sender||'';
   document.getElementById('rb-ticket-category').textContent = msg.category||'';
-  document.getElementById('rb-ticket-body').textContent = msg.body_text||'';
-  const av = document.getElementById('rb-sender-avatar'); if(av) av.textContent = cleanName.charAt(0).toUpperCase();
+
   const badge = document.getElementById('rb-ticket-badge');
   if(badge){ badge.className = msg.status==='automated'?'badge badge-g text-[10px]':'badge badge-a text-[10px]'; badge.textContent = msg.status==='automated'?'automated':'review'; }
+
+  // ── FETCH FULL CONVERSATION HISTORY ──
+  const senderEmail = msg.sender?.includes('<') ? msg.sender.split('<')[1]?.replace('>','')?.trim() : msg.sender;
+  const { data: history } = await sb.from('messages')
+    .select('id, subject, body_text, sender, received_at, ai_draft, sent_reply, sent_at, ai_reasoning, status')
+    .ilike('sender', `%${senderEmail?.split('@')[0] || 'noreply'}%`)
+    .order('received_at', { ascending: true })
+    .limit(20);
+
+  // ── BUILD TIMELINE IN CUSTOMER EMAIL AREA ──
+  const bodyEl = document.getElementById('rb-ticket-body');
+  const timelineHtml = buildConversationTimeline(history || [], msg, cleanName);
+  
+  // Replace the simple body display with the full timeline
+  const bodyContainer = bodyEl?.closest('div')?.parentElement;
+  if (bodyContainer) {
+    bodyContainer.innerHTML = timelineHtml;
+  } else if (bodyEl) {
+    bodyEl.innerHTML = timelineHtml;
+  }
+
+  // ── AI REASONING ──
   const rb = document.getElementById('rb-reasoning-block'), rt = document.getElementById('rb-reasoning-text');
-  if(msg.ai_reasoning && rt){ rt.textContent=msg.ai_reasoning; rb.classList.remove('hidden'); } else { rb.classList.add('hidden'); }
+  if(msg.ai_reasoning && rt){ rt.textContent=msg.ai_reasoning; rb?.classList.remove('hidden'); } 
+  else { rb?.classList.add('hidden'); }
+
+  // ── DRAFT ──
   const draftArea = document.getElementById('rb-draft-textarea'), draftLoad = document.getElementById('rb-draft-loading');
-  if(msg.ai_draft && msg.ai_draft.length > 10){ draftArea.classList.remove('hidden'); draftLoad.classList.add('hidden'); draftArea.value=msg.ai_draft; }
-  else { draftArea.classList.add('hidden'); draftLoad.classList.remove('hidden'); await rbGenerateDraftForMessage(msg); }
+  if(msg.ai_draft && msg.ai_draft.length > 10){ 
+    draftArea?.classList.remove('hidden'); draftLoad?.classList.add('hidden'); 
+    if(draftArea) draftArea.value=msg.ai_draft; 
+  } else { 
+    draftArea?.classList.add('hidden'); draftLoad?.classList.remove('hidden'); 
+    await rbGenerateDraftForMessage(msg); 
+  }
+
   rbLoadShopifySidebar(msg);
 }
 
-async function rbGenerateDraftForMessage(msg) {
-  const draftArea = document.getElementById('rb-draft-textarea'), draftLoad = document.getElementById('rb-draft-loading');
-  try {
-    const res = await fetch('/api/agents/generate-draft', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({messageId:msg.id}) });
-    const data = await res.json();
-    if(data.draft){
-      await sb.from('messages').update({ai_draft:data.draft,status:'needs_review'}).eq('id',msg.id);
-      const lm = rbAllMessages.find(m=>m.id===msg.id); if(lm) lm.ai_draft=data.draft;
-      draftArea.value=data.draft; draftArea.classList.remove('hidden'); draftLoad.classList.add('hidden');
-      renderRbTicketList(rbAllMessages);
-    } else throw new Error('No draft returned');
-  } catch(err) {
-    console.error('Draft generation error:',err);
-    draftArea.value='Hi,\n\nThank you for reaching out. We\'ll get back to you as soon as possible.\n\nBest regards,\nCustomer Service Team';
-    draftArea.classList.remove('hidden'); draftLoad.classList.add('hidden');
-  }
-}
+function buildConversationTimeline(history, currentMsg, cleanName) {
+  const allItems = [];
 
-async function rbRegenerateDraft() {
-  if(!rbActiveMessage) return;
-  const btn = document.getElementById('rb-regen-btn');
-  if(btn){ btn.textContent='⟳ Generating...'; btn.disabled=true; }
-  const draftArea=document.getElementById('rb-draft-textarea'), draftLoad=document.getElementById('rb-draft-loading');
-  draftArea.classList.add('hidden'); draftLoad.classList.remove('hidden');
-  await sb.from('messages').update({ai_draft:null}).eq('id',rbActiveMessage.id);
-  rbActiveMessage.ai_draft=null;
-  await rbGenerateDraftForMessage(rbActiveMessage);
-  if(btn){ btn.textContent='↺ Regenerate'; btn.disabled=false; }
-}
-
-async function rbLoadShopifySidebar(msg) {
-  const emptyEl=document.getElementById('rb-shopify-empty'), loadEl=document.getElementById('rb-shopify-loading'), dataEl=document.getElementById('rb-shopify-data'), noOrd=document.getElementById('rb-no-orders'), ordList=document.getElementById('rb-orders-list');
-  emptyEl.classList.add('hidden'); dataEl.classList.add('hidden'); loadEl.classList.remove('hidden');
-  try {
-    let shopifyData = null;
-    if(msg.shopify_data){ shopifyData = typeof msg.shopify_data==='string'?JSON.parse(msg.shopify_data):msg.shopify_data; }
-    if(!shopifyData||(Array.isArray(shopifyData)&&shopifyData.length===0)){
-      try {
-        const res = await fetch('/api/shopify/lookup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:msg.sender,messageId:msg.id})});
-        if(res.ok){ const d=await res.json(); shopifyData=d.orders||[]; }
-      } catch(e){ console.warn('Live Shopify lookup failed'); }
-    }
-    const orders = Array.isArray(shopifyData)?shopifyData:(shopifyData?[shopifyData]:[]);
-    loadEl.classList.add('hidden'); dataEl.classList.remove('hidden');
-    const cleanName=(msg.sender||'Customer').split('<')[0].replace(/"/g,'').trim();
-    const cleanEmail=msg.sender?.includes('<')?msg.sender.split('<')[1]?.replace('>','')?.trim():msg.sender;
-    document.getElementById('rb-shop-name').textContent=cleanName;
-    document.getElementById('rb-shop-email').textContent=cleanEmail||'';
-    const sa=document.getElementById('rb-shop-avatar'); if(sa) sa.textContent=cleanName.charAt(0).toUpperCase();
-    if(orders.length===0){ noOrd.classList.remove('hidden'); ordList.innerHTML=''; }
-    else {
-      noOrd.classList.add('hidden');
-      ordList.innerHTML=orders.map(o=>{
-        const sc={'fulfilled':'#00C896','unfulfilled':'#F0A500','partial':'#A78BFA','refunded':'#F87171'}[o.fulfillment_status?.toLowerCase()]||'#5A6785';
-        const pc=o.financial_status==='paid'?'#00C896':'#F87171';
-        return `<div class="rounded-xl overflow-hidden" style="border:1px solid rgba(255,255,255,0.07)">
-          <div class="px-3 py-2 flex justify-between items-center" style="background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.05)">
-            <span class="text-xs font-display font-700 text-white">${o.name||'#'+o.order_number}</span>
-            <span class="text-[9px] font-mono font-700 px-2 py-0.5 rounded-full" style="background:${sc}18;color:${sc}">${(o.fulfillment_status||'unfulfilled').toUpperCase()}</span>
+  // Add all messages from this customer
+  history.forEach(m => {
+    const isCurrentMsg = m.id === currentMsg.id;
+    const date = new Date(m.received_at).toLocaleString('en-GB', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+    
+    // Customer message
+    allItems.push({
+      time: new Date(m.received_at).getTime(),
+      html: `
+        <div class="mb-4">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-700 flex-shrink-0" style="background:#1D4E3A;color:#00C896">${cleanName.charAt(0).toUpperCase()}</div>
+            <span class="text-[10px] font-600 text-white">${cleanName}</span>
+            <span class="text-[9px] font-mono" style="color:#3A4760">${date}</span>
+            ${isCurrentMsg ? '<span class="text-[9px] px-1.5 py-0.5 rounded font-mono" style="background:rgba(0,200,150,0.1);color:#00C896">current</span>' : ''}
           </div>
-          <div class="p-3 space-y-2">
-            <div class="text-[11px] text-gray-400 leading-relaxed">${o.items||'No items'}</div>
-            <div class="flex justify-between items-center pt-1" style="border-top:1px solid rgba(255,255,255,0.05)">
-              <span class="text-[10px] text-gray-600">Total</span>
-              <div class="flex items-center gap-2"><span class="text-xs font-700 text-white">${o.total_price} ${o.currency||''}</span><span class="text-[9px] font-mono px-1.5 py-0.5 rounded" style="background:${pc}18;color:${pc}">${(o.financial_status||'').toUpperCase()}</span></div>
+          <div class="rounded-xl p-3 text-xs leading-relaxed ml-8 ${isCurrentMsg ? '' : 'opacity-70'}" style="background:${isCurrentMsg?'#0F1623':'rgba(255,255,255,0.02)'};border:1px solid ${isCurrentMsg?'rgba(255,255,255,0.1)':'rgba(255,255,255,0.05)'};white-space:pre-wrap;color:#C8D0E0">${m.body_text||''}</div>
+        </div>`
+    });
+
+    // If this message has a sent reply, show it in timeline
+    if (m.sent_reply && m.sent_at) {
+      const sentDate = new Date(m.sent_at).toLocaleString('en-GB', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+      allItems.push({
+        time: new Date(m.sent_at).getTime(),
+        html: `
+          <div class="mb-4">
+            <div class="flex items-center gap-2 mb-2">
+              <div class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-700 flex-shrink-0" style="background:rgba(0,200,150,0.2);color:#00C896">AI</div>
+              <span class="text-[10px] font-600" style="color:#00C896">Respondro</span>
+              <span class="text-[9px] font-mono" style="color:#3A4760">${sentDate}</span>
+              <span class="text-[9px] px-1.5 py-0.5 rounded font-mono" style="background:rgba(0,200,150,0.08);color:#00C896">✓ sent</span>
             </div>
-            ${o.tracking_number?`<div class="flex items-center justify-between" style="border-top:1px solid rgba(255,255,255,0.05);padding-top:8px"><span class="text-[10px] text-gray-600">Tracking</span>${o.tracking_url?`<a href="${o.tracking_url}" target="_blank" class="text-[10px] font-mono hover:underline" style="color:#00C896">${o.tracking_number}</a>`:`<span class="text-[10px] font-mono" style="color:#5A6785">${o.tracking_number}</span>`}</div>`:''}
-            ${o.shipping_address?`<div style="border-top:1px solid rgba(255,255,255,0.05);padding-top:8px"><span class="text-[10px] text-gray-600 block mb-1">Ship to</span><span class="text-[10px] text-gray-400">${o.shipping_address}</span></div>`:''}
-            <div class="text-[9px] text-gray-700 font-mono">${new Date(o.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div>
-          </div>
-        </div>`;
-      }).join('');
+            <div class="rounded-xl p-3 text-xs leading-relaxed ml-8" style="background:rgba(0,200,150,0.04);border:1px solid rgba(0,200,150,0.15);white-space:pre-wrap;color:#C8D0E0">${m.sent_reply}</div>
+            ${m.ai_reasoning ? `
+            <div class="ml-8 mt-1 flex items-start gap-1.5 px-2 py-1.5 rounded-lg" style="background:rgba(240,165,0,0.05);border:1px solid rgba(240,165,0,0.1)">
+              <span class="text-[9px] flex-shrink-0" style="color:#F0A500">🤖</span>
+              <span class="text-[9px]" style="color:#8B7040">${m.ai_reasoning}</span>
+            </div>` : ''}
+          </div>`
+      });
     }
-  } catch(err){ console.error('Shopify sidebar error:',err); loadEl.classList.add('hidden'); dataEl.classList.remove('hidden'); noOrd.classList.remove('hidden'); }
+  });
+
+  // Sort by time
+  allItems.sort((a,b) => a.time - b.time);
+
+  const hasHistory = history.length > 1;
+  return `
+    <div>
+      ${hasHistory ? `<div class="flex items-center gap-2 mb-3"><div style="flex:1;height:1px;background:rgba(255,255,255,0.05)"></div><span class="text-[9px] font-mono px-2" style="color:#3A4760">CONVERSATION HISTORY</span><div style="flex:1;height:1px;background:rgba(255,255,255,0.05)"></div></div>` : ''}
+      ${allItems.map(i => i.html).join('')}
+    </div>`;
 }
 
 async function rbApproveSend() {

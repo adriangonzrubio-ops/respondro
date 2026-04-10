@@ -32,7 +32,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       text: text,
     });
 
-    await supabase.from('messages').update({ status: 'done' }).eq('id', id);
+    await supabase.from('messages').update({ 
+  status: 'done',
+  sent_reply: text,
+  sent_at: new Date().toISOString()
+}).eq('id', id);
     return NextResponse.json({ success: true });
 
   } catch (error: any) {
