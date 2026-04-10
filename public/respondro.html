@@ -2440,10 +2440,9 @@ function renderRbTicketList(messages) {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// 🛠️ RESTORED WORKSPACE & TIMELINE (FIXES THE BLANK SCREEN)
+// 🛠️ WORKSPACE RESTORATION (FIXES BLANK SCREEN & TIMELINE)
 // ══════════════════════════════════════════════════════════════════
 
-// ✅ SENIOR FIX: Added 'async' to prevent the fatal syntax error
 async function rbOpenTicket(msgId) {
     const workspace = document.getElementById('rb-active-ticket');
     const emptyState = document.getElementById('rb-empty-state');
@@ -2454,15 +2453,14 @@ async function rbOpenTicket(msgId) {
     workspace.classList.remove('hidden');
 
     try {
-        // 1. Fetch the absolute latest version of this message
+        // 1. Fetch latest version of this message
         const { data: msg } = await sb.from('messages').select('*').eq('id', msgId).single();
         if (!msg) return;
 
-        // 2. Clear and show loading for the timeline area
+        // 2. Re-render Timeline area with history
         const timelineContainer = document.getElementById('rb-timeline-container');
-        if (timelineContainer) timelineContainer.innerHTML = '<div class="p-10 text-center opacity-20 text-[10px] uppercase tracking-widest">Reconstructing Conversation...</div>';
+        if (timelineContainer) timelineContainer.innerHTML = '<div class="p-10 text-center opacity-20 text-[10px] uppercase tracking-widest">Constructing Conversation...</div>';
 
-        // 3. Fetch full History (Archived Threads)
         const senderEmail = msg.sender?.includes('<') ? msg.sender.split('<')[1]?.replace('>','')?.trim() : msg.sender;
         const { data: history } = await sb.from('messages')
             .select('*')
@@ -2470,7 +2468,7 @@ async function rbOpenTicket(msgId) {
             .order('received_at', { ascending: true })
             .limit(15);
 
-        // 4. Update Header & Badges
+        // 3. Update UI Elements
         document.getElementById('rb-ticket-subject').textContent = msg.subject || 'No Subject';
         document.getElementById('rb-ticket-from').textContent = msg.sender || '';
         document.getElementById('rb-ticket-category').textContent = msg.category || 'General';
@@ -2481,32 +2479,27 @@ async function rbOpenTicket(msgId) {
             badge.textContent = msg.status === 'automated' ? 'automated' : 'review';
         }
 
-        // 5. Render Timeline
+        // 4. Render Timeline
         if (timelineContainer) {
             timelineContainer.innerHTML = buildConversationTimeline(history || [], msg);
-            
-            // Auto-scroll to the bottom of the conversation
-            setTimeout(() => {
-                timelineContainer.scrollTop = timelineContainer.scrollHeight;
-            }, 100);
+            setTimeout(() => { timelineContainer.scrollTop = timelineContainer.scrollHeight; }, 150);
         }
 
-        // 6. Load Shopify Data into Sidebar
+        // 5. Load Shopify Sidebar
         rbLoadShopifySidebar(msg);
 
-        // 7. Ensure a draft exists (Self-healing)
+        // 6. Recovery: Generate draft if missing
         if (!msg.ai_draft || msg.ai_draft.length < 10) {
             generateNewDraft(msg.id);
         }
 
     } catch (error) {
-        console.error("❌ Ticket Load Crash:", error);
+        console.error("❌ Workspace Load Failed:", error);
     }
 }
 
-// ✅ SENIOR FIX: Self-contained Timeline Builder
 function buildConversationTimeline(history, currentMsg) {
-    if (!history || history.length === 0) return `<div class="p-10 text-center text-gray-400">Message body: ${currentMsg.body_text}</div>`;
+    if (!history || history.length === 0) return `<div class="p-10 text-center text-gray-400">Message: ${currentMsg.body_text}</div>`;
 
     return history.map(item => {
         const isCurrent = item.id === currentMsg.id;
@@ -2516,26 +2509,26 @@ function buildConversationTimeline(history, currentMsg) {
 
         return `
             <div class="space-y-6 ${!isCurrent ? 'opacity-50 grayscale hover:opacity-100 hover:grayscale-0 transition-all' : 'animate-slide-up'}">
-                ${!isCurrent ? `<div class="flex items-center gap-2 text-[9px] font-bold text-gray-400 uppercase tracking-widest"><div class="h-px flex-1 bg-gray-100"></div> Past Thread — ${dateStr}<div class="h-px flex-1 bg-gray-100"></div></div>` : ''}
+                ${!isCurrent ? `<div class="flex items-center gap-2 text-[9px] font-bold text-gray-400 uppercase tracking-widest"><div class="h-px flex-1 bg-gray-100"></div> Archive ${dateStr}<div class="h-px flex-1 bg-gray-100"></div></div>` : ''}
                 
-                <div class="flex gap-4">
+                <div class="flex gap-4 text-left">
                     <div class="w-10 h-10 ${isCurrent ? 'bg-surface2 text-accent border-accent/20' : 'bg-gray-100 text-gray-400 border-gray-200'} rounded-full flex items-center justify-center font-bold border shadow-sm">
                         ${cleanSender.charAt(0).toUpperCase()}
                     </div>
                     <div class="flex-1 space-y-2">
-                        <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">${cleanSender} • ${timeStr}</div>
-                        <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm text-[13px] leading-relaxed text-gray-700">
+                        <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wide text-left">${cleanSender} • ${timeStr}</div>
+                        <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm text-[13px] leading-relaxed text-gray-700 text-left">
                             ${item.body_text}
                         </div>
                     </div>
                 </div>
 
                 ${item.ai_draft && isCurrent ? `
-                    <div class="flex gap-4">
+                    <div class="flex gap-4 animate-slide-up text-left">
                         <div class="w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 font-bold border border-emerald-100 shadow-sm">AI</div>
-                        <div class="flex-1 bg-emerald-50/20 border border-emerald-100 p-6 rounded-2xl shadow-sm">
+                        <div class="flex-1 bg-emerald-50/20 border border-emerald-100 p-6 rounded-2xl shadow-sm text-left">
                             <div class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                <div class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div> Proposed Response
+                                <div class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div> Proposed AI Response
                             </div>
                             <div class="text-[13px] text-gray-800 whitespace-pre-wrap leading-relaxed">${item.ai_draft}</div>
                         </div>
@@ -2545,7 +2538,6 @@ function buildConversationTimeline(history, currentMsg) {
     }).join('');
 }
 
-// ✅ SENIOR FIX: Reliable Shopify Sidebar
 function rbLoadShopifySidebar(msg) {
     const sidebar = document.getElementById('rb-shopify-sidebar-container') || document.getElementById('active-ticket-details');
     if (!sidebar) return;
@@ -2553,17 +2545,16 @@ function rbLoadShopifySidebar(msg) {
     let s = msg.shopify_data;
     if (typeof s === 'string') { try { s = JSON.parse(s); } catch(e) { s = null; } }
     
-    // Support both single objects and arrays from the worker
     const order = Array.isArray(s) ? s[0] : s;
     const cleanSender = (msg.sender || 'Customer').split('<')[0].replace(/"/g, '').trim();
 
     sidebar.innerHTML = `
         <div class="p-6 space-y-8 bg-white h-full border-l border-gray-100">
             <div>
-                <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Customer Details</h4>
+                <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 text-left">Customer</h4>
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center font-bold text-gray-400 border border-gray-100">${cleanSender.charAt(0).toUpperCase()}</div>
-                    <div class="overflow-hidden">
+                    <div class="text-left overflow-hidden">
                         <div class="text-sm font-bold text-gray-900 truncate">${cleanSender}</div>
                         <div class="text-[10px] text-gray-500 truncate w-32">${msg.sender}</div>
                     </div>
@@ -2571,67 +2562,20 @@ function rbLoadShopifySidebar(msg) {
             </div>
 
             <div>
-                <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Shopify Order Context</h4>
+                <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 text-left">Shopify Order Context</h4>
                 ${order ? `
-                    <div class="border border-gray-100 rounded-xl p-4 bg-gray-50/50 space-y-3 shadow-sm text-gray-900">
+                    <div class="border border-gray-100 rounded-xl p-4 bg-gray-50/50 space-y-3 shadow-sm text-gray-900 text-left">
                         <div class="flex justify-between items-center">
                             <span class="text-xs font-bold">#${order.order_number || order.name}</span>
-                            <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-600 uppercase border border-blue-200">
-                                ${order.fulfillment_status || 'Paid'}
-                            </span>
+                            <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-600 uppercase border border-blue-200">${order.fulfillment_status || 'Paid'}</span>
                         </div>
-                        <div class="text-[11px] text-gray-600 leading-snug">${order.items || 'Products'}</div>
+                        <div class="text-[11px] text-gray-600 leading-snug">${order.items || 'Order Package'}</div>
                         <div class="pt-3 border-t border-gray-100 flex justify-between text-xs font-bold">
                             <span class="text-gray-400 font-medium">Total</span>
                             <span>${order.total_price} ${order.currency || 'USD'}</span>
                         </div>
-                        <button class="w-full mt-2 py-2 bg-white border border-gray-200 rounded-lg text-[10px] font-bold text-gray-700 hover:bg-gray-50 transition">VIEW IN SHOPIFY</button>
                     </div>
-                ` : `<div class="text-center py-12 border-2 border-dashed border-gray-100 rounded-xl text-[10px] text-gray-400 font-bold uppercase tracking-widest">No Order History</div>`}
-            </div>
-        </div>`;
-}
-
-function rbLoadShopifySidebar(msg) {
-    const sidebar = document.getElementById('active-ticket-details');
-    if (!sidebar) return;
-
-    let s = [];
-    try { s = typeof msg.shopify_data === 'string' ? JSON.parse(msg.shopify_data) : (msg.shopify_data || []); } catch(e) { s = []; }
-    
-    const order = s[0]; // Recent order
-    const cleanSender = (msg.sender || 'Customer').split('<')[0].replace(/"/g, '').trim();
-
-    sidebar.innerHTML = `
-        <div class="p-6 space-y-8 bg-white h-full border-l border-gray-100">
-            <div>
-                <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Customer Details</h4>
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center font-bold text-gray-400 border border-gray-100">${cleanSender.charAt(0).toUpperCase()}</div>
-                    <div class="overflow-hidden">
-                        <div class="text-sm font-bold text-gray-900 truncate">${cleanSender}</div>
-                        <div class="text-[10px] text-gray-500 truncate w-32">${msg.sender}</div>
-                    </div>
-                </div>
-            </div>
-
-            <div>
-                <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Shopify Order Context</h4>
-                ${order ? `
-                    <div class="border border-gray-100 rounded-xl p-4 bg-gray-50/50 space-y-3 shadow-sm">
-                        <div class="flex justify-between items-center">
-                            <span class="text-xs font-bold text-gray-900">#${order.order_number || order.name}</span>
-                            <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-600 uppercase tracking-tighter">
-                                ${order.fulfillment_status || 'Processing'}
-                            </span>
-                        </div>
-                        <div class="text-[11px] text-gray-600">${order.items || 'Standard Order Items'}</div>
-                        <div class="pt-2 border-t border-gray-100 flex justify-between text-xs font-bold text-gray-900">
-                            <span class="text-gray-400 font-medium">Total</span>
-                            <span>${order.total_price} ${order.currency || 'USD'}</span>
-                        </div>
-                    </div>
-                ` : `<div class="text-center py-10 border-2 border-dashed border-gray-100 rounded-xl text-[10px] text-gray-400 font-bold uppercase tracking-widest">No Context Found</div>`}
+                ` : `<div class="text-center py-12 border-2 border-dashed border-gray-100 rounded-xl text-[10px] text-gray-400 font-bold uppercase tracking-widest">No Active History</div>`}
             </div>
         </div>`;
 }
@@ -2684,149 +2628,147 @@ function buildConversationTimeline(history, currentMsg, cleanName) {
     }
 
 // ══════════════════════════════════════════════════════════════════
-// 🛠️ TICKET WORKSPACE & SHOPIFY CONTEXT (CONSOLIDATED)
+// 🛠️ WORKSPACE RESTORATION (FIXES BLANK SCREEN & TIMELINE)
 // ══════════════════════════════════════════════════════════════════
 
-async function rbOpenTicket(msg) {
-    const workspace = document.getElementById('active-ticket-workspace');
+// ✅ SENIOR FIX: Added 'async' to allow the use of 'await'
+async function rbOpenTicket(msgId) {
+    const workspace = document.getElementById('rb-active-ticket');
+    const emptyState = document.getElementById('rb-empty-state');
     if (!workspace) return;
 
-    // Show loading state
-    workspace.innerHTML = `
-        <div class="flex items-center justify-center h-full opacity-20 animate-pulse">
-            <p class="text-[10px] font-bold uppercase tracking-[0.2em]">Analyzing Context...</p>
-        </div>`;
+    // Show Workspace and Hide Empty State
+    if(emptyState) emptyState.classList.add('hidden');
+    workspace.classList.remove('hidden');
 
     try {
-        // 1. Fetch History for Timeline
-        const { data: archives } = await sb
-            .from('messages')
+        // 1. Fetch the absolute latest version of this message
+        const { data: msg } = await sb.from('messages').select('*').eq('id', msgId).single();
+        if (!msg) return;
+
+        // 2. Clear and show loading for the timeline area
+        const timelineContainer = document.getElementById('rb-timeline-container');
+        if (timelineContainer) timelineContainer.innerHTML = '<div class="p-10 text-center opacity-20 text-[10px] uppercase tracking-widest">Reconstructing Conversation...</div>';
+
+        // 3. Fetch full History (Archived Threads)
+        const senderEmail = msg.sender?.includes('<') ? msg.sender.split('<')[1]?.replace('>','')?.trim() : msg.sender;
+        const { data: history } = await sb.from('messages')
             .select('*')
-            .eq('sender', msg.sender)
-            .neq('id', msg.id) 
-            .order('received_at', { ascending: false })
-            .limit(3);
+            .ilike('sender', `%${senderEmail?.split('@')[0] || 'noreply'}%`)
+            .order('received_at', { ascending: true })
+            .limit(15);
 
-        // 2. Build Timeline
-        workspace.innerHTML = buildConversationTimeline(msg, archives || []);
+        // 4. Update UI Elements
+        document.getElementById('rb-ticket-subject').textContent = msg.subject || 'No Subject';
+        document.getElementById('rb-ticket-from').textContent = msg.sender || '';
+        document.getElementById('rb-ticket-category').textContent = msg.category || 'General';
+        
+        const badge = document.getElementById('rb-ticket-badge');
+        if(badge) {
+            badge.className = msg.status === 'automated' ? 'badge badge-g text-[10px]' : 'badge badge-a text-[10px]';
+            badge.textContent = msg.status === 'automated' ? 'automated' : 'review';
+        }
 
-        // 3. Professional Auto-Scroll
-        setTimeout(() => {
-            const scrollArea = workspace.querySelector('.custom-scrollbar');
-            if (scrollArea) scrollArea.scrollTop = scrollArea.scrollHeight;
-        }, 150);
+        // 5. Render Timeline (History + Current)
+        if (timelineContainer) {
+            timelineContainer.innerHTML = buildConversationTimeline(history || [], msg);
+            // Auto-scroll to latest message
+            setTimeout(() => { timelineContainer.scrollTop = timelineContainer.scrollHeight; }, 100);
+        }
 
-        // 4. Update Shopify Sidebar
+        // 6. Load Shopify Data into Sidebar
         rbLoadShopifySidebar(msg);
 
-        // 5. Ensure Draft Exists
-        if (!msg.ai_draft || msg.ai_draft.length < 5) {
+        // 7. Trigger draft generation if missing
+        if (!msg.ai_draft || msg.ai_draft.length < 10) {
             generateNewDraft(msg.id);
         }
 
     } catch (error) {
-        console.error("❌ Ticket Load Failed:", error);
+        console.error("❌ Workspace Load Failed:", error);
     }
 }
 
-function buildConversationTimeline(currentMsg, archives) {
-    const items = [];
-    archives.forEach(a => items.push({ type: 'old', time: new Date(a.received_at), data: a }));
-    items.push({ type: 'new', time: new Date(currentMsg.received_at), data: currentMsg });
-    items.sort((a, b) => a.time - b.time);
+// ✅ FIX: Consolidated timeline builder to prevent "allItems" scope errors
+function buildConversationTimeline(history, currentMsg) {
+    if (!history || history.length === 0) return `<div class="p-10 text-center text-gray-400">Message body: ${currentMsg.body_text}</div>`;
 
-    return `
-    <div class="flex flex-col h-full bg-[#FCFCFD]">
-        <div class="flex-1 overflow-y-auto p-10 space-y-10 custom-scrollbar">
-            ${items.map(item => {
-                const dateStr = item.time.toLocaleDateString();
-                const timeStr = item.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return history.map(item => {
+        const isCurrent = item.id === currentMsg.id;
+        const dateStr = new Date(item.received_at).toLocaleDateString();
+        const timeStr = new Date(item.received_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const cleanSender = (item.sender || 'Customer').split('<')[0].replace(/"/g, '').trim();
 
-                if (item.type === 'old') {
-                    return `
-                        <div class="opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all">
-                            <div class="flex items-center gap-3 mb-3">
-                                <div class="h-px flex-1 bg-gray-200"></div>
-                                <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">${dateStr}</span>
-                                <div class="h-px flex-1 bg-gray-200"></div>
-                            </div>
-                            <div class="bg-white border border-gray-100 p-5 rounded-2xl text-[11px] text-gray-500 italic shadow-sm">
-                                "${item.data.body_text.slice(0, 120)}..."
-                            </div>
-                        </div>`;
-                }
-
-                const cleanSender = (item.data.sender || 'Customer').split('<')[0].replace(/"/g, '').trim();
-                return `
-                    <div class="space-y-8">
-                        <div class="flex gap-5">
-                            <div class="w-11 h-11 bg-gray-100 rounded-full flex items-center justify-center font-bold text-gray-400 border border-gray-200 shadow-sm">
-                                ${cleanSender.charAt(0).toUpperCase()}
-                            </div>
-                            <div class="flex-1 space-y-2">
-                                <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">${cleanSender} • ${timeStr}</div>
-                                <div class="bg-white border border-gray-200 p-7 rounded-3xl shadow-sm text-[13px] text-gray-700 leading-relaxed">
-                                    ${item.data.body_text}
-                                </div>
-                            </div>
+        return `
+            <div class="space-y-6 ${!isCurrent ? 'opacity-50 grayscale hover:opacity-100 hover:grayscale-0 transition-all' : 'animate-slide-up'}">
+                ${!isCurrent ? `<div class="flex items-center gap-2 text-[9px] font-bold text-gray-400 uppercase tracking-widest"><div class="h-px flex-1 bg-gray-100"></div> Past Thread — ${dateStr}<div class="h-px flex-1 bg-gray-100"></div></div>` : ''}
+                
+                <div class="flex gap-4">
+                    <div class="w-10 h-10 ${isCurrent ? 'bg-surface2 text-accent border-accent/20' : 'bg-gray-100 text-gray-400 border-gray-200'} rounded-full flex items-center justify-center font-bold border shadow-sm">
+                        ${cleanSender.charAt(0).toUpperCase()}
+                    </div>
+                    <div class="flex-1 space-y-2 text-left">
+                        <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">${cleanSender} • ${timeStr}</div>
+                        <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm text-[13px] leading-relaxed text-gray-700">
+                            ${item.body_text}
                         </div>
-                        ${item.data.ai_draft ? `
-                            <div class="flex gap-5 animate-slide-up">
-                                <div class="w-11 h-11 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 font-bold border border-emerald-100 shadow-sm">AI</div>
-                                <div class="flex-1 bg-emerald-50/20 border border-emerald-100 p-7 rounded-3xl shadow-sm">
-                                    <div class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                        <div class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div> Drafted Response
-                                    </div>
-                                    <div class="text-[13px] text-gray-800 whitespace-pre-wrap leading-relaxed">${item.data.ai_draft}</div>
-                                </div>
+                    </div>
+                </div>
+
+                ${item.ai_draft && isCurrent ? `
+                    <div class="flex gap-4 animate-slide-up">
+                        <div class="w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 font-bold border border-emerald-100 shadow-sm">AI</div>
+                        <div class="flex-1 bg-emerald-50/20 border border-emerald-100 p-6 rounded-2xl shadow-sm text-left">
+                            <div class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                <div class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div> Proposed Response
                             </div>
-                        ` : ''}
-                    </div>`;
-            }).join('')}
-        </div>
-    </div>`;
+                            <div class="text-[13px] text-gray-800 whitespace-pre-wrap leading-relaxed">${item.ai_draft}</div>
+                        </div>
+                    </div>
+                ` : ''}
+            </div>`;
+    }).join('');
 }
 
 function rbLoadShopifySidebar(msg) {
-    const sidebar = document.getElementById('active-ticket-details');
+    const sidebar = document.getElementById('rb-shopify-sidebar-container') || document.getElementById('active-ticket-details');
     if (!sidebar) return;
 
-    let s = [];
-    try { s = typeof msg.shopify_data === 'string' ? JSON.parse(msg.shopify_data) : (msg.shopify_data || []); } catch(e) { s = []; }
+    let s = msg.shopify_data;
+    if (typeof s === 'string') { try { s = JSON.parse(s); } catch(e) { s = null; } }
     
-    const order = s[0];
+    const order = Array.isArray(s) ? s[0] : s;
     const cleanSender = (msg.sender || 'Customer').split('<')[0].replace(/"/g, '').trim();
 
     sidebar.innerHTML = `
-        <div class="p-8 space-y-10 bg-white h-full border-l border-gray-100">
+        <div class="p-6 space-y-8 bg-white h-full border-l border-gray-100">
             <div>
-                <h4 class="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] mb-5">Customer</h4>
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center font-bold text-gray-400 border border-gray-100">${cleanSender.charAt(0).toUpperCase()}</div>
-                    <div>
-                        <div class="text-sm font-bold text-gray-900">${cleanSender}</div>
-                        <div class="text-[10px] text-gray-400 truncate w-40">${msg.sender}</div>
+                <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 text-left">Customer Details</h4>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center font-bold text-gray-400 border border-gray-100">${cleanSender.charAt(0).toUpperCase()}</div>
+                    <div class="overflow-hidden text-left">
+                        <div class="text-sm font-bold text-gray-900 truncate">${cleanSender}</div>
+                        <div class="text-[10px] text-gray-500 truncate w-32">${msg.sender}</div>
                     </div>
                 </div>
             </div>
 
             <div>
-                <h4 class="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] mb-5">Shopify Data</h4>
+                <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 text-left">Shopify Order Context</h4>
                 ${order ? `
-                    <div class="border border-gray-100 rounded-2xl p-5 bg-gray-50/30 space-y-4 shadow-sm">
+                    <div class="border border-gray-100 rounded-xl p-4 bg-gray-50/50 space-y-3 shadow-sm text-gray-900 text-left">
                         <div class="flex justify-between items-center">
-                            <span class="text-xs font-bold text-gray-900">#${order.order_number || order.name}</span>
-                            <span class="px-2.5 py-1 rounded-md text-[9px] font-bold bg-blue-50 text-blue-600 border border-blue-100 uppercase">
-                                ${order.fulfillment_status || 'Paid'}
-                            </span>
+                            <span class="text-xs font-bold">#${order.order_number || order.name}</span>
+                            <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-600 uppercase border border-blue-200">${order.fulfillment_status || 'Paid'}</span>
                         </div>
-                        <div class="text-[11px] text-gray-500 leading-snug">${order.items || 'Products'}</div>
-                        <div class="pt-4 border-t border-gray-100 flex justify-between text-xs font-bold text-gray-900">
+                        <div class="text-[11px] text-gray-600 leading-snug">${order.items || 'Standard Package'}</div>
+                        <div class="pt-3 border-t border-gray-100 flex justify-between text-xs font-bold">
                             <span class="text-gray-400 font-medium">Total</span>
                             <span>${order.total_price} ${order.currency || 'USD'}</span>
                         </div>
+                        <button class="w-full mt-2 py-2 bg-white border border-gray-200 rounded-lg text-[10px] font-bold text-gray-700 hover:bg-gray-50 transition">VIEW IN SHOPIFY</button>
                     </div>
-                ` : `<div class="text-center py-16 border-2 border-dashed border-gray-100 rounded-2xl text-[10px] text-gray-400 font-bold uppercase tracking-widest">No Order Context</div>`}
+                ` : `<div class="text-center py-12 border-2 border-dashed border-gray-100 rounded-xl text-[10px] text-gray-400 font-bold uppercase tracking-widest">No Active Order</div>`}
             </div>
         </div>`;
 }
