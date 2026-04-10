@@ -2488,65 +2488,91 @@ if (timelineContainer) {
   if(msg.ai_reasoning && rt){ rt.textContent=msg.ai_reasoning; rb?.classList.remove('hidden'); } 
   else { rb?.classList.add('hidden'); }
 
-  // ── DRAFT ──
-  const draftArea = document.getElementById('rb-draft-textarea'), draftLoad = document.getElementById('rb-draft-loading');
-  if(msg.ai_draft && msg.ai_draft.length > 10){ 
-    draftArea?.classList.remove('hidden'); draftLoad?.classList.add('hidden'); 
-    if(draftArea) draftArea.value=msg.ai_draft; 
-  } else { 
-    draftArea?.classList.add('hidden'); draftLoad?.classList.remove('hidden'); 
-    await rbGenerateDraftForMessage(msg); 
+  // ── DRAFT — hide if already sent ──
+  const draftArea = document.getElementById('rb-draft-textarea');
+  const draftLoad = document.getElementById('rb-draft-loading');
+  const draftSection = draftArea?.closest('div.flex-1');
+  const actionBar = document.querySelector('[onclick="rbApproveSend()"]')?.closest('div.flex');
+
+  if (msg.sent_reply) {
+    // Already replied — hide draft entirely, show "replied" state
+    draftSection?.closest('div')?.classList.add('hidden');
+    if (actionBar) actionBar.innerHTML = '<div class="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-mono" style="background:rgba(0,200,150,0.06);border:1px solid rgba(0,200,150,0.15);color:#00C896">\u2713 Reply sent</div>';
+  } else {
+    draftSection?.closest('div')?.classList.remove('hidden');
+    if (msg.ai_draft && msg.ai_draft.length > 10) {
+      draftArea?.classList.remove('hidden');
+      draftLoad?.classList.add('hidden');
+      if (draftArea) draftArea.value = msg.ai_draft;
+    } else {
+      draftArea?.classList.add('hidden');
+      draftLoad?.classList.remove('hidden');
+      await rbGenerateDraftForMessage(msg);
+    }
   }
 
-  rbLoadShopifySidebar(msg);
-}
+  // Auto-scroll timeline to bottom (newest last)
+  setTimeout(() => {
+    const tc = document.getElementById('rb-timeline-container');
+    if (tc) tc.scrollTop = tc.scrollHeight;
+  }, 100);
 
 function buildConversationTimeline(history, currentMsg, cleanName) {
   const allItems = [];
 
-  // Add all messages from this customer
-  history.forEach(m => {
+  history.forEach(function(m) {
     const isCurrentMsg = m.id === currentMsg.id;
     const date = new Date(m.received_at).toLocaleString('en-GB', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
-    
-    // Customer message
-    allItems.push({
-      time: new Date(m.received_at).getTime(),
-      html: `
-        <div class="mb-4">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-700 flex-shrink-0" style="background:#1D4E3A;color:#00C896">${cleanName.charAt(0).toUpperCase()}</div>
-            <span class="text-[10px] font-600 text-white">${cleanName}</span>
-            <span class="text-[9px] font-mono" style="color:#3A4760">${date}</span>
-            ${isCurrentMsg ? '<span class="text-[9px] px-1.5 py-0.5 rounded font-mono" style="background:rgba(0,200,150,0.1);color:#00C896">current</span>' : ''}
-          </div>
-          <div class="rounded-xl p-3 text-xs leading-relaxed ml-8 ${isCurrentMsg ? '' : 'opacity-70'}" style="background:${isCurrentMsg?'#0F1623':'rgba(255,255,255,0.02)'};border:1px solid ${isCurrentMsg?'rgba(255,255,255,0.1)':'rgba(255,255,255,0.05)'};white-space:pre-wrap;color:#C8D0E0">${m.body_text||''}</div>
-        </div>`
-    });
+    const initial = cleanName.charAt(0).toUpperCase();
+    const currentBadge = isCurrentMsg ? '<span class="text-[9px] px-1.5 py-0.5 rounded font-mono" style="background:rgba(0,200,150,0.1);color:#00C896">current</span>' : '';
+    const msgBg = isCurrentMsg ? '#0F1623' : 'rgba(255,255,255,0.02)';
+    const msgBorder = isCurrentMsg ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)';
+    const msgOpacity = isCurrentMsg ? '1' : '0.7';
 
-    // If this message has a sent reply, show it in timeline
+    const customerHtml = '<div class="mb-4">'
+      + '<div class="flex items-center gap-2 mb-2">'
+      + '<div class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-700 flex-shrink-0" style="background:#1D4E3A;color:#00C896">' + initial + '</div>'
+      + '<span class="text-[10px] font-600 text-white">' + cleanName + '</span>'
+      + '<span class="text-[9px] font-mono" style="color:#3A4760">' + date + '</span>'
+      + currentBadge
+      + '</div>'
+      + '<div class="rounded-xl p-3 text-xs leading-relaxed ml-8" style="background:' + msgBg + ';border:1px solid ' + msgBorder + ';white-space:pre-wrap;color:#C8D0E0;opacity:' + msgOpacity + '">' + (m.body_text || '') + '</div>'
+      + '</div>';
+
+    allItems.push({ time: new Date(m.received_at).getTime(), html: customerHtml });
+
     if (m.sent_reply && m.sent_at) {
       const sentDate = new Date(m.sent_at).toLocaleString('en-GB', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
-      allItems.push({
-        time: new Date(m.sent_at).getTime(),
-        html: `
-          <div class="mb-4">
-            <div class="flex items-center gap-2 mb-2">
-              <div class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-700 flex-shrink-0" style="background:rgba(0,200,150,0.2);color:#00C896">AI</div>
-              <span class="text-[10px] font-600" style="color:#00C896">Respondro</span>
-              <span class="text-[9px] font-mono" style="color:#3A4760">${sentDate}</span>
-              <span class="text-[9px] px-1.5 py-0.5 rounded font-mono" style="background:rgba(0,200,150,0.08);color:#00C896">✓ sent</span>
-            </div>
-            <div class="rounded-xl p-3 text-xs leading-relaxed ml-8" style="background:rgba(0,200,150,0.04);border:1px solid rgba(0,200,150,0.15);white-space:pre-wrap;color:#C8D0E0">${m.sent_reply}</div>
-            ${m.ai_reasoning ? `
-            <div class="ml-8 mt-1 flex items-start gap-1.5 px-2 py-1.5 rounded-lg" style="background:rgba(240,165,0,0.05);border:1px solid rgba(240,165,0,0.1)">
-              <span class="text-[9px] flex-shrink-0" style="color:#F0A500">🤖</span>
-              <span class="text-[9px]" style="color:#8B7040">${m.ai_reasoning}</span>
-            </div>` : ''}
-          </div>`
-      });
+      const reasoningHtml = m.ai_reasoning
+        ? '<div class="ml-8 mt-1 flex items-start gap-1.5 px-2 py-1.5 rounded-lg" style="background:rgba(240,165,0,0.05);border:1px solid rgba(240,165,0,0.1)">'
+          + '<span class="text-[9px] flex-shrink-0" style="color:#F0A500">&#x1F916;</span>'
+          + '<span class="text-[9px]" style="color:#8B7040">' + m.ai_reasoning + '</span>'
+          + '</div>'
+        : '';
+
+      const replyHtml = '<div class="mb-4">'
+        + '<div class="flex items-center gap-2 mb-2">'
+        + '<div class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-700 flex-shrink-0" style="background:rgba(0,200,150,0.2);color:#00C896">AI</div>'
+        + '<span class="text-[10px] font-600" style="color:#00C896">Respondro</span>'
+        + '<span class="text-[9px] font-mono" style="color:#3A4760">' + sentDate + '</span>'
+        + '<span class="text-[9px] px-1.5 py-0.5 rounded font-mono" style="background:rgba(0,200,150,0.08);color:#00C896">&#x2713; sent</span>'
+        + '</div>'
+        + '<div class="rounded-xl p-3 text-xs leading-relaxed ml-8" style="background:rgba(0,200,150,0.04);border:1px solid rgba(0,200,150,0.15);white-space:pre-wrap;color:#C8D0E0">' + m.sent_reply + '</div>'
+        + reasoningHtml
+        + '</div>';
+
+      allItems.push({ time: new Date(m.sent_at).getTime(), html: replyHtml });
     }
   });
+
+  allItems.sort(function(a, b) { return a.time - b.time; });
+
+  const divider = history.length > 1
+    ? '<div class="flex items-center gap-2 mb-3"><div style="flex:1;height:1px;background:rgba(255,255,255,0.05)"></div><span class="text-[9px] font-mono px-2" style="color:#3A4760">CONVERSATION HISTORY</span><div style="flex:1;height:1px;background:rgba(255,255,255,0.05)"></div></div>'
+    : '';
+
+  return '<div>' + divider + allItems.map(function(i) { return i.html; }).join('') + '</div>';
+}
 
   // Sort by time
   allItems.sort((a,b) => a.time - b.time);
@@ -2567,7 +2593,7 @@ async function rbApproveSend() {
   try {
     const res=await fetch(`/api/messages/${rbActiveMessage.id}/send`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:draft,customerEmail:rbActiveMessage.sender})});
     if(!res.ok) throw new Error('HTTP '+res.status);
-    await sb.from('messages').update({status:'done'}).eq('id',rbActiveMessage.id);
+    await sb.from('messages').update({status:'done', sent_reply:draft, sent_at:new Date().toISOString()}).eq('id',rbActiveMessage.id);
     rbAllMessages=rbAllMessages.filter(m=>m.id!==rbActiveMessage.id);
     renderRbTicketList(rbAllMessages); rbCloseTicket(); updateRbPendingCount(); showToast('✓ Reply sent');
   } catch(err){ console.error('Send error:',err); showToast('Failed to send'); }
