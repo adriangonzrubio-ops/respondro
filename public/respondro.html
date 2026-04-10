@@ -367,10 +367,6 @@ select.form-input option{background:#0F1623}
           <div>
             <p class="text-[10px] font-mono text-gray-600 mb-2 uppercase tracking-wider">Conversation</p>
             <div id="rb-timeline-container" class="rounded-xl p-3 overflow-y-auto mb-2" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07);max-height:260px"><span id="rb-ticket-body">—</span></div>
-            <div id="rb-reasoning-block" class="flex items-start gap-2 px-3 py-2 rounded-lg text-xs" style="background:rgba(240,165,0,0.06);border:1px solid rgba(240,165,0,0.15);color:#C9A040"></div>
-              <span class="flex-shrink-0 mt-0.5">🤖</span>
-              <span id="rb-reasoning-text"></span>
-            </div>
           </div>
           <div>
             <div class="flex items-center justify-between mb-2">
@@ -399,7 +395,7 @@ select.form-input option{background:#0F1623}
         </div>
       </div>
     </div>
-    <div id="rb-shopify-sidebar" class="flex flex-col border-l border-white/5 overflow-y-auto flex-shrink-0" style="width:260px;background:#0b1120">
+    <div id="rb-shopify-sidebar" class="flex flex-col border-l border-white/5 overflow-y-auto" style="width:320px;min-width:320px;flex-shrink:0;background:#0b1120">
       <div class="p-4 border-b border-white/5">
         <p class="text-[10px] font-mono uppercase tracking-widest text-gray-600">Shopify Orders</p>
       </div>
@@ -2538,7 +2534,7 @@ function buildConversationTimeline(history, currentMsg) {
     if (m.sent_reply && m.sent_at) {
       var sentDate = new Date(m.sent_at).toLocaleString('en-GB', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
       var reasoningHtml = m.ai_reasoning
-        ? '<div class="ml-8 mt-1 flex items-start gap-1.5 px-2 py-1.5 rounded-lg" style="background:rgba(240,165,0,0.05);border:1px solid rgba(240,165,0,0.1)"><span class="text-[9px] flex-shrink-0" style="color:#F0A500">&#x1F916;</span><span class="text-[9px]" style="color:#8B7040">' + m.ai_reasoning + '</span></div>'
+        ? '<div class="ml-8 mt-2 flex items-start gap-2 px-4 py-3 rounded-xl" style="background:rgba(240,165,0,0.08);border:1px solid rgba(240,165,0,0.2)"><span class="text-sm flex-shrink-0" style="color:#F0A500">🤖</span><span class="text-xs leading-relaxed" style="color:#C9A040">' + m.ai_reasoning + '</span></div>'
         : '';
       var replyHtml = '<div class="mb-4">'
         + '<div class="flex items-center gap-2 mb-2">'
@@ -2671,6 +2667,7 @@ async function rbApproveSend() {
     const res = await fetch('/api/messages/' + rbActiveMessage.id + '/send', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:draft,customerEmail:rbActiveMessage.sender})});
     if (!res.ok) throw new Error('HTTP ' + res.status);
     await sb.from('messages').update({status:'done', sent_reply:draft, sent_at:new Date().toISOString()}).eq('id',rbActiveMessage.id);
+    var draftEl = document.getElementById('rb-draft-textarea'); if (draftEl) draftEl.value = '';
     rbAllMessages = rbAllMessages.filter(function(m) { return m.id !== rbActiveMessage.id; });
     renderRbTicketList(rbAllMessages); rbCloseTicket(); updateRbPendingCount(); showToast('✓ Reply sent');
   } catch(err) { console.error('Send error:', err); showToast('Failed to send'); }
