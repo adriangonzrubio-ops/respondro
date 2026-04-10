@@ -2439,83 +2439,150 @@ function renderRbTicketList(messages) {
   }).join('');
 }
 
-async function rbOpenTicket(msgId) {
-  const { data: freshMsg } = await sb.from('messages').select('*').eq('id', msgId).single();
-  const msg = freshMsg || rbAllMessages.find(m => m.id === msgId);
-  if (!msg) return;
-  const idx = rbAllMessages.findIndex(m => m.id === msgId);
-  if (idx > -1) rbAllMessages[idx] = msg;
-  rbActiveMessage = msg;
+// ══════════════════════════════════════════════════════════════════
+// 🛠️ CONSOLIDATED WORKSPACE LOGIC (FIXES ALL-ITEMS & SIDEBAR)
+// ══════════════════════════════════════════════════════════════════
 
-  document.querySelectorAll('[id^="rb-ticket-card-"]').forEach(el => {
-    el.style.background='rgba(255,255,255,0.02)'; el.style.border='1px solid rgba(255,255,255,0.05)';
-  });
-  const ac = document.getElementById('rb-ticket-card-'+msgId);
-  if (ac) { ac.style.background='rgba(0,200,150,0.07)'; ac.style.border='1px solid rgba(0,200,150,0.25)'; }
+async function rbOpenTicket(msg) {
+    const workspace = document.getElementById('active-ticket-workspace');
+    if (!workspace) return;
 
-  document.getElementById('rb-empty-state').classList.add('hidden');
-  document.getElementById('rb-active-ticket').classList.remove('hidden');
+    // Reset view
+    workspace.innerHTML = '<div class="p-8 text-center opacity-30 italic text-xs">Loading Intelligence...</div>';
 
-  const cleanName = (msg.sender||'Customer').split('<')[0].replace(/"/g,'').trim();
-  document.getElementById('rb-ticket-subject').textContent = msg.subject||'No Subject';
-  document.getElementById('rb-ticket-from').textContent = msg.sender||'';
-  document.getElementById('rb-ticket-category').textContent = msg.category||'';
+    try {
+        // 1. Fetch Archives for Context
+        const { data: archives } = await sb
+            .from('messages')
+            .select('*')
+            .eq('sender', msg.sender)
+            .neq('id', msg.id) 
+            .order('received_at', { ascending: false })
+            .limit(3);
 
-  const badge = document.getElementById('rb-ticket-badge');
-  if(badge){ badge.className = msg.status==='automated'?'badge badge-g text-[10px]':'badge badge-a text-[10px]'; badge.textContent = msg.status==='automated'?'automated':'review'; }
+        // 2. Build and Render Timeline
+        workspace.innerHTML = buildConversationTimeline(msg, archives || []);
 
-  // ── FETCH FULL CONVERSATION HISTORY ──
-  const senderEmail = msg.sender?.includes('<') ? msg.sender.split('<')[1]?.replace('>','')?.trim() : msg.sender;
-  const { data: history } = await sb.from('messages')
-    .select('id, subject, body_text, sender, received_at, ai_draft, sent_reply, sent_at, ai_reasoning, status')
-    .ilike('sender', `%${senderEmail?.split('@')[0] || 'noreply'}%`)
-    .order('received_at', { ascending: true })
-    .limit(20);
+        // 3. Auto-scroll to bottom (Replaces your highlighted code)
+        setTimeout(() => {
+            const container = workspace.querySelector('.custom-scrollbar') || workspace;
+            container.scrollTop = container.scrollHeight;
+        }, 100);
 
-  // ── BUILD TIMELINE IN CUSTOMER EMAIL AREA ──
-  const timelineHtml = buildConversationTimeline(history || [], msg, cleanName);
-const timelineContainer = document.getElementById('rb-timeline-container');
-if (timelineContainer) {
-  timelineContainer.innerHTML = timelineHtml;
-} else {
-  // Fallback: write into rb-ticket-body's parent
-  const bodyEl = document.getElementById('rb-ticket-body');
-  if (bodyEl?.parentElement) bodyEl.parentElement.innerHTML = timelineHtml;
+        // 4. Render Shopify Sidebar
+        rbLoadShopifySidebar(msg);
+
+        // 5. Auto-generate draft if missing
+        if (!msg.ai_draft || msg.ai_draft.length < 5) {
+            generateNewDraft(msg.id);
+        }
+
+    } catch (error) {
+        console.error("❌ Workspace Error:", error);
+    }
 }
 
-  // ── AI REASONING ──
-  const rb = document.getElementById('rb-reasoning-block'), rt = document.getElementById('rb-reasoning-text');
-  if(msg.ai_reasoning && rt){ rt.textContent=msg.ai_reasoning; rb?.classList.remove('hidden'); } 
-  else { rb?.classList.add('hidden'); }
+function buildConversationTimeline(currentMsg, archives) {
+    const timelineItems = [];
 
-  // ── DRAFT — hide if already sent ──
-  const draftArea = document.getElementById('rb-draft-textarea');
-  const draftLoad = document.getElementById('rb-draft-loading');
-  const draftSection = draftArea?.closest('div.flex-1');
-  const actionBar = document.querySelector('[onclick="rbApproveSend()"]')?.closest('div.flex');
+    // Add Archive
+    archives.forEach(a => {
+        timelineItems.push({ type: 'archive', time: new Date(a.received_at).getTime(), data: a });
+    });
 
-  if (msg.sent_reply) {
-    // Already replied — hide draft entirely, show "replied" state
-    draftSection?.closest('div')?.classList.add('hidden');
-    if (actionBar) actionBar.innerHTML = '<div class="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-mono" style="background:rgba(0,200,150,0.06);border:1px solid rgba(0,200,150,0.15);color:#00C896">\u2713 Reply sent</div>';
-  } else {
-    draftSection?.closest('div')?.classList.remove('hidden');
-    if (msg.ai_draft && msg.ai_draft.length > 10) {
-      draftArea?.classList.remove('hidden');
-      draftLoad?.classList.add('hidden');
-      if (draftArea) draftArea.value = msg.ai_draft;
-    } else {
-      draftArea?.classList.add('hidden');
-      draftLoad?.classList.remove('hidden');
-      await rbGenerateDraftForMessage(msg);
-    }
-  }
+    // Add Current
+    timelineItems.push({ type: 'current', time: new Date(currentMsg.received_at).getTime(), data: currentMsg });
 
-  // Auto-scroll timeline to bottom (newest last)
-  setTimeout(() => {
-    const tc = document.getElementById('rb-timeline-container');
-    if (tc) tc.scrollTop = tc.scrollHeight;
-  }, 100);
+    // Sort Oldest to Newest
+    timelineItems.sort((a, b) => a.time - b.time);
+
+    return `
+    <div class="flex flex-col h-full bg-white">
+        <div class="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
+            ${timelineItems.map(item => {
+                if (item.type === 'archive') {
+                    return `
+                        <div class="mb-6 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all">
+                            <div class="flex items-center gap-2 mb-2 text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                                <div class="h-px flex-1 bg-gray-200"></div> Past Thread — ${new Date(item.data.received_at).toLocaleDateString()}
+                            </div>
+                            <div class="bg-gray-50 border border-gray-100 p-4 rounded-xl text-[11px] italic text-gray-500">
+                                "${item.data.body_text.slice(0, 100)}..."
+                            </div>
+                        </div>`;
+                }
+
+                const cleanSender = (item.data.sender || 'Customer').split('<')[0].replace(/"/g, '').trim();
+                return `
+                    <div class="space-y-6">
+                        <div class="flex gap-4">
+                            <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center font-bold text-gray-400 shadow-sm border border-gray-200">
+                                ${cleanSender.charAt(0).toUpperCase()}
+                            </div>
+                            <div class="flex-1 bg-white border border-gray-200 p-6 rounded-2xl shadow-sm text-sm text-gray-700 leading-relaxed">
+                                ${item.data.body_text}
+                            </div>
+                        </div>
+                        ${item.data.ai_draft ? `
+                            <div class="flex gap-4 animate-slide-up">
+                                <div class="w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 font-bold shadow-sm border border-emerald-100">AI</div>
+                                <div class="flex-1 bg-emerald-50/30 border border-emerald-100 p-6 rounded-2xl shadow-sm">
+                                    <div class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                        <div class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div> Proposed Response
+                                    </div>
+                                    <div class="text-sm text-gray-800 whitespace-pre-wrap">${item.data.ai_draft}</div>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>`;
+            }).join('')}
+        </div>
+    </div>`;
+}
+
+function rbLoadShopifySidebar(msg) {
+    const sidebar = document.getElementById('active-ticket-details');
+    if (!sidebar) return;
+
+    let s = [];
+    try { s = typeof msg.shopify_data === 'string' ? JSON.parse(msg.shopify_data) : (msg.shopify_data || []); } catch(e) { s = []; }
+    
+    const order = s[0]; // Recent order
+    const cleanSender = (msg.sender || 'Customer').split('<')[0].replace(/"/g, '').trim();
+
+    sidebar.innerHTML = `
+        <div class="p-6 space-y-8 bg-white h-full border-l border-gray-100">
+            <div>
+                <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Customer Details</h4>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center font-bold text-gray-400 border border-gray-100">${cleanSender.charAt(0).toUpperCase()}</div>
+                    <div class="overflow-hidden">
+                        <div class="text-sm font-bold text-gray-900 truncate">${cleanSender}</div>
+                        <div class="text-[10px] text-gray-500 truncate w-32">${msg.sender}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Shopify Order Context</h4>
+                ${order ? `
+                    <div class="border border-gray-100 rounded-xl p-4 bg-gray-50/50 space-y-3 shadow-sm">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold text-gray-900">#${order.order_number || order.name}</span>
+                            <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-600 uppercase tracking-tighter">
+                                ${order.fulfillment_status || 'Processing'}
+                            </span>
+                        </div>
+                        <div class="text-[11px] text-gray-600">${order.items || 'Standard Order Items'}</div>
+                        <div class="pt-2 border-t border-gray-100 flex justify-between text-xs font-bold text-gray-900">
+                            <span class="text-gray-400 font-medium">Total</span>
+                            <span>${order.total_price} ${order.currency || 'USD'}</span>
+                        </div>
+                    </div>
+                ` : `<div class="text-center py-10 border-2 border-dashed border-gray-100 rounded-xl text-[10px] text-gray-400 font-bold uppercase tracking-widest">No Context Found</div>`}
+            </div>
+        </div>`;
+}
 
 function buildConversationTimeline(history, currentMsg, cleanName) {
   const allItems = [];
@@ -2563,6 +2630,69 @@ function buildConversationTimeline(history, currentMsg, cleanName) {
 
       allItems.push({ time: new Date(m.sent_at).getTime(), html: replyHtml });
     }
+
+    // 🛠️ NEW FUNCTION: Restoration for the Shopify Context Sidebar
+function rbLoadShopifySidebar(msg) {
+    const sidebar = document.getElementById('active-ticket-details');
+    if (!sidebar) return;
+
+    let s = [];
+    try {
+        // This handles both raw JSON and strings from Supabase
+        s = typeof msg.shopify_data === 'string' ? JSON.parse(msg.shopify_data) : (msg.shopify_data || []);
+    } catch(e) { 
+        console.error("❌ Shopify Data Parse Error:", e);
+        s = []; 
+    }
+
+    const cleanSender = (msg.sender || 'Customer').split('<')[0].replace(/"/g, '').trim();
+    
+    // We take the most recent order from the scout history
+    const order = (Array.isArray(s) && s.length > 0) ? s[0] : null;
+
+    sidebar.innerHTML = `
+        <div class="p-6 space-y-8 h-full bg-white border-l border-gray-100">
+            <div>
+                <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Customer Info</h4>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center font-bold text-gray-400 border border-gray-100">
+                        ${cleanSender.charAt(0).toUpperCase()}
+                    </div>
+                    <div class="overflow-hidden">
+                        <div class="text-sm font-bold text-gray-900 truncate">${cleanSender}</div>
+                        <div class="text-[10px] text-gray-500 truncate">${msg.sender}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Shopify Context</h4>
+                ${order ? `
+                    <div class="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-3 shadow-sm">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold text-gray-900">#${order.order_number || order.name}</span>
+                            <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-600 uppercase tracking-tighter">
+                                ${order.fulfillment_status || 'Processing'}
+                            </span>
+                        </div>
+                        <div class="text-[11px] text-gray-600 line-clamp-2">${order.items || 'Order Details'}</div>
+                        <div class="pt-3 border-t border-gray-200 flex justify-between text-xs font-bold">
+                            <span class="text-gray-400 font-medium">Total</span>
+                            <span class="text-gray-900">${order.total_price} ${order.currency || 'USD'}</span>
+                        </div>
+                        <button class="w-full mt-2 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg text-[10px] font-bold text-gray-700 transition shadow-sm">
+                            VIEW IN SHOPIFY
+                        </button>
+                    </div>
+                ` : `
+                    <div class="text-center py-12 border-2 border-dashed border-gray-100 rounded-xl">
+                        <div class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">No Active Orders</div>
+                        <p class="text-[9px] text-gray-300 mt-1">Check search criteria in settings</p>
+                    </div>
+                `}
+            </div>
+        </div>`;
+}
   });
 
   allItems.sort(function(a, b) { return a.time - b.time; });
@@ -2583,7 +2713,7 @@ function buildConversationTimeline(history, currentMsg, cleanName) {
       ${hasHistory ? `<div class="flex items-center gap-2 mb-3"><div style="flex:1;height:1px;background:rgba(255,255,255,0.05)"></div><span class="text-[9px] font-mono px-2" style="color:#3A4760">CONVERSATION HISTORY</span><div style="flex:1;height:1px;background:rgba(255,255,255,0.05)"></div></div>` : ''}
       ${allItems.map(i => i.html).join('')}
     </div>`;
-}
+
 
 async function rbApproveSend() {
   if(!rbActiveMessage) return;
