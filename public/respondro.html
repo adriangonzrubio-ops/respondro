@@ -365,9 +365,8 @@ select.form-input option{background:#0F1623}
         </div>
         <div class="flex-1 overflow-y-auto p-6 space-y-4">
           <div>
-            <p class="text-[10px] font-mono text-gray-600 mb-2 uppercase tracking-wider">Customer Email</p>
-            <div class="flex gap-3">
-              <div id="rb-sender-avatar" class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-display font-700 flex-shrink-0 mt-0.5" style="background:#1D4E3A;color:#00C896">?</div>
+            <p class="text-[10px] font-mono text-gray-600 mb-2 uppercase tracking-wider">Conversation</p>
+<div class="flex gap-3">
               <div id="rb-timeline-container" class="rounded-xl p-4 mb-4 overflow-y-auto" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07);max-height:340px"><span id="rb-ticket-body">—</span></div>
             </div>
           </div>
@@ -2478,16 +2477,15 @@ async function rbOpenTicket(msgId) {
     .limit(20);
 
   // ── BUILD TIMELINE IN CUSTOMER EMAIL AREA ──
-  const bodyEl = document.getElementById('rb-ticket-body');
   const timelineHtml = buildConversationTimeline(history || [], msg, cleanName);
-  
-  // Replace the simple body display with the full timeline
-  const bodyContainer = bodyEl?.closest('div')?.parentElement;
-  if (bodyContainer) {
-    bodyContainer.innerHTML = timelineHtml;
-  } else if (bodyEl) {
-    bodyEl.innerHTML = timelineHtml;
-  }
+const timelineContainer = document.getElementById('rb-timeline-container');
+if (timelineContainer) {
+  timelineContainer.innerHTML = timelineHtml;
+} else {
+  // Fallback: write into rb-ticket-body's parent
+  const bodyEl = document.getElementById('rb-ticket-body');
+  if (bodyEl?.parentElement) bodyEl.parentElement.innerHTML = timelineHtml;
+}
 
   // ── AI REASONING ──
   const rb = document.getElementById('rb-reasoning-block'), rt = document.getElementById('rb-reasoning-text');
