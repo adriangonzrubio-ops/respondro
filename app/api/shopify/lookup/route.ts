@@ -81,6 +81,7 @@ export async function POST(req: Request) {
         }
 
         const orderNumber = extractOrderNumber(emailBody);
+        console.log('🔍 Shopify Lookup Debug:', { email: senderEmail, name: senderName, orderNumber, emailBodyPreview: emailBody.substring(0, 100) });
 
         const orders = await getShopifyContext(
             shopUrl,

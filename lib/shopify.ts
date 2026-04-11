@@ -5,6 +5,7 @@ export async function getShopifyContext(shop: string, token: string, email: stri
         const cleanEmail = email ? (email.includes('<') ? email.split('<')[1].split('>')[0] : email.trim()) : '';
 
         let orders: any[] = [];
+        console.log('🛍️ Shopify Search:', { cleanShop, cleanEmail, orderNumber, customerName });
 
         // 1. Search by order number FIRST (most specific)
         if (orderNumber) {
@@ -14,6 +15,7 @@ export async function getShopifyContext(shop: string, token: string, email: stri
             });
             const nameData = await nameRes.json();
             orders = nameData.orders || [];
+            console.log('🔎 Order number search result:', orders.length, 'orders found for number:', orderNumber);
 
             // Also try with # prefix
             if (orders.length === 0) {
