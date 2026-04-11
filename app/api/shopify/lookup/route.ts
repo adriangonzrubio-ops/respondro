@@ -1,6 +1,3 @@
-// app/api/shopify/lookup/route.ts
-// New endpoint: lets the Review Board fetch live Shopify data for any customer
-
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getShopifyContext, extractOrderNumber } from '@/lib/shopify';
@@ -13,20 +10,23 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Need email or messageId' }, { status: 400 });
         }
 
-        // Get store_id from the message (or from auth — simplified here)
         let storeId: string | null = null;
         let senderEmail = email;
+        let senderName = '';
+        let emailBody = '';
 
         if (messageId) {
             const { data: msg } = await supabase
                 .from('messages')
-                .select('store_id, sender, shopify_data')
+                .select('store_id, sender, body_text, subject, shopify_data')
                 .eq('id', messageId)
                 .single();
 
             if (msg) {
                 storeId = msg.store_id;
                 senderEmail = email || msg.sender;
+                emailBody = (msg.body_text || '') + ' ' + (msg.subject || '');
+                senderName = (msg.sender || '').split('<')[0].replace(/"/g, '').trim();
 
                 // Return cached data if it exists and looks good
                 if (msg.shopify_data) {
@@ -42,7 +42,6 @@ export async function POST(req: NextRequest) {
         }
 
         if (!storeId) {
-            // Fallback: get the first store (single-tenant fallback)
             const { data: stores } = await supabase.from('stores').select('id').limit(1);
             storeId = stores?.[0]?.id || null;
         }
@@ -51,7 +50,6 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ orders: [], error: 'No store found' });
         }
 
-        // Get Shopify credentials
         const { data: storeInfo } = await supabase
             .from('stores')
             .select('shopify_url, shopify_token')
@@ -62,19 +60,23 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ orders: [], error: 'Shopify not connected' });
         }
 
-        // Fetch live Shopify data
+        // Extract order number from email body and subject
+        const orderNumber = extractOrderNumber(emailBody);
+
+        // Fetch live Shopify data with email, name, and order number
         const orders = await getShopifyContext(
             storeInfo.shopify_url,
             storeInfo.shopify_token,
             senderEmail || '',
-            undefined
+            orderNumber,
+            senderName
         );
 
-        // Cache the result back to the message row
+        // Cache the result
         if (messageId && orders.length > 0) {
             await supabase
                 .from('messages')
-                .update({ shopify_data: orders[0] })  // cache the most recent order
+                .update({ shopify_data: orders })
                 .eq('id', messageId);
         }
 

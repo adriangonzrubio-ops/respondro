@@ -425,6 +425,12 @@ select.form-input option{background:#0F1623}
         <p class="text-[10px] text-gray-500 mb-2">Guide the AI for this specific ticket. This won't change your global rulebook.</p>
         <textarea id="rb-agent-instructions" class="w-full text-xs px-3 py-2 rounded-lg outline-none resize-none" rows="3" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#E8EBF2" placeholder="e.g. Offer 15% discount, they are a VIP customer..."></textarea>
         <button onclick="rbRegenerateWithInstructions()" class="w-full mt-2 text-[10px] px-3 py-2 rounded-lg font-600 transition-all" style="background:rgba(0,200,150,0.1);color:#00C896;border:1px solid rgba(0,200,150,0.2)">↺ Regenerate with instructions</button>
+        <div class="mt-3">
+          <button onclick="var el=document.getElementById('rb-instruction-history');if(el)el.classList.toggle('hidden')" class="text-[9px] font-mono w-full text-left px-2 py-1 rounded" style="color:#5A6785;background:rgba(255,255,255,0.03)">▸ Instruction history</button>
+          <div id="rb-instruction-history" class="hidden mt-1">
+            <div id="rb-instruction-history-list" class="space-y-1 max-h-32 overflow-y-auto"></div>
+          </div>
+        </div>
       </div>
         <div id="rb-no-orders" class="hidden py-6 text-center">
           <div style="font-size:24px;opacity:0.2;margin-bottom:6px">📦</div>
@@ -2454,6 +2460,8 @@ async function rbOpenTicket(msgId) {
     const idx = rbAllMessages.findIndex(function(m) { return m.id === msgId; });
     if (idx > -1) rbAllMessages[idx] = msg;
     rbActiveMessage = msg;
+    var instrBox = document.getElementById('rb-agent-instructions'); if (instrBox) instrBox.value = '';
+    var instrHist = document.getElementById('rb-instruction-history-list'); if (instrHist) instrHist.innerHTML = '';
 
     document.querySelectorAll('[id^="rb-ticket-card-"]').forEach(function(el) {
       el.style.background = 'rgba(255,255,255,0.02)';
@@ -2591,6 +2599,14 @@ async function rbRegenerateWithInstructions() {
   rbInstructRegenCount++;
   var instructions = document.getElementById('rb-agent-instructions');
   var extraContext = instructions ? instructions.value.trim() : '';
+  var histList = document.getElementById('rb-instruction-history-list');
+  if (histList && extraContext) {
+    var histItem = document.createElement('div');
+    histItem.className = 'text-[9px] px-2 py-1.5 rounded';
+    histItem.style.cssText = 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);color:#8B96B0';
+    histItem.textContent = extraContext;
+    histList.insertBefore(histItem, histList.firstChild);
+  }
   if (!extraContext) { showToast('Please type instructions first'); return; }
 
   var btn = document.querySelector('[onclick*="rbRegenerateWithInstructions"]');
@@ -2617,6 +2633,7 @@ async function rbRegenerateWithInstructions() {
       if (draftArea) { draftArea.value = result.draft; draftArea.classList.remove('hidden'); }
       if (draftLoad) draftLoad.classList.add('hidden');
       showToast('Draft updated with your instructions ✨');
+      if (instructions) instructions.value = '';
     } else { throw new Error('No draft returned'); }
   } catch (err) {
     console.error('Regenerate with instructions error:', err);
