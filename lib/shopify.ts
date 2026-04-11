@@ -108,7 +108,9 @@ export async function getShopifyContext(shop: string, token: string, email: stri
 export function extractOrderNumber(text: string): string | undefined {
     if (!text) return undefined;
     const patterns = [
-        /(?:#|order\s*#?\s*)(\d{3,})/i,
+        /(?:#)(\d{3,})/i,
+        /(?:order\s*#?\s*)(\d{3,})/i,
+        /(?:order\s+\w+\s*)(\d{3,})/i,
         /(?:order\s+number\s*:?\s*)(\d{3,})/i,
         /(?:ord\.?\s*#?\s*)(\d{3,})/i,
         /\b(\d{4,})\b/

@@ -2751,7 +2751,6 @@ async function rbApproveSend() {
   if (!rbActiveMessage) return;
   const draft = document.getElementById('rb-draft-textarea').value.trim();
   if (!draft) { showToast('Draft is empty'); return; }
-  if (!confirm('Send this reply to ' + rbActiveMessage.sender + '?')) return;
   try {
     const res = await fetch('/api/messages/' + rbActiveMessage.id + '/send', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:draft,customerEmail:rbActiveMessage.sender})});
     if (!res.ok) throw new Error('HTTP ' + res.status);
