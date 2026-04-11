@@ -217,7 +217,7 @@ select.form-input option{background:#0F1623}
     <div class="flex items-center gap-3 ml-4">
       <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-display font-700" style="background:#1D4E3A;color:#00C896" id="user-avatar">?</div>
       <span class="text-sm font-500 hidden md:block" id="user-name-nav">User</span>
-      <button onclick="toggleTheme()" class="theme-toggle">☀️ Light</button>
+      <div onclick="toggleTheme()" style="width:36px;height:20px;border-radius:10px;background:rgba(255,255,255,0.15);position:relative;cursor:pointer;flex-shrink:0;transition:background 0.3s" id="theme-toggle-track"><div id="theme-toggle-dot" style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left 0.3s;display:flex;align-items:center;justify-content:center;font-size:9px">🌙</div></div>
       <button onclick="logout()" class="btn-ghost" style="padding:5px 12px;font-size:12px">Log out</button>
     </div>
   </div>
@@ -2783,12 +2783,14 @@ const savedTheme = localStorage.getItem('respondro_theme');
 if (savedTheme === 'light') document.body.classList.add('light');
 function toggleTheme() {
   document.body.classList.toggle('light');
-  const isLight = document.body.classList.contains('light');
+  var isLight = document.body.classList.contains('light');
   localStorage.setItem('respondro_theme', isLight ? 'light' : 'dark');
-  const btn = document.querySelector('.theme-toggle');
-  if (btn) btn.textContent = isLight ? '🌙 Dark' : '☀️ Light';
+  var dot = document.getElementById('theme-toggle-dot');
+  var track = document.getElementById('theme-toggle-track');
+  if (dot) { dot.style.left = isLight ? '18px' : '2px'; dot.innerHTML = isLight ? '☀️' : '🌙'; }
+  if (track) track.style.background = isLight ? 'rgba(0,200,150,0.4)' : 'rgba(255,255,255,0.15)';
 }
-if (localStorage.getItem('respondro_theme') === 'light') document.body.classList.add('light');
+if (localStorage.getItem('respondro_theme') === 'light') { document.body.classList.add('light'); var _dot = document.getElementById('theme-toggle-dot'); var _track = document.getElementById('theme-toggle-track'); if (_dot) { _dot.style.left = '18px'; _dot.innerHTML = '☀️'; } if (_track) _track.style.background = 'rgba(0,200,150,0.4)'; }
 // ── DASHBOARD ──
 async function loadDashboardView() {
   const { data: msgs } = await sb.from('messages').select('status, ai_reasoning, subject, sender, id, received_at, category, priority');

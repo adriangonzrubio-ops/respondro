@@ -58,6 +58,9 @@ export async function generateAiDraft(params: {
     5. STAY IN CHARACTER and follow the rulebook.
     6. Output ONLY the email body.
     7. CRITICAL: DO NOT include a sign-off or signature.
+    8. NEVER use markdown formatting like ** or __ or # or bullet points. Write in plain text only, as a real human would type in an email. No bold, no headers, no lists.
+    9. Write naturally and conversationally. Avoid corporate buzzwords. Sound like a friendly, competent human — not an AI chatbot.
+    10. Keep paragraphs short (2-3 sentences max). Use line breaks between paragraphs.
     `;
 
   try {
