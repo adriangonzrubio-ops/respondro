@@ -2432,7 +2432,7 @@ function renderRbTicketList(messages) {
   container.innerHTML = filtered.map(function(msg) {
     const cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
     const isActive = rbActiveMessage && rbActiveMessage.id === msg.id;
-    const date = new Date(msg.received_at);
+    var date = new Date(msg.received_at || msg.created_at || msg.updated_at); if (isNaN(date.getTime())) date = new Date();
     const timeStr = date.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + ' ' + date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
     const hasDraft = msg.ai_draft && msg.ai_draft.length > 10;
     const statusBadge = msg.status === 'automated' ? '<span class="badge badge-g" style="font-size:9px">AUTO</span>' : hasDraft ? '<span class="badge badge-g" style="font-size:9px;background:rgba(0,200,150,0.1)">DRAFT READY</span>' : '<span class="badge badge-a" style="font-size:9px">NEEDS DRAFT</span>';
@@ -2674,6 +2674,7 @@ async function rbRegenerateDraft() {
   if (draftArea) draftArea.classList.add('hidden');
   if (draftLoad) draftLoad.classList.remove('hidden');
   await sb.from('messages').update({ai_draft:null}).eq('id',rbActiveMessage.id);
+  rbLoadShopifySidebar(rbActiveMessage);
   rbActiveMessage.ai_draft = null;
   await rbGenerateDraftForMessage(rbActiveMessage);
   if (btn) { btn.textContent = '↺ Regenerate'; btn.disabled = false; }
@@ -2734,7 +2735,7 @@ async function rbLoadShopifySidebar(msg) {
           + '<div class="flex items-center gap-2"><span class="text-xs font-700 text-white">' + o.total_price + ' ' + (o.currency || '') + '</span><span class="text-[9px] font-mono px-1.5 py-0.5 rounded" style="background:' + pc + '18;color:' + pc + '">' + (o.financial_status || '').toUpperCase() + '</span></div>'
           + '</div>'
           + (o.tracking_number ? '<div class="flex items-center justify-between" style="border-top:1px solid rgba(255,255,255,0.05);padding-top:8px"><span class="text-[10px] text-gray-600">Tracking</span>' + (o.tracking_url ? '<a href="' + o.tracking_url + '" target="_blank" class="text-[10px] font-mono hover:underline" style="color:#00C896">' + o.tracking_number + '</a>' : '<span class="text-[10px] font-mono" style="color:#5A6785">' + o.tracking_number + '</span>') + '</div>' : '')
-          + '<div class="text-[9px] text-gray-700 font-mono mt-2 pt-2" style="border-top:1px solid rgba(255,255,255,0.05)">' + new Date(o.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) + '</div>'
+          + '<div class="text-[9px] text-gray-700 font-mono mt-2 pt-2 px-3 pb-2" style="border-top:1px solid rgba(255,255,255,0.05)">' + new Date(o.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) + '</div>'
           + '</div></div>';
       }).join('');
     }
