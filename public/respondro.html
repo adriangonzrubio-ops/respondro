@@ -2461,7 +2461,21 @@ async function rbOpenTicket(msgId) {
     if (idx > -1) rbAllMessages[idx] = msg;
     rbActiveMessage = msg;
     var instrBox = document.getElementById('rb-agent-instructions'); if (instrBox) instrBox.value = '';
-    var instrHist = document.getElementById('rb-instruction-history-list'); if (instrHist) instrHist.innerHTML = '';
+    var instrHist = document.getElementById('rb-instruction-history-list');
+    if (instrHist) {
+      instrHist.innerHTML = '';
+      var reasoning = msg.ai_reasoning || '';
+      var instrMatches = reasoning.match(/\[INSTRUCTION\] .+/g);
+      if (instrMatches) {
+        instrMatches.forEach(function(instr) {
+          var histItem = document.createElement('div');
+          histItem.className = 'text-[9px] px-2 py-1.5 rounded';
+          histItem.style.cssText = 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);color:#8B96B0';
+          histItem.textContent = instr.replace('[INSTRUCTION] ', '');
+          instrHist.appendChild(histItem);
+        });
+      }
+    }
 
     document.querySelectorAll('[id^="rb-ticket-card-"]').forEach(function(el) {
       el.style.background = 'rgba(255,255,255,0.02)';
@@ -2600,6 +2614,7 @@ async function rbRegenerateWithInstructions() {
   var instructions = document.getElementById('rb-agent-instructions');
   var extraContext = instructions ? instructions.value.trim() : '';
   var histList = document.getElementById('rb-instruction-history-list');
+  await sb.from('messages').update({ ai_reasoning: (rbActiveMessage.ai_reasoning || '') + '\n[INSTRUCTION] ' + extraContext }).eq('id', rbActiveMessage.id);
   if (histList && extraContext) {
     var histItem = document.createElement('div');
     histItem.className = 'text-[9px] px-2 py-1.5 rounded';
@@ -2703,16 +2718,18 @@ async function rbLoadShopifySidebar(msg) {
     } else {
       if (noOrd) noOrd.classList.add('hidden');
       if (ordList) ordList.innerHTML = orders.map(function(o) {
-        var sc = {'fulfilled':'#00C896','unfulfilled':'#F0A500','partial':'#A78BFA','refunded':'#F87171'}[(o.fulfillment_status||'').toLowerCase()] || '#5A6785';
+        var sc = {'fulfilled':'#00C896','unfulfilled':'#F0A500','partial':'#A78BFA','refunded':'#F87171','cancelled':'#F87171'}[(o.fulfillment_status||'').toLowerCase()] || '#5A6785';
         var pc = o.financial_status === 'paid' ? '#00C896' : '#F87171';
         return '<div class="rounded-xl overflow-hidden" style="border:1px solid rgba(255,255,255,0.07)">'
           + '<div class="px-3 py-2 flex justify-between items-center" style="background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.05)">'
           + '<span class="text-xs font-display font-700 text-white">' + (o.name || '#' + o.order_number) + '</span>'
           + '<span class="text-[9px] font-mono font-700 px-2 py-0.5 rounded-full" style="background:' + sc + '18;color:' + sc + '">' + (o.fulfillment_status || 'unfulfilled').toUpperCase() + '</span>'
+          + (o.cancelled ? '<span class="text-[9px] font-mono font-700 px-2 py-0.5 rounded-full" style="background:rgba(248,113,113,0.15);color:#F87171">CANCELLED</span>' : '')
+          + (o.refunded_amount ? '<span class="text-[9px] font-mono font-700 px-2 py-0.5 rounded-full" style="background:rgba(248,113,113,0.15);color:#F87171">REFUNDED ' + o.refunded_amount + ' ' + (o.currency || '') + '</span>' : '')
           + '</div>'
           + '<div class="p-3 space-y-2">'
           + '<div class="text-[11px] text-gray-400 leading-relaxed">' + (o.items || 'No items') + '</div>'
-          + '<div class="flex justify-between items-center pt-1" style="border-top:1px solid rgba(255,255,255,0.05)">'
+          + (o.financial_status && o.financial_status !== 'paid' && o.financial_status !== 'unknown' ? '<div class="flex justify-between items-center pt-1 mt-1" style="border-top:1px solid rgba(255,255,255,0.05)"><span class="text-[10px] text-gray-600">Payment</span><span class="text-[9px] font-mono px-1.5 py-0.5 rounded" style="background:rgba(248,113,113,0.15);color:#F87171">' + o.financial_status.toUpperCase().replace('_', ' ') + '</span></div>' : '')
           + '<span class="text-[10px] text-gray-600">Total</span>'
           + '<div class="flex items-center gap-2"><span class="text-xs font-700 text-white">' + o.total_price + ' ' + (o.currency || '') + '</span><span class="text-[9px] font-mono px-1.5 py-0.5 rounded" style="background:' + pc + '18;color:' + pc + '">' + (o.financial_status || '').toUpperCase() + '</span></div>'
           + '</div>'
