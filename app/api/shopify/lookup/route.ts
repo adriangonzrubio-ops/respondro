@@ -1,89 +1,95 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
-import { getShopifyContext, extractOrderNumber } from '@/lib/shopify';
-
-export async function POST(req: NextRequest) {
+export async function getShopifyContext(shop: string, token: string, email: string, orderNumber?: string, customerName?: string) {
     try {
-        const { email, messageId } = await req.json();
+        if (!shop || !token) return [];
+        const cleanShop = shop.replace(/^https?:\/\//, '').replace(/\/$/, '').trim();
+        const cleanEmail = email ? (email.includes('<') ? email.split('<')[1].split('>')[0] : email.trim()) : '';
 
-        if (!email && !messageId) {
-            return NextResponse.json({ error: 'Need email or messageId' }, { status: 400 });
+        let orders: any[] = [];
+
+        // 1. Search by email
+        if (cleanEmail) {
+            const customerSearch = await fetch(`https://${cleanShop}/admin/api/2024-04/customers/search.json?query=email:${cleanEmail}`, {
+                headers: { 'X-Shopify-Access-Token': token }
+            });
+            const customerData = await customerSearch.json();
+            const customerId = customerData.customers?.[0]?.id;
+
+            if (customerId) {
+                const orderRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders.json?customer_id=${customerId}&status=any`, {
+                    headers: { 'X-Shopify-Access-Token': token }
+                });
+                const orderData = await orderRes.json();
+                orders = orderData.orders || [];
+            }
         }
 
-        let storeId: string | null = null;
-        let senderEmail = email;
-        let senderName = '';
-        let emailBody = '';
+        // 2. Fallback: search by customer name
+        if (orders.length === 0 && customerName && customerName.length > 1) {
+            const nameParts = customerName.split(' ').filter((p: string) => p.length > 1);
+            if (nameParts.length > 0) {
+                const nameQuery = nameParts.join(' ');
+                const nameSearch = await fetch(`https://${cleanShop}/admin/api/2024-04/customers/search.json?query=${encodeURIComponent(nameQuery)}`, {
+                    headers: { 'X-Shopify-Access-Token': token }
+                });
+                const nameData = await nameSearch.json();
+                const nameCustomerId = nameData.customers?.[0]?.id;
 
-        if (messageId) {
-            const { data: msg } = await supabase
-                .from('messages')
-                .select('store_id, sender, body_text, subject, shopify_data')
-                .eq('id', messageId)
-                .single();
-
-            if (msg) {
-                storeId = msg.store_id;
-                senderEmail = email || msg.sender;
-                emailBody = (msg.body_text || '') + ' ' + (msg.subject || '');
-                senderName = (msg.sender || '').split('<')[0].replace(/"/g, '').trim();
-
-                // Return cached data if it exists and looks good
-                if (msg.shopify_data) {
-                    const cached = typeof msg.shopify_data === 'string'
-                        ? JSON.parse(msg.shopify_data)
-                        : msg.shopify_data;
-                    const orders = Array.isArray(cached) ? cached : [cached];
-                    if (orders.length > 0 && orders[0]?.order_number) {
-                        return NextResponse.json({ orders, source: 'cache' });
-                    }
+                if (nameCustomerId) {
+                    const orderRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders.json?customer_id=${nameCustomerId}&status=any`, {
+                        headers: { 'X-Shopify-Access-Token': token }
+                    });
+                    const orderData = await orderRes.json();
+                    orders = orderData.orders || [];
                 }
             }
         }
 
-        if (!storeId) {
-            const { data: stores } = await supabase.from('stores').select('id').limit(1);
-            storeId = stores?.[0]?.id || null;
+        // 3. Fallback: search by order number from email body
+        if (orders.length === 0 && orderNumber) {
+            const cleanNum = String(orderNumber).replace('#', '').trim();
+            const nameRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders.json?name=${cleanNum}&status=any`, {
+                headers: { 'X-Shopify-Access-Token': token }
+            });
+            const nameData = await nameRes.json();
+            orders = nameData.orders || [];
         }
 
-        if (!storeId) {
-            return NextResponse.json({ orders: [], error: 'No store found' });
-        }
+        // Deduplicate by order number
+        const seen = new Set();
+        const unique = orders.filter((o: any) => {
+            if (seen.has(o.order_number)) return false;
+            seen.add(o.order_number);
+            return true;
+        });
 
-        const { data: storeInfo } = await supabase
-            .from('stores')
-            .select('shopify_url, shopify_token')
-            .eq('id', storeId)
-            .single();
-
-        if (!storeInfo?.shopify_url || !storeInfo?.shopify_token) {
-            return NextResponse.json({ orders: [], error: 'Shopify not connected' });
-        }
-
-        // Extract order number from email body and subject
-        const orderNumber = extractOrderNumber(emailBody);
-
-        // Fetch live Shopify data with email, name, and order number
-        const orders = await getShopifyContext(
-            storeInfo.shopify_url,
-            storeInfo.shopify_token,
-            senderEmail || '',
-            orderNumber,
-            senderName
-        );
-
-        // Cache the result
-        if (messageId && orders.length > 0) {
-            await supabase
-                .from('messages')
-                .update({ shopify_data: orders })
-                .eq('id', messageId);
-        }
-
-        return NextResponse.json({ orders, source: 'live' });
-
-    } catch (err: any) {
-        console.error('❌ Shopify lookup error:', err.message);
-        return NextResponse.json({ orders: [], error: err.message }, { status: 500 });
+        return unique.map((o: any) => ({
+            order_number: o.order_number,
+            name: o.name,
+            created_at: o.created_at,
+            total_price: o.total_price,
+            currency: o.currency,
+            financial_status: o.financial_status || 'unknown',
+            fulfillment_status: o.fulfillment_status || 'Unfulfilled',
+            tracking_number: o.fulfillments?.[0]?.tracking_number || null,
+            tracking_url: o.fulfillments?.[0]?.tracking_url || null,
+            items: o.line_items.map((i: any) => i.title).join(', ')
+        }));
+    } catch (error) {
+        console.error("❌ Shopify Scout Error:", error);
+        return [];
     }
+}
+
+export function extractOrderNumber(text: string): string | undefined {
+    if (!text) return undefined;
+    const patterns = [
+        /(?:#|order\s*#?\s*)(\d{4,})/i,
+        /(?:order\s+number\s*:?\s*)(\d{4,})/i,
+        /(?:ord\.?\s*#?\s*)(\d{4,})/i
+    ];
+    for (const p of patterns) {
+        const match = text.match(p);
+        if (match) return match[1];
+    }
+    return undefined;
 }
