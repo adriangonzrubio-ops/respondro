@@ -10,20 +10,16 @@ export async function getShopifyContext(shop: string, token: string, email: stri
         // 1. Search by order number FIRST (most specific)
         if (orderNumber) {
             const cleanNum = String(orderNumber).replace('#', '').trim();
-            const nameRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders.json?name=${cleanNum}&status=any`, {
+            const numericOrder = parseInt(cleanNum, 10);
+            
+            // Fetch recent orders and filter by order_number
+            const allRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders.json?status=any&limit=250`, {
+                headers: { 'X-Shopify-Access-Token': token }
             });
-            const nameData = await nameRes.json();
-            orders = nameData.orders || [];
-            console.log('🔎 Order number search result:', orders.length, 'orders found for number:', orderNumber);
-
-            // Also try with # prefix
-            if (orders.length === 0) {
-                const hashRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders.json?name=%23${cleanNum}&status=any`, {
-                    headers: { 'X-Shopify-Access-Token': token }
-                });
-                const hashData = await hashRes.json();
-                orders = hashData.orders || [];
-            }
+            const allData = await allRes.json();
+            const allOrders = allData.orders || [];
+            orders = allOrders.filter((o: any) => o.order_number === numericOrder || o.name === `#${cleanNum}` || o.name === cleanNum);
+            console.log('🔎 Order number search result:', orders.length, 'orders found for number:', orderNumber, 'out of', allOrders.length, 'total orders');
         }
 
         // 2. Search by email
