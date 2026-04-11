@@ -2587,6 +2587,8 @@ async function rbGenerateDraftForMessage(msg) {
 }
 async function rbRegenerateWithInstructions() {
   if (!rbActiveMessage) return;
+  if (rbInstructRegenCount >= rbInstructRegenMax) { showToast('Instruction regeneration limit reached (' + rbInstructRegenMax + ' per ticket)'); return; }
+  rbInstructRegenCount++;
   var instructions = document.getElementById('rb-agent-instructions');
   var extraContext = instructions ? instructions.value.trim() : '';
   if (!extraContext) { showToast('Please type instructions first'); return; }
@@ -2624,9 +2626,15 @@ async function rbRegenerateWithInstructions() {
   }
   if (btn) { btn.textContent = '↺ Regenerate with instructions'; btn.disabled = false; }
 }
+var rbRegenCount = 0;
+var rbRegenMax = 5;
+var rbInstructRegenCount = 0;
+var rbInstructRegenMax = 5;
 
 async function rbRegenerateDraft() {
   if (!rbActiveMessage) return;
+  if (rbRegenCount >= rbRegenMax) { showToast('Regeneration limit reached (' + rbRegenMax + ' per ticket)'); return; }
+  rbRegenCount++;
   const btn = document.getElementById('rb-regen-btn');
   if (btn) { btn.textContent = '⟳ Generating...'; btn.disabled = true; }
   const draftArea = document.getElementById('rb-draft-textarea');
@@ -2746,6 +2754,7 @@ function rbCloseTicket() {
   if (shopifyEmpty) shopifyEmpty.classList.remove('hidden');
   if (shopifyData) shopifyData.classList.add('hidden');
   if (shopifyLoad) shopifyLoad.classList.add('hidden');
+  rbRegenCount = 0; rbInstructRegenCount = 0;
   var agentChat = document.getElementById('rb-agent-chat'); if (agentChat) { agentChat.classList.add('hidden'); var instr = document.getElementById('rb-agent-instructions'); if (instr) instr.value = ''; }
 }
 

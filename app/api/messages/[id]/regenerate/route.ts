@@ -6,20 +6,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     try {
         const { id } = await params;
 
+        // Read the request body (contains optional rulebook override from frontend)
+        const body = await req.json().catch(() => ({}));
+
         // 1. Fetch the message
         const { data: message } = await supabase.from('messages').select('*').eq('id', id).single();
         if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 });
 
         // 2. Fetch the Store ID (with deep fallback)
         let storeId = null;
-
-        // Try to get it from the linked connection
         const { data: conn } = await supabase.from('user_connections').select('store_id').eq('id', message.connection_id).single();
         
         if (conn?.store_id) {
             storeId = conn.store_id;
         } else {
-            // FALLBACK: If the link is broken, just use the first store in the DB (Safe for testing)
             const { data: firstStore } = await supabase.from('stores').select('id').limit(1).single();
             storeId = firstStore?.id;
         }
@@ -27,17 +27,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         // 3. Fetch Settings for that Store
         const { data: settings } = await supabase.from('settings').select('*').eq('store_id', storeId).maybeSingle();
 
-        // 4. Generate the AI Draft
+        // 4. Use frontend rulebook if provided, otherwise use database rulebook
+        const finalRulebook = body.rulebook || settings?.rulebook || "Be professional.";
+        const finalSignature = body.signature || settings?.signature || "";
+
+        // 5. Generate the AI Draft
         const aiDraft = await generateAiDraft({
             category: message.category || 'General Inquiry',
             body: message.body_text || "",
-            rulebook: settings?.rulebook || "Be professional.",
+            rulebook: finalRulebook,
             shopifyData: message.shopify_data || {},
-            toneExamples: settings?.signature || "", 
+            toneExamples: finalSignature,
             logoUrl: settings?.logo_url || ""
         });
 
-        // 5. Save and return
+        // 6. Save and return
         await supabase.from('messages').update({ ai_draft: aiDraft }).eq('id', id);
 
         return NextResponse.json({ draft: aiDraft });
