@@ -420,6 +420,12 @@ select.form-input option{background:#0F1623}
           </div>
         </div>
         <div id="rb-orders-list" class="space-y-3"></div>
+        <div id="rb-agent-chat" class="hidden p-4 border-t border-white/5">
+        <p class="text-[10px] font-mono uppercase tracking-widest text-gray-600 mb-2">AI Instructions</p>
+        <p class="text-[10px] text-gray-500 mb-2">Guide the AI for this specific ticket. This won't change your global rulebook.</p>
+        <textarea id="rb-agent-instructions" class="w-full text-xs px-3 py-2 rounded-lg outline-none resize-none" rows="3" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#E8EBF2" placeholder="e.g. Offer 15% discount, they are a VIP customer..."></textarea>
+        <button onclick="rbRegenerateWithInstructions()" class="w-full mt-2 text-[10px] px-3 py-2 rounded-lg font-600 transition-all" style="background:rgba(0,200,150,0.1);color:#00C896;border:1px solid rgba(0,200,150,0.2)">↺ Regenerate with instructions</button>
+      </div>
         <div id="rb-no-orders" class="hidden py-6 text-center">
           <div style="font-size:24px;opacity:0.2;margin-bottom:6px">📦</div>
           <p class="text-[10px] text-gray-600 uppercase tracking-wider">No orders found</p>
@@ -2579,6 +2585,45 @@ async function rbGenerateDraftForMessage(msg) {
     if (draftLoad) draftLoad.classList.add('hidden');
   }
 }
+async function rbRegenerateWithInstructions() {
+  if (!rbActiveMessage) return;
+  var instructions = document.getElementById('rb-agent-instructions');
+  var extraContext = instructions ? instructions.value.trim() : '';
+  if (!extraContext) { showToast('Please type instructions first'); return; }
+
+  var btn = document.querySelector('[onclick*="rbRegenerateWithInstructions"]');
+  if (btn) { btn.textContent = '⟳ Generating...'; btn.disabled = true; }
+
+  var draftArea = document.getElementById('rb-draft-textarea');
+  var draftLoad = document.getElementById('rb-draft-loading');
+  if (draftArea) draftArea.classList.add('hidden');
+  if (draftLoad) draftLoad.classList.remove('hidden');
+
+  try {
+    var res = await fetch('/api/messages/' + rbActiveMessage.id + '/regenerate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rulebook: (ST.settings ? ST.settings.rulebook : '') + '\n\n--- SPECIAL INSTRUCTIONS FOR THIS TICKET ---\n' + extraContext,
+        signature: ST.settings ? ST.settings.signature : ''
+      })
+    });
+    var result = await res.json();
+    if (result.draft) {
+      await sb.from('messages').update({ ai_draft: result.draft }).eq('id', rbActiveMessage.id);
+      rbActiveMessage.ai_draft = result.draft;
+      if (draftArea) { draftArea.value = result.draft; draftArea.classList.remove('hidden'); }
+      if (draftLoad) draftLoad.classList.add('hidden');
+      showToast('Draft updated with your instructions ✨');
+    } else { throw new Error('No draft returned'); }
+  } catch (err) {
+    console.error('Regenerate with instructions error:', err);
+    if (draftArea) { draftArea.value = 'Failed to generate draft. Please try again.'; draftArea.classList.remove('hidden'); }
+    if (draftLoad) draftLoad.classList.add('hidden');
+    showToast('Draft generation failed');
+  }
+  if (btn) { btn.textContent = '↺ Regenerate with instructions'; btn.disabled = false; }
+}
 
 async function rbRegenerateDraft() {
   if (!rbActiveMessage) return;
@@ -2620,6 +2665,7 @@ async function rbLoadShopifySidebar(msg) {
     const orders = Array.isArray(shopifyData) ? shopifyData : (shopifyData ? [shopifyData] : []);
     if (loadEl) loadEl.classList.add('hidden');
     if (dataEl) dataEl.classList.remove('hidden');
+    var agentChat = document.getElementById('rb-agent-chat'); if (agentChat) agentChat.classList.remove('hidden');
     const nameEl = document.getElementById('rb-shop-name');
     const emailEl = document.getElementById('rb-shop-email');
     const avatarEl = document.getElementById('rb-shop-avatar');
@@ -2700,6 +2746,7 @@ function rbCloseTicket() {
   if (shopifyEmpty) shopifyEmpty.classList.remove('hidden');
   if (shopifyData) shopifyData.classList.add('hidden');
   if (shopifyLoad) shopifyLoad.classList.add('hidden');
+  var agentChat = document.getElementById('rb-agent-chat'); if (agentChat) { agentChat.classList.add('hidden'); var instr = document.getElementById('rb-agent-instructions'); if (instr) instr.value = ''; }
 }
 
 function setRbFilter(filter) {
