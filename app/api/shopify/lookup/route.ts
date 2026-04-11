@@ -49,21 +49,42 @@ export async function POST(req: Request) {
             return NextResponse.json({ orders: [], error: 'No store found' });
         }
 
+        let shopUrl = '';
+        let shopToken = '';
+
+        // Try stores table first
         const { data: storeInfo } = await supabase
             .from('stores')
             .select('shopify_url, shopify_token')
             .eq('id', storeId)
             .single();
 
-        if (!storeInfo?.shopify_url || !storeInfo?.shopify_token) {
+        if (storeInfo?.shopify_url && storeInfo?.shopify_token) {
+            shopUrl = storeInfo.shopify_url;
+            shopToken = storeInfo.shopify_token;
+        } else {
+            // Fallback: try settings table (different column names)
+            const { data: settingsInfo } = await supabase
+                .from('settings')
+                .select('shop_url, shopify_access_token')
+                .eq('store_id', storeId)
+                .single();
+
+            if (settingsInfo?.shop_url && settingsInfo?.shopify_access_token) {
+                shopUrl = settingsInfo.shop_url;
+                shopToken = settingsInfo.shopify_access_token;
+            }
+        }
+
+        if (!shopUrl || !shopToken) {
             return NextResponse.json({ orders: [], error: 'Shopify not connected' });
         }
 
         const orderNumber = extractOrderNumber(emailBody);
 
         const orders = await getShopifyContext(
-            storeInfo.shopify_url,
-            storeInfo.shopify_token,
+            shopUrl,
+            shopToken,
             senderEmail || '',
             orderNumber,
             senderName

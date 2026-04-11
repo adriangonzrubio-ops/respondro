@@ -2432,7 +2432,7 @@ function renderRbTicketList(messages) {
   container.innerHTML = filtered.map(function(msg) {
     const cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
     const isActive = rbActiveMessage && rbActiveMessage.id === msg.id;
-    var date = new Date(msg.received_at || msg.created_at || msg.updated_at); if (isNaN(date.getTime())) date = new Date();
+    var rawDate = msg.received_at || msg.updated_at; var date = new Date(rawDate); if (isNaN(date.getTime()) || date.getFullYear() < 2020) date = new Date(msg.received_at || msg.updated_at || Date.now());
     const timeStr = date.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + ' ' + date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
     const hasDraft = msg.ai_draft && msg.ai_draft.length > 10;
     const statusBadge = msg.status === 'automated' ? '<span class="badge badge-g" style="font-size:9px">AUTO</span>' : hasDraft ? '<span class="badge badge-g" style="font-size:9px;background:rgba(0,200,150,0.1)">DRAFT READY</span>' : '<span class="badge badge-a" style="font-size:9px">NEEDS DRAFT</span>';
