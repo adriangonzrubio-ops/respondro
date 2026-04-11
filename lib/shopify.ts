@@ -11,7 +11,6 @@ export async function getShopifyContext(shop: string, token: string, email: stri
         if (orderNumber) {
             const cleanNum = String(orderNumber).replace('#', '').trim();
             const nameRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders.json?name=${cleanNum}&status=any`, {
-                headers: { 'X-Shopify-Access-Token': token }
             });
             const nameData = await nameRes.json();
             orders = nameData.orders || [];
