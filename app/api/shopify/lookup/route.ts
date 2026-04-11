@@ -4,7 +4,7 @@ import { getShopifyContext, extractOrderNumber } from '@/lib/shopify';
 
 export async function POST(req: Request) {
     try {
-        const { email, messageId } = await req.json();
+        const { email, messageId, subject, body } = await req.json();
 
         if (!email && !messageId) {
             return NextResponse.json({ error: 'Need email or messageId' }, { status: 400 });
@@ -13,7 +13,7 @@ export async function POST(req: Request) {
         let storeId: string | null = null;
         let senderEmail = email;
         let senderName = '';
-        let emailBody = '';
+        let emailBody = (body || '') + ' ' + (subject || '');
 
         if (messageId) {
             const { data: msg } = await supabase
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
             if (msg) {
                 storeId = msg.store_id;
                 senderEmail = email || msg.sender;
-                emailBody = (msg.body_text || '') + ' ' + (msg.subject || '');
+                emailBody = (msg.body_text || body || '') + ' ' + (msg.subject || subject || '');
                 senderName = (msg.sender || '').split('<')[0].replace(/"/g, '').trim();
 
                 if (msg.shopify_data) {

@@ -2698,7 +2698,7 @@ async function rbLoadShopifySidebar(msg) {
     if (msg.shopify_data) { shopifyData = typeof msg.shopify_data === 'string' ? JSON.parse(msg.shopify_data) : msg.shopify_data; }
     if (!shopifyData || (Array.isArray(shopifyData) && shopifyData.length === 0)) {
       try {
-        const res = await fetch('/api/shopify/lookup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email: cleanEmail, messageId:msg.id})});
+        const res = await fetch('/api/shopify/lookup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email: cleanEmail, messageId: msg.id, subject: msg.subject, body: msg.body_text})});
         if (res.ok) { const d = await res.json(); shopifyData = d.orders || []; }
       } catch(e) { console.warn('Shopify lookup failed:', e); }
     }
@@ -2734,7 +2734,7 @@ async function rbLoadShopifySidebar(msg) {
           + '<div class="flex items-center gap-2"><span class="text-xs font-700 text-white">' + o.total_price + ' ' + (o.currency || '') + '</span><span class="text-[9px] font-mono px-1.5 py-0.5 rounded" style="background:' + pc + '18;color:' + pc + '">' + (o.financial_status || '').toUpperCase() + '</span></div>'
           + '</div>'
           + (o.tracking_number ? '<div class="flex items-center justify-between" style="border-top:1px solid rgba(255,255,255,0.05);padding-top:8px"><span class="text-[10px] text-gray-600">Tracking</span>' + (o.tracking_url ? '<a href="' + o.tracking_url + '" target="_blank" class="text-[10px] font-mono hover:underline" style="color:#00C896">' + o.tracking_number + '</a>' : '<span class="text-[10px] font-mono" style="color:#5A6785">' + o.tracking_number + '</span>') + '</div>' : '')
-          + '<div class="text-[9px] text-gray-700 font-mono">' + new Date(o.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) + '</div>'
+          + '<div class="text-[9px] text-gray-700 font-mono mt-2 pt-2" style="border-top:1px solid rgba(255,255,255,0.05)">' + new Date(o.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) + '</div>'
           + '</div></div>';
       }).join('');
     }
