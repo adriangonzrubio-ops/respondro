@@ -485,30 +485,103 @@ select.form-input option{background:#0F1623}
 </div>
 
 <div id="view-agent-config" class="hidden p-8">
-    <div class="flex items-center gap-4 mb-8">
+    <div class="flex items-center gap-4 mb-6">
         <button onclick="switchView('agents')" class="p-2 hover:bg-white/5 rounded-lg text-gray-400 transition-all">← Back</button>
         <div>
             <h2 id="config-agent-name" class="text-2xl font-bold text-white tracking-tight">Agent Configuration</h2>
-            <p class="text-gray-400 text-sm">Talk to your agent to update its knowledge and rules.</p>
+            <p class="text-gray-400 text-sm">Upload your rulebook, add store policies, and chat to fine-tune your agent.</p>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div class="lg:col-span-2 flex flex-col bg-[#16191f] border border-white/5 rounded-2xl h-[600px] overflow-hidden">
-            <div id="agent-chat-box" class="flex-1 p-6 overflow-y-auto space-y-4 custom-scrollbar bg-black/10">
-                <div class="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-xl text-xs text-emerald-200">
-                    👋 Hi! I'm your <span id="chat-agent-type" class="font-bold"></span> Agent. You can tell me to add new rules, change how I talk, or explain store policies to me. I'll update my Rulebook automatically.
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- LEFT COLUMN: Rulebook Upload + Chat -->
+        <div class="lg:col-span-2 flex flex-col gap-6">
+
+            <!-- SECTION 1: Rulebook Upload -->
+            <div class="bg-[#16191f] border border-white/5 rounded-2xl p-6">
+                <h4 class="text-white font-bold text-sm mb-1 flex items-center gap-2"><span>📄</span> Agent Rulebook</h4>
+                <p class="text-gray-500 text-xs mb-4">Upload a PDF or paste your store's customer service rulebook. This is the core knowledge your agent uses to reply to customers.</p>
+                
+                <div class="flex gap-3 mb-4">
+                    <label class="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-black/20 border border-dashed border-white/10 rounded-xl cursor-pointer hover:border-emerald-500/50 transition-all">
+                        <span class="text-xs text-gray-400">📎 Upload PDF or TXT</span>
+                        <input type="file" id="rulebook-file-upload" accept=".pdf,.txt" class="hidden" onchange="handleRulebookUpload(event)">
+                    </label>
+                    <button onclick="toggleRulebookPaste()" class="px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-xs text-gray-400 hover:border-emerald-500/50 transition-all">✏️ Paste Text</button>
+                </div>
+
+                <div id="rulebook-paste-area" class="hidden mb-4">
+                    <textarea id="rulebook-paste-input" class="w-full h-40 bg-black/20 border border-white/5 rounded-xl p-4 text-xs text-gray-300 leading-relaxed outline-none resize-none" placeholder="Paste your rulebook text here..."></textarea>
+                    <button onclick="saveRulebookFromPaste()" class="mt-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-all">Save Rulebook</button>
+                </div>
+
+                <div id="rulebook-upload-status" class="hidden text-xs text-emerald-400 mb-2"></div>
+            </div>
+
+            <!-- SECTION 2: Store Policies (Collapsible) -->
+            <div class="bg-[#16191f] border border-white/5 rounded-2xl overflow-hidden">
+                <button onclick="togglePoliciesSection()" class="w-full flex items-center justify-between p-6 hover:bg-white/5 transition-all">
+                    <div class="flex items-center gap-2">
+                        <span>📋</span>
+                        <h4 class="text-white font-bold text-sm">Store Policies</h4>
+                        <span id="policies-count-badge" class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full">0 added</span>
+                    </div>
+                    <span id="policies-toggle-icon" class="text-gray-500 text-sm transition-transform">▼</span>
+                </button>
+                
+                <div id="policies-section-body" class="hidden px-6 pb-6">
+                    <p class="text-gray-500 text-xs mb-4">Add your store policy URLs. Respondro will read and store the content so the AI can answer policy-related questions accurately.</p>
+                    
+                    <div class="space-y-3">
+                        <div class="flex gap-2 items-center">
+                            <label class="text-xs text-gray-400 w-32 shrink-0">Shipping Policy</label>
+                            <input id="policy-url-shipping_policy" type="url" class="flex-1 bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-emerald-500/50" placeholder="https://yourstore.com/policies/shipping-policy">
+                            <button onclick="fetchPolicy('shipping_policy')" class="px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white text-xs rounded-lg transition-all shrink-0">Upload</button>
+                            <span id="policy-status-shipping_policy" class="text-[10px] w-4"></span>
+                        </div>
+                        <div class="flex gap-2 items-center">
+                            <label class="text-xs text-gray-400 w-32 shrink-0">Refund Policy</label>
+                            <input id="policy-url-refund_policy" type="url" class="flex-1 bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-emerald-500/50" placeholder="https://yourstore.com/policies/refund-policy">
+                            <button onclick="fetchPolicy('refund_policy')" class="px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white text-xs rounded-lg transition-all shrink-0">Upload</button>
+                            <span id="policy-status-refund_policy" class="text-[10px] w-4"></span>
+                        </div>
+                        <div class="flex gap-2 items-center">
+                            <label class="text-xs text-gray-400 w-32 shrink-0">Privacy Policy</label>
+                            <input id="policy-url-privacy_policy" type="url" class="flex-1 bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-emerald-500/50" placeholder="https://yourstore.com/policies/privacy-policy">
+                            <button onclick="fetchPolicy('privacy_policy')" class="px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white text-xs rounded-lg transition-all shrink-0">Upload</button>
+                            <span id="policy-status-privacy_policy" class="text-[10px] w-4"></span>
+                        </div>
+                        <div class="flex gap-2 items-center">
+                            <label class="text-xs text-gray-400 w-32 shrink-0">Terms of Service</label>
+                            <input id="policy-url-terms_of_service" type="url" class="flex-1 bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-emerald-500/50" placeholder="https://yourstore.com/policies/terms-of-service">
+                            <button onclick="fetchPolicy('terms_of_service')" class="px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white text-xs rounded-lg transition-all shrink-0">Upload</button>
+                            <span id="policy-status-terms_of_service" class="text-[10px] w-4"></span>
+                        </div>
+                    </div>
                 </div>
             </div>
-            
-            <div class="p-4 border-t border-white/5 bg-[#1c2027]">
-                <div class="flex gap-3">
-                    <input id="agent-chat-input" type="text" placeholder="e.g. 'Standard shipping is now 3-5 days...'" class="flex-1 bg-black/20 border border-white/5 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-emerald-500/50 transition-all">
-                    <button onclick="sendMessageToAgent()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-xl text-sm font-bold transition-all">Update Agent</button>
+
+            <!-- SECTION 3: Chat with Agent -->
+            <div class="bg-[#16191f] border border-white/5 rounded-2xl flex flex-col h-[400px] overflow-hidden">
+                <div class="p-4 border-b border-white/5">
+                    <h4 class="text-white font-bold text-sm flex items-center gap-2"><span>💬</span> Update Rulebook via Chat</h4>
+                    <p class="text-gray-500 text-xs mt-1">Tell your agent new rules or updates. It will add them to the existing rulebook automatically.</p>
+                </div>
+                <div id="agent-chat-box" class="flex-1 p-4 overflow-y-auto space-y-3 custom-scrollbar bg-black/10">
+                    <div class="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl text-xs text-emerald-200">
+                        👋 Hi! I'm your <span id="chat-agent-type" class="font-bold"></span> Agent. Tell me new rules or policy changes and I'll update my Rulebook automatically.
+                    </div>
+                </div>
+                <div class="p-4 border-t border-white/5 bg-[#1c2027]">
+                    <div class="flex gap-3">
+                        <input id="agent-chat-input" type="text" placeholder="e.g. 'Standard shipping is now 3-5 days...'" class="flex-1 bg-black/20 border border-white/5 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-emerald-500/50 transition-all" onkeydown="if(event.key==='Enter')sendMessageToAgent()">
+                        <button onclick="sendMessageToAgent()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-xl text-sm font-bold transition-all">Update Agent</button>
+                    </div>
                 </div>
             </div>
         </div>
 
+        <!-- RIGHT COLUMN: Current Rulebook -->
         <div class="flex flex-col gap-6">
             <div class="bg-[#16191f] border border-white/5 rounded-2xl p-6">
                 <h4 class="text-white font-bold text-sm mb-4 flex items-center gap-2">
@@ -518,6 +591,16 @@ select.form-input option{background:#0F1623}
                 <div class="mt-4 flex justify-between items-center text-[10px] text-gray-600">
                     <span>AI-Generated from history</span>
                     <button onclick="manualSaveRules()" class="hover:text-emerald-500">Edit Manually</button>
+                </div>
+            </div>
+
+            <!-- Loaded Policies Summary -->
+            <div class="bg-[#16191f] border border-white/5 rounded-2xl p-6">
+                <h4 class="text-white font-bold text-sm mb-4 flex items-center gap-2">
+                    <span>📋</span> Loaded Policies
+                </h4>
+                <div id="loaded-policies-list" class="space-y-2 text-xs text-gray-400">
+                    <p class="italic">No policies loaded yet.</p>
                 </div>
             </div>
         </div>
@@ -890,6 +973,148 @@ async function toggleAgent(type, isEnabled) {
 
 let currentConfigAgent = null;
 
+// ---- AGENT CONFIG: Rulebook Upload & Policies ----
+function toggleRulebookPaste() {
+    const area = document.getElementById('rulebook-paste-area');
+    area.classList.toggle('hidden');
+}
+
+async function handleRulebookUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const status = document.getElementById('rulebook-upload-status');
+    status.classList.remove('hidden');
+    status.textContent = 'Uploading and parsing...';
+    status.className = 'text-xs text-yellow-400 mb-2';
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const res = await fetch('/api/parse-document', { method: 'POST', body: formData });
+        const data = await res.json();
+        
+        if (data.text) {
+            // Save to agent rulebook
+            await sb.from('support_agents').upsert({
+                store_id: ST.settings.store_id,
+                agent_type: currentConfigAgent,
+                rulebook: data.text,
+                updated_at: new Date()
+            }, { onConflict: 'store_id,agent_type' });
+
+            const rulebookArea = document.getElementById('agent-rulebook-display');
+            if (rulebookArea) rulebookArea.value = data.text;
+            
+            status.textContent = 'Rulebook uploaded successfully! (' + data.text.length + ' characters)';
+            status.className = 'text-xs text-emerald-400 mb-2';
+            showToast('Rulebook uploaded! ✨');
+        } else {
+            throw new Error(data.error || 'Failed to parse file');
+        }
+    } catch (err) {
+        status.textContent = 'Upload failed: ' + err.message;
+        status.className = 'text-xs text-red-400 mb-2';
+    }
+}
+
+async function saveRulebookFromPaste() {
+    const input = document.getElementById('rulebook-paste-input');
+    const text = input.value.trim();
+    if (!text) return showToast('Please paste your rulebook text first.');
+
+    await sb.from('support_agents').upsert({
+        store_id: ST.settings.store_id,
+        agent_type: currentConfigAgent,
+        rulebook: text,
+        updated_at: new Date()
+    }, { onConflict: 'store_id,agent_type' });
+
+    const rulebookArea = document.getElementById('agent-rulebook-display');
+    if (rulebookArea) rulebookArea.value = text;
+    
+    document.getElementById('rulebook-paste-area').classList.add('hidden');
+    showToast('Rulebook saved! ✨');
+}
+
+function togglePoliciesSection() {
+    const body = document.getElementById('policies-section-body');
+    const icon = document.getElementById('policies-toggle-icon');
+    body.classList.toggle('hidden');
+    icon.style.transform = body.classList.contains('hidden') ? '' : 'rotate(180deg)';
+}
+
+async function fetchPolicy(policyType) {
+    const urlInput = document.getElementById('policy-url-' + policyType);
+    const statusEl = document.getElementById('policy-status-' + policyType);
+    const url = urlInput.value.trim();
+    
+    if (!url) return showToast('Please enter a URL first.');
+    
+    statusEl.textContent = '⏳';
+    
+    try {
+        const res = await fetch('/api/policies', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                store_id: ST.settings.store_id,
+                policy_type: policyType,
+                policy_url: url
+            })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            statusEl.textContent = '✅';
+            showToast(policyType.replace('_', ' ') + ' saved! (' + data.contentLength + ' chars)');
+            loadPoliciesSummary();
+        } else {
+            statusEl.textContent = '❌';
+            showToast('Error: ' + (data.error || 'Failed to fetch policy'));
+        }
+    } catch (err) {
+        statusEl.textContent = '❌';
+        showToast('Error fetching policy: ' + err.message);
+    }
+}
+
+async function loadPoliciesSummary() {
+    if (!ST.settings?.store_id) return;
+    
+    try {
+        const res = await fetch('/api/policies?store_id=' + ST.settings.store_id);
+        const data = await res.json();
+        
+        const list = document.getElementById('loaded-policies-list');
+        const badge = document.getElementById('policies-count-badge');
+        
+        if (data.policies && data.policies.length > 0) {
+            badge.textContent = data.policies.length + ' added';
+            list.innerHTML = data.policies.map(p => {
+                const name = p.policy_type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                const chars = p.policy_content ? p.policy_content.length : 0;
+                return '<div class="flex justify-between items-center py-2 border-b border-white/5"><span class="text-gray-300">' + name + '</span><span class="text-emerald-400 text-[10px]">' + chars + ' chars</span></div>';
+            }).join('');
+            
+            // Also populate URL inputs if they exist
+            data.policies.forEach(p => {
+                const input = document.getElementById('policy-url-' + p.policy_type);
+                const status = document.getElementById('policy-status-' + p.policy_type);
+                if (input && p.policy_url) input.value = p.policy_url;
+                if (status) status.textContent = '✅';
+            });
+        } else {
+            badge.textContent = '0 added';
+            list.innerHTML = '<p class="italic">No policies loaded yet.</p>';
+        }
+    } catch (err) {
+        console.error('Error loading policies:', err);
+    }
+}
+
 async function configureAgent(type) {
     currentConfigAgent = type;
     
@@ -897,6 +1122,7 @@ async function configureAgent(type) {
     document.getElementById('chat-agent-type').innerText = type.replace('_', ' ');
     
     switchView('agent-config');
+    loadPoliciesSummary();
 
     // Fetch rules - removing .single() to avoid the 406 error if not found
     const { data, error } = await sb
