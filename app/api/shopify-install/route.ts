@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_CLIENT_ID!
-const SCOPES = 'read_orders,read_customers,read_fulfillments,read_products'
+const SCOPES = 'read_orders,write_orders,read_customers,write_customers,read_fulfillments,read_products,read_inventory'
 const REDIRECT_URI = 'https://respondro.vercel.app/api/shopify-callback'
 
 export async function GET(request: Request) {
