@@ -8,7 +8,14 @@ import { generateAiDraft } from '@/lib/ai-generator';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
+    // Security: verify worker secret key
+    const { searchParams } = new URL(request.url);
+    const key = searchParams.get('key');
+    if (key !== process.env.WORKER_SECRET) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     let totalProcessed = 0;
     try {
         const { data: connections } = await supabase.from('user_connections').select('*');
