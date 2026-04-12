@@ -146,9 +146,39 @@ async function fetchAndDraft(conn: any) {
                 fromName
             );
 
-            // 5. AI Classification
+// 5. Fetch agent rulebooks and store policies
+            const { data: agents } = await supabase
+                .from('support_agents')
+                .select('agent_type, rulebook, is_enabled')
+                .eq('store_id', conn.store_id);
+
+            const { data: policies } = await supabase
+                .from('store_policies')
+                .select('policy_type, policy_content')
+                .eq('store_id', conn.store_id);
+
+            // Build enhanced rulebook with agent knowledge + policies
+            let fullRulebook = store.rulebook || '';
+            
+            if (agents && agents.length > 0) {
+                const agentRules = agents
+                    .filter(a => a.is_enabled && a.rulebook)
+                    .map(a => `[${a.agent_type.toUpperCase()} AGENT RULES]:\n${a.rulebook}`)
+                    .join('\n\n');
+                if (agentRules) fullRulebook += '\n\n' + agentRules;
+            }
+
+            if (policies && policies.length > 0) {
+                const policyText = policies
+                    .filter(p => p.policy_content)
+                    .map(p => `[${p.policy_type.replace(/_/g, ' ').toUpperCase()}]:\n${p.policy_content.substring(0, 3000)}`)
+                    .join('\n\n');
+                if (policyText) fullRulebook += '\n\nSTORE POLICIES:\n' + policyText;
+            }
+
+            // 6. AI Classification
             const triage = await classifyAndDraft(
-                subject, body, store.rulebook, store.store_name, shopifyData, store.signature
+                subject, body, fullRulebook, store.store_name, shopifyData, store.signature
             );
 
             // 6. Determine status

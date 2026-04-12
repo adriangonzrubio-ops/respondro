@@ -1010,6 +1010,7 @@ async function handleRulebookUpload(event) {
                 store_id: ST.settings.store_id,
                 agent_type: currentConfigAgent,
                 rulebook: data.text,
+                is_enabled: true,
                 updated_at: new Date()
             }, { onConflict: 'store_id,agent_type' });
 
