@@ -9,10 +9,13 @@ import { generateAiDraft } from '@/lib/ai-generator';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-    // Security: verify worker secret key
+    // Security: allow requests from cron (secret key) or from dashboard (same origin)
     const { searchParams } = new URL(request.url);
     const key = searchParams.get('key');
-    if (key !== process.env.WORKER_SECRET) {
+    const origin = request.headers.get('origin') || request.headers.get('referer') || '';
+    const isSameOrigin = origin.includes('respondro.vercel.app') || origin.includes('localhost');
+    
+    if (!isSameOrigin && key !== process.env.WORKER_SECRET) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
