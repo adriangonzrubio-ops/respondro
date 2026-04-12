@@ -58,7 +58,7 @@ export async function generateAiDraft(params: {
     5. STAY IN CHARACTER and follow the rulebook.
     6. Output ONLY the email body.
     7. CRITICAL: DO NOT include a sign-off or signature.
-    8. NEVER use markdown formatting like ** or __ or # or bullet points. Write in plain text only, as a real human would type in an email. No bold, no headers, no lists.
+    8. ABSOLUTE RULE — NEVER use markdown formatting. No ** or __, no # headers, no bullet points, no numbered lists. Write in plain text ONLY, exactly as a human would type in a real email. If you catch yourself adding **, remove it. This is a strict requirement.
     9. Write naturally and conversationally. Avoid corporate buzzwords. Sound like a friendly, competent human — not an AI chatbot.
     10. Keep paragraphs short (2-3 sentences max). Use line breaks between paragraphs.
     `;
@@ -78,8 +78,9 @@ export async function generateAiDraft(params: {
 let draft = "";
     const firstContent = msg.content[0];
     if (firstContent && 'text' in firstContent) {
-        // .trim() is the secret—it removes the AI's trailing newlines
-        draft = firstContent.text.trim(); 
+        draft = firstContent.text.trim();
+        // Safety net: strip any markdown that slips through
+        draft = draft.replace(/\*\*/g, '').replace(/__/g, '').replace(/^#+\s/gm, '').replace(/^[-*]\s/gm, '');
     }
 
     // SaaS Identity Glue: We only add what's in the store's settings.

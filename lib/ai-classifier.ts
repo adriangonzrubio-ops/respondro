@@ -58,6 +58,10 @@ Return ONLY valid JSON: { "path": "AUTOMATE" | "REVIEW", "category": "string", "
         const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
         if (!jsonMatch) throw new Error('No JSON found in AI response');
         const parsed = JSON.parse(jsonMatch[0]);
+        // Strip any markdown from the draft
+        if (parsed.draft) {
+            parsed.draft = parsed.draft.replace(/\*\*/g, '').replace(/__/g, '').replace(/^#+\s/gm, '').replace(/^[-*]\s/gm, '');
+        }
 
         if (signature && parsed.draft) {
             parsed.draft = parsed.draft.trim() + '\n\n' + signature;
