@@ -1430,7 +1430,7 @@ async function renderTicketWorkspace(msg) {
                 <div class="flex gap-4 pb-12">
                     <div class="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">AI</div>
                     <div class="flex-1 bg-white border-2 border-purple-100 rounded-2xl shadow-xl overflow-hidden">
-                        <textarea id="workspace-draft-area" class="w-full p-6 text-sm text-gray-800 bg-transparent outline-none min-h-[200px] resize-none leading-relaxed font-sans">${msg.ai_draft || 'Generating draft...'}</textarea>
+                        <div id="workspace-draft-area" contenteditable="true" class="w-full p-6 text-sm text-gray-800 bg-transparent outline-none min-h-[200px] leading-relaxed font-sans" style="white-space:pre-wrap;">${(msg.ai_draft || 'Generating draft...').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')}</div>
                         <div class="bg-purple-50 p-4 border-t border-purple-100 flex justify-end gap-3">
                             <button onclick="generateNewDraft('${msg.id}')" class="px-4 py-2 text-xs font-bold text-purple-600 hover:bg-purple-100 rounded-lg">Regenerate</button>
                             <button onclick="sendResponse()" class="px-6 py-2 bg-purple-600 text-white text-xs font-bold rounded-lg shadow-md hover:bg-purple-700">Send Response</button>
@@ -1800,7 +1800,7 @@ function openReviewModal(msg) {
         const draftArea = document.getElementById('modal-draft-area');
         if (draftArea) {
             const finalDraft = msg.ai_draft ? msg.ai_draft.replace(/Hi\s+([^"]+)/g, `Hi ${cleanName}`) : "Drafting your response...";
-            draftArea.value = finalDraft;
+            draftArea.innerHTML = finalDraft.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 
             // SaaS Logo Preview Logic (Keeping it safe but simple)
             const logoPreview = document.getElementById('modal-logo-preview');
@@ -1852,7 +1852,7 @@ async function regenerateDraft(id) {
         const result = await res.json();
         
         if (result.draft) {
-            if (area) area.value = result.draft;
+            if (area) area.innerHTML = result.draft.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
             
             // Sync result to local memory to avoid duplicate API calls
             const msg = allMessages.find(m => m.id === targetId);
@@ -1864,7 +1864,7 @@ async function regenerateDraft(id) {
         }
     } catch (err) {
         console.error("❌ SaaS Regeneration Error:", err);
-        if (area) area.value = "I couldn't generate a draft. Please ensure your Rulebook is set up in Settings.";
+        if (area) area.innerHTML = "I couldn't generate a draft. Please ensure your Rulebook is set up in Settings.";
     }
 }
 
@@ -1893,7 +1893,7 @@ if (result.draft) {
                          document.getElementById('ai-draft-response');
 
             if (area) {
-                area.value = result.draft;
+                area.innerHTML = result.draft.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
                 
                 // --- SaaS Logo Sync ---
                 // This ensures the preview image updates as soon as the AI finishes
@@ -2395,8 +2395,9 @@ async function sendResponse(msgId) {
     const targetId = msgId || ST.activeTicket?.id;
     if (!targetId) return showToast("Error: No ticket ID found");
 
-    const draftArea = document.getElementById('modal-draft-area');
-    const draftText = draftArea ? draftArea.value : '';
+    const modalDraft = document.getElementById('modal-draft-area');
+    const workspaceDraft = document.getElementById('workspace-draft-area');
+    const draftText = modalDraft ? modalDraft.innerText : (workspaceDraft ? workspaceDraft.innerText : '');
     if (!draftText.trim()) {
         showToast("Cannot send an empty response!");
         return;
@@ -3048,9 +3049,9 @@ async function dashMarkActionDone(msgId, btn) {
                     <button onclick="regenerateDraft()" class="text-[10px] text-gray-500 hover:text-white transition">Regenerate</button>
                 </div>
 
-                <textarea id="modal-draft-area" 
-                    class="flex-1 bg-transparent border-none text-sm text-gray-300 leading-relaxed resize-none focus:ring-0 p-0 mb-4 outline-none min-h-[200px]" 
-                    placeholder="AI is drafting your response..."></textarea>
+                <div id="modal-draft-area" contenteditable="true"
+                    class="flex-1 bg-transparent border-none text-sm text-gray-300 leading-relaxed focus:ring-0 p-0 mb-4 outline-none min-h-[200px]" 
+                    style="white-space:pre-wrap;" data-placeholder="AI is drafting your response..."></div>
 <div class="mt-2">
     <img id="modal-logo-preview" src="" style="max-width: 140px; display: none; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);" alt="Store Logo Preview" />
 </div>

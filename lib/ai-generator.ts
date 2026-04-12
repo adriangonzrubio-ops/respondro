@@ -79,8 +79,8 @@ let draft = "";
     const firstContent = msg.content[0];
     if (firstContent && 'text' in firstContent) {
         draft = firstContent.text.trim();
-        // Safety net: strip any markdown that slips through
-        draft = draft.replace(/\*\*/g, '').replace(/__/g, '').replace(/^#+\s/gm, '').replace(/^[-*]\s/gm, '');
+        // Keep ** for bold rendering in UI, but strip other markdown
+        draft = draft.replace(/__/g, '').replace(/^#+\s/gm, '').replace(/^[-*]\s/gm, '');
     }
 
     // SaaS Identity Glue: We only add what's in the store's settings.
