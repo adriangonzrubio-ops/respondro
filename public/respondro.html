@@ -916,7 +916,15 @@ async function loadAgentsView() {
     
     grid.innerHTML = '<div class="text-gray-500 animate-pulse">Loading your AI team...</div>';
 
-    // Fetch agents for this store
+    // Wait for settings to load
+    if (!ST.settings?.store_id) {
+        console.log('Waiting for settings to load...');
+        await new Promise(r => setTimeout(r, 1500));
+        if (!ST.settings?.store_id) {
+            showToast('Settings still loading, please try again.');
+            return;
+        }
+    }
     const { data: agents, error } = await sb
         .from('support_agents')
         .select('*')
@@ -982,6 +990,7 @@ function toggleRulebookPaste() {
 async function handleRulebookUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
+    if (!ST.settings?.store_id) { showToast('Settings still loading, please wait...'); return; }
     
     const status = document.getElementById('rulebook-upload-status');
     status.classList.remove('hidden');
@@ -1020,6 +1029,7 @@ async function handleRulebookUpload(event) {
 }
 
 async function saveRulebookFromPaste() {
+    if (!ST.settings?.store_id) { showToast('Settings still loading, please wait...'); return; }
     const input = document.getElementById('rulebook-paste-input');
     const text = input.value.trim();
     if (!text) return showToast('Please paste your rulebook text first.');
