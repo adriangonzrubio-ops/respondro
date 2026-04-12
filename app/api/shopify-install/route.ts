@@ -12,11 +12,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Missing shop' }, { status: 400 })
   }
 
-  const authUrl = `https://${shop}/admin/oauth/authorize?` +
+const authUrl = `https://${shop}/admin/oauth/authorize?` +
     `client_id=${SHOPIFY_CLIENT_ID}&` +
     `scope=${SCOPES}&` +
-    `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
-    `grant_options[]=per-user`
+    `redirect_uri=${encodeURIComponent(REDIRECT_URI)}`
 
   return NextResponse.redirect(authUrl)
 }
