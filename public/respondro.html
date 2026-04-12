@@ -442,6 +442,38 @@ select.form-input option{background:#0F1623}
   </div>
 </div>
 </div>
+<div id="view-integrations" class="hidden p-8" style="max-width:800px">
+    <div class="mb-8">
+        <h2 class="text-2xl font-bold text-white tracking-tight">Integrations</h2>
+        <p class="text-gray-400 text-sm mt-1">Connect your tools and services to automate customer support workflows.</p>
+    </div>
+    <div class="bg-[#16191f] border border-white/5 rounded-2xl p-6" style="max-width:400px">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background:#00806022"><span style="font-size:24px">🛍️</span></div>
+            <div>
+                <div class="text-white font-bold">Shopify</div>
+                <span id="shop-int-status" class="text-[10px] font-bold px-2 py-0.5 rounded-full" style="background:rgba(90,103,133,0.2);color:#5A6785">Not connected</span>
+            </div>
+        </div>
+        <p class="text-xs text-gray-500 mb-4">Connect your Shopify store to automate customer support tickets and order management.</p>
+        <div class="text-xs text-gray-600 mb-4 space-y-1">
+            <div>• Order tracking</div>
+            <div>• Customer data sync</div>
+            <div>• Automated responses</div>
+            <div>• Refund processing</div>
+        </div>
+        <div id="shop-int-connected" class="hidden mb-4 px-3 py-2 rounded-lg text-xs" style="background:rgba(0,200,150,0.06);border:1px solid rgba(0,200,150,0.15);color:#00C896"></div>
+        <button id="shop-int-btn" onclick="connectShopify()" class="w-full py-2.5 rounded-xl text-sm font-bold transition-all" style="background:#008060;color:#fff;border:none;cursor:pointer">Connect Shopify</button>
+    </div>
+</div>
+
+<div id="view-mailboxes" class="hidden p-8" style="max-width:800px">
+    <div class="mb-8">
+        <h2 class="text-2xl font-bold text-white tracking-tight">Email Forwarding</h2>
+        <p class="text-gray-400 text-sm mt-1">Set up forwarding from your existing email accounts to automatically create tickets from customer emails.</p>
+    </div>
+    <div id="mailbox-provider-list" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+</div>
 
 <div id="view-agents" class="hidden p-8">
     <div class="mb-10">
@@ -500,7 +532,7 @@ select.form-input option{background:#0F1623}
         <div id="rules-container" class="space-y-4"></div>
     </div>
 
-    <div id="view-settings" class="p-6 hidden">
+    <div id="view-settings" class="p-6 hidden" style="max-width:700px"></div>
         <div class="mb-5">
             <h2 class="font-display font-700 text-xl mb-1">Settings</h2>
             <p class="text-sm" style="color: #5A6785;">Email, Shopify, AI setup.</p>
@@ -1453,6 +1485,8 @@ function switchView(viewId, el) {
 
     // 3. TRIGGER THE LOADER (Crucial for Step 2 to work!)
     if (viewId === 'agents') loadAgentsView();
+    if (viewId === 'integrations') updateShopifyIntegrationUI();
+    if (viewId === 'mailboxes') { var ml = document.getElementById('mailbox-provider-list'); if (ml) ml.innerHTML = document.getElementById('provider-list').innerHTML; }
 if (viewId === 'review-board') fetchMessages();
 if (viewId === 'dashboard') loadDashboardView();
     // 4. Update Sidebar CSS
@@ -2063,6 +2097,18 @@ async function startParallelProcessing() {
 
 // ═══ TOAST ═══
 function showToast(msg){const t=document.createElement('div');t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0F1623;border:1px solid rgba(0,200,150,0.3);color:#00C896;padding:9px 20px;border-radius:999px;font-size:13px;z-index:9999;animation:slideUp 0.3s ease;white-space:nowrap';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2400);}
+
+function updateShopifyIntegrationUI() {
+    var statusEl = document.getElementById('shop-int-status');
+    var connEl = document.getElementById('shop-int-connected');
+    var btnEl = document.getElementById('shop-int-btn');
+    if (ST.connectedShopify) {
+        if (statusEl) { statusEl.textContent = 'Connected'; statusEl.style.background = 'rgba(0,200,150,0.15)'; statusEl.style.color = '#00C896'; }
+        if (connEl) { connEl.classList.remove('hidden'); connEl.textContent = 'Connected: ' + (ST.shopURL || 'Active'); }
+        if (btnEl) { btnEl.textContent = 'Reconnect'; btnEl.style.background = 'rgba(255,255,255,0.05)'; btnEl.style.color = '#8B96B0'; }
+    }
+}
+
 // ═══ UI HELPERS ═══
 function syncShopifyUI() {
     // 1. Find the elements (using ID or fallback to text search)
