@@ -1836,7 +1836,7 @@ async function regenerateDraft(id) {
     if (!targetId) return;
 
     const area = document.getElementById('modal-draft-area');
-    if (area) area.value = "Consulting your Rulebook... 🤖";
+    if (area) area.innerHTML = "Consulting your Rulebook... 🤖";
 
     try {
         // Multi-tenant call: uses the logged-in merchant's rulebook/signature
@@ -1853,6 +1853,10 @@ async function regenerateDraft(id) {
         
         if (result.draft) {
             if (area) area.innerHTML = result.draft.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            
+            // Also update the workspace draft area
+            const wsArea = document.getElementById('workspace-draft-area');
+            if (wsArea) wsArea.innerHTML = result.draft.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
             
             // Sync result to local memory to avoid duplicate API calls
             const msg = allMessages.find(m => m.id === targetId);
