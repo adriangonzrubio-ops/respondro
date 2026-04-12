@@ -49,11 +49,18 @@ async function fetchAndDraft(conn: any) {
     let lock = await client.getMailboxLock('INBOX');
 
     try {
-        const mailbox = client.mailbox as any;
-        const last = mailbox?.exists || 0;
-        const first = Math.max(1, last - 4);
+// Search for all UNSEEN (unread) emails instead of just last 5
+        const unseenUids = await client.search({ seen: false }, { uid: true });
+        
+        if (!unseenUids || unseenUids.length === 0) {
+            lock.release();
+            await client.logout();
+            return 0;
+        }
 
-        const messages: any = client.fetch(`${first}:${last}`, { source: true });
+        console.log(`📬 Found ${unseenUids.length} unseen emails for ${conn.imap_user}`);
+
+        const messages: any = client.fetch(unseenUids, { source: true, uid: true }, { uid: true });
 
         for await (const msg of messages) {
             if (!msg.source) continue;
