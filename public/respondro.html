@@ -379,7 +379,7 @@ select.form-input option{background:#0F1623}
             <div class="flex gap-3">
               <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-display font-700 flex-shrink-0 mt-0.5" style="background:rgba(0,200,150,0.15);color:#00C896">AI</div>
               <div class="flex-1 rounded-xl overflow-hidden" style="border:2px solid rgba(0,200,150,0.2);background:#0F1623">
-                <textarea id="rb-draft-textarea" class="w-full p-4 text-sm leading-relaxed resize-none outline-none" style="background:transparent;color:#E8EBF2;font-family:'DM Sans',sans-serif;min-height:180px;font-size:13px;line-height:1.7" placeholder="Draft will appear here..."></textarea>
+                <div id="rb-draft-textarea" contenteditable="true" class="w-full p-4 text-sm leading-relaxed outline-none" style="background:transparent;color:#E8EBF2;font-family:'DM Sans',sans-serif;min-height:180px;font-size:13px;line-height:1.7;white-space:pre-wrap;" data-placeholder="Draft will appear here..."></div>
                 <div id="rb-draft-loading" class="hidden p-4 flex items-center gap-3">
                   <div class="spinner"></div>
                   <span class="text-sm text-gray-500">AI is drafting a response...</span>
@@ -782,7 +782,16 @@ select.form-input option{background:#0F1623}
   </div>
 </div>
 <script>
-  
+  // Global helper: set draft content with bold rendering
+function setDraft(el, text) {
+    if (!el) return;
+    el.innerHTML = (text || '').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+function getDraft(el) {
+    if (!el) return '';
+    return el.innerText || '';
+}
+
   async function fetchMessages() {
     console.log("📡 Automated Sync Initiated...");
     const container = document.getElementById('ticket-list');
@@ -2569,7 +2578,7 @@ async function rbOpenTicket(msgId) {
     const draftArea = document.getElementById('rb-draft-textarea');
     const draftLoad = document.getElementById('rb-draft-loading');
     if (msg.ai_draft && msg.ai_draft.length > 10) {
-      if (draftArea) { draftArea.classList.remove('hidden'); draftArea.value = msg.ai_draft; }
+      if (draftArea) { draftArea.classList.remove('hidden'); setDraft(draftArea, msg.ai_draft); }
       if (draftLoad) draftLoad.classList.add('hidden');
     } else {
       if (draftArea) draftArea.classList.add('hidden');
@@ -2647,13 +2656,13 @@ async function rbGenerateDraftForMessage(msg) {
       await sb.from('messages').update({ai_draft:data.draft,status:'needs_review'}).eq('id',msg.id);
       const lm = rbAllMessages.find(function(m) { return m.id === msg.id; });
       if (lm) lm.ai_draft = data.draft;
-      if (draftArea) { draftArea.value = data.draft; draftArea.classList.remove('hidden'); }
+      if (draftArea) { setDraft(draftArea, data.draft); draftArea.classList.remove('hidden'); }
       if (draftLoad) draftLoad.classList.add('hidden');
       renderRbTicketList(rbAllMessages);
     } else throw new Error('No draft returned');
   } catch(err) {
     console.error('Draft generation error:', err);
-    if (draftArea) { draftArea.value = 'Hi,\n\nThank you for reaching out. We will get back to you as soon as possible.\n\nBest regards,\nCustomer Service Team'; draftArea.classList.remove('hidden'); }
+    if (draftArea) { setDraft(draftArea, 'Hi,\n\nThank you for reaching out. We will get back to you as soon as possible.\n\nBest regards,\nCustomer Service Team'; draftArea.classList.remove('hidden'); }
     if (draftLoad) draftLoad.classList.add('hidden');
   }
 }
@@ -2695,14 +2704,14 @@ async function rbRegenerateWithInstructions() {
     if (result.draft) {
       await sb.from('messages').update({ ai_draft: result.draft }).eq('id', rbActiveMessage.id);
       rbActiveMessage.ai_draft = result.draft;
-      if (draftArea) { draftArea.value = result.draft; draftArea.classList.remove('hidden'); }
+      if (draftArea) { setDraft(draftArea, result.draft); draftArea.classList.remove('hidden'); }
       if (draftLoad) draftLoad.classList.add('hidden');
       showToast('Draft updated with your instructions ✨');
       if (instructions) instructions.value = '';
     } else { throw new Error('No draft returned'); }
   } catch (err) {
     console.error('Regenerate with instructions error:', err);
-    if (draftArea) { draftArea.value = 'Failed to generate draft. Please try again.'; draftArea.classList.remove('hidden'); }
+    if (draftArea) { setDraft(draftArea, 'Failed to generate draft. Please try again.'); draftArea.classList.remove('hidden'); }
     if (draftLoad) draftLoad.classList.add('hidden');
     showToast('Draft generation failed');
   }
@@ -2799,15 +2808,15 @@ async function rbLoadShopifySidebar(msg) {
 
 async function rbApproveSend() {
   if (!rbActiveMessage) return;
-  const draft = document.getElementById('rb-draft-textarea').value.trim();
+  const draft = getDraft(document.getElementById('rb-draft-textarea')).trim();
   if (!draft) { showToast('Draft is empty'); return; }
   try {
     const res = await fetch('/api/messages/' + rbActiveMessage.id + '/send', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:draft,customerEmail:rbActiveMessage.sender})});
     if (!res.ok) throw new Error('HTTP ' + res.status);
     await sb.from('messages').update({status:'done', sent_reply:draft, sent_at:new Date().toISOString()}).eq('id',rbActiveMessage.id);
-    var draftEl = document.getElementById('rb-draft-textarea'); if (draftEl) draftEl.value = '';
+    var draftEl = document.getElementById('rb-draft-textarea'); if (draftEl) draftEl.innerHTML = '';
     rbAllMessages = rbAllMessages.filter(function(m) { return m.id !== rbActiveMessage.id; });
-    var draftEl = document.getElementById('rb-draft-textarea'); if (draftEl) draftEl.value = '';
+    var draftEl = document.getElementById('rb-draft-textarea'); if (draftEl) draftEl.innerHTML = '';
     renderRbTicketList(rbAllMessages); rbCloseTicket(); updateRbPendingCount(); showToast('✓ Reply sent');
   } catch(err) { console.error('Send error:', err); showToast('Failed to send'); }
 }
