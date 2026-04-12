@@ -2404,39 +2404,6 @@ function saveSignature() {
   setTimeout(() => { btn.innerText = originalText; btn.classList.remove('bg-emerald-500'); }, 2000);
 }
 
-// --- AI SETUP: RULEBOOK & TONE ---
-async function handleRulebookUpload(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const btnText = event.target.parentElement.querySelector('span');
-  const originalHTML = btnText.innerHTML;
-  btnText.innerHTML = `<span class="text-emerald-400 animate-pulse">Parsing ${file.name}...</span>`;
-
-  const formData = new FormData();
-  formData.append('file', file);
-
-  try {
-    const res = await fetch('/api/parse-document', { method: 'POST', body: formData });
-    const data = await res.json();
-    
-    if (res.ok && data.text) {
-      const textarea = document.getElementById('rulebook-text');
-      textarea.value += `\n\n--- Rules extracted from ${file.name} ---\n` + data.text;
-      btnText.innerHTML = `<span class="text-emerald-400">Successfully added!</span>`;
-    } else {
-      // THIS WILL NOW SHOW THE REAL BACKEND ERROR
-      alert("Server Error: " + (data.error || "Unknown error parsing PDF"));
-      btnText.innerHTML = originalHTML;
-    }
-  } catch(e) {
-    console.error(e);
-    alert("Network Error: Could not reach the API.");
-    btnText.innerHTML = originalHTML;
-  }
-  }
-
-
 async function handleToneScreenshot(event) {
   const file = event.target.files[0];
   if (!file) return;
