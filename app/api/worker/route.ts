@@ -58,9 +58,11 @@ async function fetchAndDraft(conn: any) {
             return 0;
         }
 
-        console.log(`📬 Found ${unseenUids.length} unseen emails for ${conn.imap_user}`);
+        // Limit to 15 emails per run to avoid Vercel timeout
+        const batch = unseenUids.slice(0, 15);
+        console.log(`📬 Found ${unseenUids.length} unseen emails for ${conn.imap_user}, processing batch of ${batch.length}`);
 
-        const messages: any = client.fetch(unseenUids, { source: true, uid: true }, { uid: true });
+        const messages: any = client.fetch(batch, { source: true, uid: true }, { uid: true });
 
         for await (const msg of messages) {
             if (!msg.source) continue;
