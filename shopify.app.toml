@@ -1,0 +1,13 @@
+name = "Respondro"
+client_id = "794bd0222ac93bd88a19cc739db8a6c8"
+application_url = "https://respondro.vercel.app"
+embedded = false
+
+[access_scopes]
+scopes = "read_orders,write_orders,read_customers,write_customers,read_fulfillments,read_products,read_inventory"
+
+[auth]
+redirect_urls = ["https://respondro.vercel.app/api/shopify-callback"]
+
+[webhooks]
+api_version = "2026-04"
