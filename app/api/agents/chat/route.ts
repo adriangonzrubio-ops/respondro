@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
 const response = await anthropic.messages.create({
     // Updated to the correct Sonnet 4.5 string for 2026
-    model: 'claude-sonnet-4-5-20250929', 
+    model: 'claude-sonnet-4-6',
     max_tokens: 1500, // Sonnet can handle much deeper reasoning
     messages: [{ role: 'user', content: systemPrompt }],
 });

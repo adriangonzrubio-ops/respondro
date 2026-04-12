@@ -12,7 +12,7 @@ export async function classifyAndDraft(
 ) {
     try {
         const response = await anthropic.messages.create({
-            model: 'claude-sonnet-4-5',
+            model: 'claude-sonnet-4-6',
             max_tokens: 1500,
             messages: [{
                 role: 'user',
@@ -52,15 +52,33 @@ Return ONLY valid JSON: { "path": "AUTOMATE" | "REVIEW", "category": "string", "
             }],
         });
         const content = response.content[0].type === 'text' ? response.content[0].text : '';
-        const parsed = JSON.parse(content);
+        // Strip markdown fences that Claude sometimes adds
+        const cleaned = content.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+        // Try to extract JSON object even if there's extra text around it
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error('No JSON found in AI response');
+        const parsed = JSON.parse(jsonMatch[0]);
 
         if (signature && parsed.draft) {
             parsed.draft = parsed.draft.trim() + '\n\n' + signature;
         }
 
         return parsed;
-    } catch (error) {
-        const fallbackDraft = `Hi,\n\nThank you for reaching out. We have received your message and will get back to you as soon as possible.${signature ? '\n\n' + signature : ''}`;
-        return { path: "REVIEW", category: "General", priority: "Medium", draft: fallbackDraft, reason: "AI error — fallback used." };
+    } catch (error: any) {
+        console.error('❌ AI Classifier error:', error.message);
+        // Build a smarter fallback using available context
+        const customerName = body.match(/(?:^|\n)\s*([A-Z][a-z]+ ?[A-Z]?[a-z]*)\s*$/m)?.[1] || '';
+        const greeting = customerName ? `Hi ${customerName.split(' ')[0]},` : 'Hi,';
+        const hasOrder = shopifyData && JSON.stringify(shopifyData).length > 10;
+        
+        let fallbackDraft: string;
+        if (hasOrder) {
+            fallbackDraft = `${greeting}\n\nThank you for contacting us. I can see your order details and am looking into this for you. I will follow up shortly with a full update.`;
+        } else {
+            fallbackDraft = `${greeting}\n\nThank you for reaching out. I am looking into your inquiry and will get back to you shortly with more details.`;
+        }
+        if (signature) fallbackDraft += '\n\n' + signature;
+        
+        return { path: "REVIEW", category: "General", priority: "Medium", draft: fallbackDraft, reason: `AI error — fallback used: ${error.message}` };
     }
 }
