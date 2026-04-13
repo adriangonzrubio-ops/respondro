@@ -2694,8 +2694,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (settings.logo_width) document.getElementById('sig-logo-width').value = settings.logo_width;
             if (settings.signature) document.getElementById('sig-text').value = settings.signature;
             
-            // Fill the Rulebook field
-            if (settings.rulebook) document.getElementById('rulebook-text').value = settings.rulebook;
+            // Fill the Rulebook field (if it exists on the page)
+            var rulebookEl = document.getElementById('rulebook-text');
+            if (settings.rulebook && rulebookEl) rulebookEl.value = settings.rulebook;
             
             // Sync with global state
             if (typeof ST !== 'undefined') ST.settings = settings;
