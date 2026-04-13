@@ -47,6 +47,13 @@ export async function POST(req: Request) {
     const order = orderData.order;
     if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 });
 
+    // Fetch transactions separately (not always included in order response)
+    const txnRes = await fetch(`https://${shop}/admin/api/2024-04/orders/${shopifyOrderId}/transactions.json`, {
+      headers: { 'X-Shopify-Access-Token': token }
+    });
+    const txnData = await txnRes.json();
+    order.transactions = txnData.transactions || order.transactions || [];
+
     // 4. Calculate refund amount
     const totalPrice = parseFloat(order.total_price_set?.presentment_money?.amount || order.total_price);
     let actualRefundAmount: number;
