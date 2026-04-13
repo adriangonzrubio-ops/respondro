@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 });
 
     // 4. Calculate refund amount
-    const totalPrice = parseFloat(order.total_price);
+    const totalPrice = parseFloat(order.total_price_set?.presentment_money?.amount || order.total_price);
     let actualRefundAmount: number;
 
     if (refund_percentage) {
@@ -129,7 +129,7 @@ export async function POST(req: Request) {
     const notePayload = {
       order: {
         id: shopifyOrderId,
-        note: `${order.note ? order.note + '\n' : ''}[Respondro] Refund of ${order.currency} ${actualRefundAmount.toFixed(2)} processed. Reason: ${reason || 'Customer request'}`
+        note: `${order.note ? order.note + '\n' : ''}[Respondro] Refund of ${refundCurrency} ${actualRefundAmount.toFixed(2)} processed. Reason: ${reason || 'Customer request'}`
       }
     };
 
@@ -145,7 +145,7 @@ export async function POST(req: Request) {
     // 7. Update message if provided
     if (message_id) {
       await supabase.from('messages').update({
-        ai_reasoning: `Refund of ${order.currency} ${actualRefundAmount.toFixed(2)} (${refund_percentage ? refund_percentage + '%' : 'custom amount'}) processed via Shopify.`
+        ai_reasoning: `Refund of ${refundCurrency} ${actualRefundAmount.toFixed(2)} (${refund_percentage ? refund_percentage + '%' : 'custom amount'}) processed via Shopify.`
       }).eq('id', message_id);
     }
 
@@ -153,7 +153,7 @@ export async function POST(req: Request) {
       success: true,
       refund: {
         amount: actualRefundAmount.toFixed(2),
-        currency: order.currency,
+        currency: refundCurrency,
         order_number: order.order_number,
         percentage: refund_percentage || null
       }
