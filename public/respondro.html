@@ -3417,7 +3417,7 @@ async function loadDashboardView() {
       : resolvedItems.map(msg => {
         const cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
         const date = new Date(msg.received_at).toLocaleDateString('en-GB', {day:'numeric', month:'short'});
-        return '<div class="flex items-center gap-3 p-3 rounded-xl mb-2" style="background:rgba(0,200,150,0.04);border:1px solid rgba(0,200,150,0.1)">'
+        return '<div class="flex items-center gap-3 p-3 rounded-xl mb-2 cursor-pointer hover:opacity-80 transition-all" onclick="showResolvedSummary(\'' + msg.id + '\')" style="background:rgba(0,200,150,0.04);border:1px solid rgba(0,200,150,0.1)">'
           + '<span style="font-size:14px;flex-shrink:0">✅</span>'
           + '<div class="flex-1 min-w-0">'
           + '<span class="text-xs font-600 text-white truncate block">' + (msg.subject || 'No Subject') + '</span>'
