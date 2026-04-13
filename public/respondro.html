@@ -466,14 +466,25 @@ select.form-input option{background:#0F1623}
     </div>
 </div>
 
-<div id="view-mailboxes" class="hidden p-8" style="max-width:800px">
+<div id="view-mailboxes" class="hidden p-8" style="max-width:900px">
     <div class="mb-8">
         <h2 class="text-2xl font-bold text-white tracking-tight">Email Forwarding</h2>
         <p class="text-gray-400 text-sm mt-1">Set up forwarding from your existing email accounts to automatically create tickets from customer emails.</p>
     </div>
-    <div id="mailbox-provider-list" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+    <div id="mailbox-connected-banner" class="hidden mb-6 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center text-emerald-400 text-lg">✓</div>
+                <div>
+                    <p class="text-sm font-bold text-emerald-400">Email Connected</p>
+                    <p id="mailbox-connected-email" class="text-xs text-gray-400"></p>
+                </div>
+            </div>
+            <button onclick="disconnectEmail()" class="px-3 py-1.5 text-xs text-red-400 border border-red-400/20 rounded-lg hover:bg-red-400/10 transition-all">Disconnect</button>
+        </div>
+    </div>
+    <div id="mailbox-provider-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
 </div>
-
 <div id="view-agents" class="hidden p-8">
     <div class="mb-10">
         <h2 class="text-2xl font-bold text-white tracking-tight text-left">Support Agents</h2>
@@ -1731,7 +1742,7 @@ function switchView(viewId, el) {
     // 3. TRIGGER THE LOADER (Crucial for Step 2 to work!)
     if (viewId === 'agents') loadAgentsView();
     if (viewId === 'integrations') updateShopifyIntegrationUI();
-    if (viewId === 'mailboxes') { var ml = document.getElementById('mailbox-provider-list'); if (ml) ml.innerHTML = document.getElementById('provider-list').innerHTML; }
+    if (viewId === 'mailboxes') { renderMailboxProviders(); }
 if (viewId === 'review-board') fetchMessages();
 if (viewId === 'dashboard') loadDashboardView();
     // 4. Update Sidebar CSS
@@ -1809,6 +1820,65 @@ function buildProviderList(){
     el.onclick=()=>openProviderModal(p);c.appendChild(el);
   });
 }
+function renderMailboxProviders() {
+    const grid = document.getElementById('mailbox-provider-grid');
+    if (!grid) return;
+    
+    // Show connected banner if email is connected
+    const banner = document.getElementById('mailbox-connected-banner');
+    const bannerEmail = document.getElementById('mailbox-connected-email');
+    if (banner && ST.connectedEmail && ST.activeEmail) {
+        banner.classList.remove('hidden');
+        if (bannerEmail) bannerEmail.textContent = 'Receiving emails from: ' + ST.activeEmail;
+    } else if (banner) {
+        banner.classList.add('hidden');
+    }
+
+    const connectedHost = ST.imapHost ? ST.imapHost.toLowerCase() : '';
+    
+    grid.innerHTML = PROVIDERS.map(p => {
+        // Determine if this provider is the connected one
+        let isConnected = false;
+        if (ST.connectedEmail) {
+            if (p.id === 'gmail' && connectedHost.includes('gmail')) isConnected = true;
+            else if (p.id === 'outlook' && connectedHost.includes('outlook')) isConnected = true;
+            else if (p.id === 'private' && connectedHost.includes('privateemail')) isConnected = true;
+            else if (p.id === 'zoho' && connectedHost.includes('zoho')) isConnected = true;
+            else if (p.id === 'fastmail' && connectedHost.includes('fastmail')) isConnected = true;
+            else if (p.id === 'proton' && connectedHost.includes('127.0.0.1')) isConnected = true;
+        }
+        
+        const statusBadge = isConnected 
+            ? '<span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">Connected</span>'
+            : (ST.connectedEmail ? '<span class="text-[10px] text-gray-600">Another provider connected</span>' : '');
+        
+        const borderClass = isConnected ? 'border-emerald-500/30' : 'border-white/5 hover:border-white/20';
+        const opacity = (ST.connectedEmail && !isConnected) ? 'opacity-50' : '';
+        
+        return `
+        <div class="bg-[#16191f] border ${borderClass} rounded-2xl p-5 cursor-pointer transition-all ${opacity} group" onclick="openProviderModal(PROVIDERS.find(x=>x.id==='${p.id}'))">
+            <div class="flex items-start justify-between mb-4">
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold group-hover:scale-105 transition-transform" style="background:${p.color}15;color:${p.color}">${p.icon}</div>
+                ${statusBadge}
+            </div>
+            <h3 class="text-white font-bold text-sm mb-1">${p.name}</h3>
+            <p class="text-gray-500 text-xs mb-3">${p.sub}</p>
+            <div class="text-xs text-gray-600">
+                ${p.type === 'oauth' ? '<span class="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full text-[10px]">OAuth</span>' : '<span class="bg-white/5 text-gray-500 px-2 py-0.5 rounded-full text-[10px]">IMAP/SMTP</span>'}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function disconnectEmail() {
+    if (!confirm('Are you sure you want to disconnect your email? You will stop receiving customer support tickets.')) return;
+    ST.connectedEmail = false;
+    ST.activeEmail = '';
+    ST.imapHost = '';
+    renderMailboxProviders();
+    showToast('Email disconnected');
+}
+
 function buildSignupProviders(){
   const c=document.getElementById('s-provider-grid');if(!c)return;c.innerHTML='';
   PROVIDERS.slice(0,10).forEach(p=>{
