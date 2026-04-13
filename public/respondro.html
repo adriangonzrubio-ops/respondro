@@ -3317,6 +3317,45 @@ function toggleTheme() {
     });
   }
 })();
+
+var dashFilterRange = 'today';
+function setDashFilter(range) {
+  window.dashFilterRange = range;
+  ['today','week','month','all'].forEach(function(r) {
+    var btn = document.getElementById('df-' + r);
+    if (btn) {
+      btn.style.background = r === range ? 'rgba(0,200,150,0.1)' : 'transparent';
+      btn.style.color = r === range ? '#00C896' : '#5A6785';
+    }
+  });
+  loadDashboardView();
+}
+
+async function showResolvedSummary(msgId) {
+  const { data: msg } = await sb.from('messages').select('subject, sender, ai_reasoning, sent_reply, category, sent_at, shopify_data').eq('id', msgId).single();
+  if (!msg) return;
+  
+  const cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
+  const sentDate = msg.sent_at ? new Date(msg.sent_at).toLocaleString() : 'N/A';
+  
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  
+  overlay.innerHTML = '<div style="background:#16191f;border:1px solid rgba(255,255,255,0.05);border-radius:16px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><h3 style="color:white;font-weight:700;font-size:14px;">Resolution Summary</h3><button onclick="this.closest(\'div[style*=fixed]\').remove()" style="background:none;border:none;color:#5A6785;cursor:pointer;font-size:18px;">✕</button></div>'
+    + '<div style="margin-bottom:12px;"><span style="color:#5A6785;font-size:10px;">CUSTOMER</span><p style="color:white;font-size:13px;margin:2px 0;">' + cleanName + '</p></div>'
+    + '<div style="margin-bottom:12px;"><span style="color:#5A6785;font-size:10px;">SUBJECT</span><p style="color:white;font-size:13px;margin:2px 0;">' + (msg.subject || 'No subject') + '</p></div>'
+    + '<div style="margin-bottom:12px;"><span style="color:#5A6785;font-size:10px;">CATEGORY</span><p style="color:#00C896;font-size:12px;margin:2px 0;">' + (msg.category || 'General') + '</p></div>'
+    + '<div style="margin-bottom:12px;"><span style="color:#5A6785;font-size:10px;">AI REASONING</span><p style="color:#C8D0E0;font-size:12px;margin:2px 0;white-space:pre-wrap;">' + (msg.ai_reasoning || 'No reasoning available') + '</p></div>'
+    + '<div style="margin-bottom:12px;"><span style="color:#5A6785;font-size:10px;">RESOLVED AT</span><p style="color:#8B96B0;font-size:12px;margin:2px 0;">' + sentDate + '</p></div>'
+    + (msg.sent_reply ? '<div style="margin-bottom:12px;"><span style="color:#5A6785;font-size:10px;">REPLY SENT</span><div style="background:rgba(0,200,150,0.04);border:1px solid rgba(0,200,150,0.1);border-radius:8px;padding:12px;margin-top:4px;"><p style="color:#C8D0E0;font-size:11px;white-space:pre-wrap;max-height:200px;overflow-y:auto;">' + msg.sent_reply.substring(0, 500) + '</p></div></div>' : '')
+    + '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="width:100%;padding:10px;background:rgba(0,200,150,0.1);color:#00C896;border:1px solid rgba(0,200,150,0.2);border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;margin-top:8px;">Close</button>'
+    + '</div>';
+  
+  document.body.appendChild(overlay);
+}
+
 // ── DASHBOARD ──
 async function loadDashboardView() {
   const { data: msgs } = await sb.from('messages').select('status, ai_reasoning, subject, sender, id, received_at, category, priority');
@@ -3332,10 +3371,18 @@ async function loadDashboardView() {
     actionKeywords.some(k => (m.ai_reasoning || '').toLowerCase().includes(k) || (m.category || '').toLowerCase().includes(k))
   );
 
+  const dashFilterRange = window.dashFilterRange || 'today';
+  const now = new Date();
+  const filterDate = dashFilterRange === 'today' ? new Date(now.setHours(0,0,0,0))
+    : dashFilterRange === 'week' ? new Date(Date.now() - 7*24*60*60*1000)
+    : dashFilterRange === 'month' ? new Date(Date.now() - 30*24*60*60*1000)
+    : new Date(0);
+
   const resolvedItems = msgs.filter(m =>
     (m.status === 'done' || m.status === 'closed') &&
-    actionKeywords.some(k => (m.ai_reasoning || '').toLowerCase().includes(k) || (m.category || '').toLowerCase().includes(k))
-  ).slice(0, 15);
+    actionKeywords.some(k => (m.ai_reasoning || '').toLowerCase().includes(k) || (m.category || '').toLowerCase().includes(k)) &&
+    new Date(m.received_at) >= filterDate
+  ).slice(0, 30);
 
   const el = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = val; };
   el('dash-stat-review', review);
@@ -3377,7 +3424,7 @@ async function loadDashboardView() {
           + '<span class="text-xs font-600 text-white truncate block">' + (msg.subject || 'No Subject') + '</span>'
           + '<span class="text-[10px]" style="color:#5A6785">' + cleanName + ' · ' + date + '</span>'
           + '</div>'
-          + '<span class="text-[9px] px-2 py-0.5 rounded-full font-mono" style="background:rgba(0,200,150,0.1);color:#00C896">resolved</span>'
+          + '<button onclick="showResolvedSummary(\'' + msg.id + '\')" class="text-[9px] px-2 py-0.5 rounded-full font-mono cursor-pointer hover:opacity-80" style="background:rgba(0,200,150,0.1);color:#00C896;border:none">resolved</button>'
           + '</div>';
       }).join('');
 
@@ -3388,7 +3435,9 @@ async function loadDashboardView() {
       + '<div style="max-height:500px;overflow-y:auto">' + needsActionHTML + '</div>'
       + '</div>'
       + '<div>'
-      + '<div class="flex items-center justify-between mb-3"><h4 class="text-xs font-display font-700" style="color:#00C896">✅ Resolved (' + resolvedItems.length + ')</h4></div>'
+      + '<div class="flex items-center justify-between mb-3"><h4 class="text-xs font-display font-700" style="color:#00C896">✅ Resolved (' + resolvedItems.length + ')</h4>'
+      + '<div class="flex gap-1"><button onclick="setDashFilter(\'today\')" class="text-[9px] px-2 py-1 rounded" style="background:rgba(0,200,150,0.1);color:#00C896" id="df-today">Today</button><button onclick="setDashFilter(\'week\')" class="text-[9px] px-2 py-1 rounded" style="color:#5A6785" id="df-week">Week</button><button onclick="setDashFilter(\'month\')" class="text-[9px] px-2 py-1 rounded" style="color:#5A6785" id="df-month">Month</button><button onclick="setDashFilter(\'all\')" class="text-[9px] px-2 py-1 rounded" style="color:#5A6785" id="df-all">All</button></div>'
+      + '</div>'
       + '<div style="max-height:500px;overflow-y:auto">' + resolvedHTML + '</div>'
       + '</div>'
       + '</div>';
