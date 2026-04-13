@@ -257,7 +257,7 @@ select.form-input option{background:#0F1623}
 <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-8 mb-2 px-2" style="font-size: 10px;">Configuration</div>
 <div id="link-settings" onclick="switchView('settings', this)" class="sidebar-item w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 rounded-lg hover:bg-white/5 cursor-pointer transition-all group">
     <span class="text-lg">⚙️</span>
-    <span>System Settings</span>
+    <span>Settings</span>
 </div>
     <div class="p-4 border-t border-white/5 bg-black/20">
         <div id="store-name-sb" class="text-xs text-gray-300 font-bold truncate">Loading Store...</div>
@@ -626,70 +626,104 @@ select.form-input option{background:#0F1623}
     </div>
 
     <div id="view-settings" class="p-6 hidden" style="max-width:700px">
-        <div class="mb-5">
-            <h2 class="font-display font-700 text-xl mb-1">Settings</h2>
-            <p class="text-sm" style="color: #5A6785;">Email, Shopify, AI setup.</p>
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-white tracking-tight">Settings</h2>
+            <p class="text-sm text-gray-500 mt-1">Branding, appearance, and subscription management.</p>
         </div>
 
-        <div class="settings-card mb-6">
-            <h3 class="font-display font-600 mb-4 text-white">Email Branding & Signature</h3>
+        <!-- SECTION 1: Email Branding & Signature -->
+        <div class="bg-[#16191f] border border-white/5 rounded-2xl p-6 mb-6">
+            <h3 class="text-white font-bold text-sm mb-4 flex items-center gap-2"><span>✉️</span> Email Branding & Signature</h3>
             <div class="space-y-4">
                 <div class="flex flex-col gap-1">
-                    <label class="form-label">Store Logo URL</label>
-                    <input type="text" id="sig-logo-url" class="form-input" placeholder="https://yourstore.com/logo.png">
+                    <label class="text-xs text-gray-400">Store Logo URL</label>
+                    <input type="text" id="sig-logo-url" class="w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-emerald-500/50" placeholder="https://yourstore.com/logo.png">
                 </div>
                 <div class="flex flex-col gap-1">
-                    <label class="form-label">Logo Width (px)</label>
-                    <input type="number" id="sig-logo-width" class="form-input" style="max-width: 120px;" value="120">
+                    <label class="text-xs text-gray-400">Logo Width (px)</label>
+                    <input type="number" id="sig-logo-width" class="w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-emerald-500/50" style="max-width: 120px;" value="120">
                 </div>
                 <div class="flex flex-col gap-1">
-                    <label class="form-label">Default Email Signature</label>
-                    <textarea id="sig-text" class="form-input min-h-[100px]" placeholder="Best regards, Team"></textarea>
+                    <label class="text-xs text-gray-400">Default Email Signature</label>
+                    <textarea id="sig-text" class="w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-emerald-500/50 min-h-[100px]" placeholder="Best regards, Team"></textarea>
                 </div>
-                <button onclick="saveSignature()" class="btn-primary w-full justify-center">Save Branding</button>
+                <button onclick="saveSignature()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-all">Save Branding</button>
             </div>
         </div>
-        <div class="settings-card mb-6">
-    <div class="flex items-center justify-between mb-3">
-        <h3 class="font-display font-600">Email Accounts</h3>
-    </div>
-    <p class="text-xs mb-4" style="color: #5A6785;">Connect your support inboxes to start receiving tickets.</p>
-    
-    <div id="provider-list" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
-</div>
-<div class="settings-card mb-6">
-    <div class="flex items-center justify-between mb-3">
-        <h3 class="font-display font-600">Shopify</h3>
-        <span id="shopify-conn-chip" class="hidden bg-emerald-500/10 text-emerald-500 text-[10px] font-bold px-2 py-1 rounded-full border border-emerald-500/20">
-            ✓ Connected
-        </span>
-    </div>
-    <p class="text-xs mb-4" style="color: #5A6785;">Connect your store to fetch live order data and automate refunds.</p>
-    
-    <button id="shopify-btn" class="btn-primary w-full" onclick="connectShopify()">
-        Connect with Shopify
-    </button>
-</div>
-        <div class="settings-card">
-            <h3 class="font-display font-600 mb-1">AI setup</h3>
-            <p class="text-xs mb-3" style="color: #5A6785;">Rulebook and tone training - update anytime.</p>
+
+        <!-- SECTION 2: Sidebar Logo -->
+        <div class="bg-[#16191f] border border-white/5 rounded-2xl p-6 mb-6">
+            <h3 class="text-white font-bold text-sm mb-1 flex items-center gap-2"><span>🖼️</span> Sidebar Logo</h3>
+            <p class="text-gray-500 text-xs mb-4">Add your store logo to the sidebar menu. Upload both a normal and inverted version for dark/light mode.</p>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="flex flex-col gap-2">
+                    <label class="text-xs text-gray-400">Logo (Dark Mode)</label>
+                    <input type="text" id="sidebar-logo-dark" class="w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-emerald-500/50" placeholder="https://yourstore.com/logo-light.png">
+                    <p class="text-[10px] text-gray-600">Light/white logo for the dark sidebar</p>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="text-xs text-gray-400">Logo (Light Mode)</label>
+                    <input type="text" id="sidebar-logo-light" class="w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-emerald-500/50" placeholder="https://yourstore.com/logo-dark.png">
+                    <p class="text-[10px] text-gray-600">Dark logo for the light sidebar</p>
+                </div>
+            </div>
+            <div id="sidebar-logo-preview" class="mt-4 flex items-center gap-4">
+                <div class="bg-[#0c0f15] rounded-xl p-3 flex items-center justify-center h-12">
+                    <img id="preview-logo-dark" src="" style="max-height:28px;display:none;" alt="Dark mode preview">
+                    <span id="preview-logo-dark-placeholder" class="text-xs text-gray-600">Dark mode preview</span>
+                </div>
+                <div class="bg-white rounded-xl p-3 flex items-center justify-center h-12">
+                    <img id="preview-logo-light" src="" style="max-height:28px;display:none;" alt="Light mode preview">
+                    <span id="preview-logo-light-placeholder" class="text-xs text-gray-400">Light mode preview</span>
+                </div>
+            </div>
+            <button onclick="saveSidebarLogo()" class="w-full mt-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-all">Save Logo</button>
+        </div>
+
+        <!-- SECTION 3: Appearance -->
+        <div class="bg-[#16191f] border border-white/5 rounded-2xl p-6 mb-6">
+            <h3 class="text-white font-bold text-sm mb-4 flex items-center gap-2"><span>🎨</span> Appearance</h3>
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-white">Dark Mode</p>
+                    <p class="text-xs text-gray-500">Switch between dark and light theme</p>
+                </div>
+                <div onclick="toggleTheme()" style="width:44px;height:24px;border-radius:12px;background:rgba(0,200,150,0.4);position:relative;cursor:pointer;flex-shrink:0;transition:background 0.3s" id="settings-theme-track">
+                    <div id="settings-theme-dot" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left 0.3s;display:flex;align-items:center;justify-content:center;font-size:10px">🌙</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 4: Subscription -->
+        <div class="bg-[#16191f] border border-white/5 rounded-2xl p-6 mb-6">
+            <h3 class="text-white font-bold text-sm mb-1 flex items-center gap-2"><span>💳</span> Subscription</h3>
+            <p class="text-gray-500 text-xs mb-4">Manage your current plan and billing.</p>
             
-            <div class="flex gap-1 mb-4" style="background: #080D1A; border-radius: 10px; padding: 3px;">
-                <button class="sub-tab active" id="st-rulebook" onclick="switchSubTab('rulebook')">Rulebook</button>
-                <button class="sub-tab" id="st-tone" onclick="switchSubTab('tone')">Tone examples</button>
+            <div class="bg-black/20 border border-emerald-500/20 rounded-xl p-4 mb-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-white font-bold text-sm">Scale Plan</span>
+                    <span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">CURRENT</span>
+                </div>
+                <p class="text-xs text-gray-400 mb-1">Trial Plan · Free for 14 days</p>
+                <p class="text-xs text-gray-600">Started on setup · Renews automatically</p>
             </div>
 
-            <div id="sub-rulebook">
-                <p class="text-xs mb-2" style="color: #5A6785;">Policies, shipping info, what to always/never do.</p>
-                <textarea id="rulebook-text" class="form-input" style="height: 140px; font-family: 'DM Mono', monospace;"></textarea>
-                <button class="btn-primary btn-sm mt-3" onclick="saveRulebook()">Save rulebook</button>
+            <div class="space-y-2">
+                <button onclick="showToast('Upgrade flow coming soon')" class="w-full py-2.5 bg-white/5 hover:bg-white/10 text-white text-xs font-bold rounded-lg border border-white/5 transition-all flex items-center justify-center gap-2">
+                    <span>⬆️</span> Upgrade Plan
+                </button>
+                <button onclick="showToast('Downgrade flow coming soon')" class="w-full py-2.5 bg-white/5 hover:bg-white/10 text-gray-400 text-xs font-bold rounded-lg border border-white/5 transition-all flex items-center justify-center gap-2">
+                    <span>⬇️</span> Downgrade Plan
+                </button>
+                <button onclick="if(confirm('Are you sure you want to cancel your subscription?')) showToast('Cancellation flow coming soon')" class="w-full py-2.5 bg-white/5 hover:bg-red-500/10 text-red-400 text-xs font-bold rounded-lg border border-white/5 hover:border-red-500/20 transition-all flex items-center justify-center gap-2">
+                    <span>✕</span> Cancel Subscription
+                </button>
             </div>
+        </div>
 
-            <div id="sub-tone" class="hidden">
-                <p class="text-xs mb-2" style="color: #5A6785;">Paste 5-10 real CS replies you've sent.</p>
-                <textarea id="tone-textarea" class="form-input" style="height: 160px; font-family: 'DM Mono', monospace;"></textarea>
-                <button id="analyze-tone-btn" class="btn-primary btn-sm mt-3" onclick="analyzeTone()">Analyse tone</button>
-            </div>
+        <!-- Hidden provider list for backwards compatibility -->
+        <div class="hidden">
+            <div id="provider-list" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
         </div>
     </div>
 
@@ -1870,6 +1904,46 @@ function renderMailboxProviders() {
             </div>
         </div>`;
     }).join('');
+}
+function saveSidebarLogo() {
+    const darkUrl = document.getElementById('sidebar-logo-dark')?.value.trim();
+    const lightUrl = document.getElementById('sidebar-logo-light')?.value.trim();
+    
+    // Update previews
+    const previewDark = document.getElementById('preview-logo-dark');
+    const previewLight = document.getElementById('preview-logo-light');
+    const placeholderDark = document.getElementById('preview-logo-dark-placeholder');
+    const placeholderLight = document.getElementById('preview-logo-light-placeholder');
+    
+    if (darkUrl && previewDark) { previewDark.src = darkUrl; previewDark.style.display = 'block'; if (placeholderDark) placeholderDark.style.display = 'none'; }
+    if (lightUrl && previewLight) { previewLight.src = lightUrl; previewLight.style.display = 'block'; if (placeholderLight) placeholderLight.style.display = 'none'; }
+    
+    // Save to settings
+    if (ST.settings?.store_id) {
+        sb.from('settings').update({
+            sidebar_logo_dark: darkUrl || null,
+            sidebar_logo_light: lightUrl || null
+        }).eq('store_id', ST.settings.store_id);
+    }
+    
+    localStorage.setItem('sidebar_logo_dark', darkUrl);
+    localStorage.setItem('sidebar_logo_light', lightUrl);
+    
+    // Update sidebar
+    updateSidebarLogo();
+    showToast('Sidebar logo saved! ✨');
+}
+
+function updateSidebarLogo() {
+    const darkUrl = localStorage.getItem('sidebar_logo_dark');
+    const lightUrl = localStorage.getItem('sidebar_logo_light');
+    const isLight = document.body.classList.contains('light');
+    const logoContainer = document.getElementById('sidebar-logo-container');
+    
+    if (logoContainer && (darkUrl || lightUrl)) {
+        const activeUrl = isLight ? (lightUrl || darkUrl) : (darkUrl || lightUrl);
+        logoContainer.innerHTML = `<img src="${activeUrl}" style="max-height:28px;" alt="Store Logo">`;
+    }
 }
 
 function disconnectEmail() {
@@ -3154,12 +3228,30 @@ function toggleTheme() {
   document.body.classList.toggle('light');
   var isLight = document.body.classList.contains('light');
   localStorage.setItem('respondro_theme', isLight ? 'light' : 'dark');
-  var dot = document.getElementById('theme-toggle-dot');
-  var track = document.getElementById('theme-toggle-track');
-  if (dot) { dot.style.left = isLight ? '18px' : '2px'; dot.innerHTML = isLight ? '☀️' : '🌙'; }
-  if (track) track.style.background = isLight ? 'rgba(0,200,150,0.4)' : 'rgba(255,255,255,0.15)';
+  // Sync all theme toggles (top-right + settings)
+  ['theme-toggle', 'settings-theme'].forEach(function(prefix) {
+    var dot = document.getElementById(prefix + '-dot');
+    var track = document.getElementById(prefix + '-track');
+    if (dot) { dot.style.left = isLight ? '22px' : '3px'; dot.innerHTML = isLight ? '☀️' : '🌙'; }
+    if (track) track.style.background = isLight ? 'rgba(0,200,150,0.4)' : 'rgba(255,255,255,0.15)';
+  });
+  // Swap sidebar logo
+  var darkLogo = document.getElementById('sidebar-store-logo-dark');
+  var lightLogo = document.getElementById('sidebar-store-logo-light');
+  if (darkLogo) darkLogo.style.display = isLight ? 'none' : 'block';
+  if (lightLogo) lightLogo.style.display = isLight ? 'block' : 'none';
 }
-if (localStorage.getItem('respondro_theme') === 'light') { document.body.classList.add('light'); var _dot = document.getElementById('theme-toggle-dot'); var _track = document.getElementById('theme-toggle-track'); if (_dot) { _dot.style.left = '18px'; _dot.innerHTML = '☀️'; } if (_track) _track.style.background = 'rgba(0,200,150,0.4)'; }
+(function() {
+  if (localStorage.getItem('respondro_theme') === 'light') {
+    document.body.classList.add('light');
+    ['theme-toggle', 'settings-theme'].forEach(function(prefix) {
+      var dot = document.getElementById(prefix + '-dot');
+      var track = document.getElementById(prefix + '-track');
+      if (dot) { dot.style.left = '22px'; dot.innerHTML = '☀️'; }
+      if (track) track.style.background = 'rgba(0,200,150,0.4)';
+    });
+  }
+})();
 // ── DASHBOARD ──
 async function loadDashboardView() {
   const { data: msgs } = await sb.from('messages').select('status, ai_reasoning, subject, sender, id, received_at, category, priority');
