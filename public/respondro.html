@@ -637,12 +637,25 @@ select.form-input option{background:#0F1623}
             <h3 class="text-white font-bold text-sm mb-4 flex items-center gap-2"><span>✉️</span> Email Branding & Signature</h3>
             <div class="space-y-4">
                 <div class="flex flex-col gap-1">
-                    <label class="text-xs text-gray-400">Store Logo URL</label>
-                    <input type="text" id="sig-logo-url" class="w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-emerald-500/50" placeholder="https://yourstore.com/logo.png">
+                    <label class="text-xs text-gray-400">Store Logo</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="sig-logo-url" class="flex-1 bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-emerald-500/50" placeholder="https://yourstore.com/logo.png" oninput="updateEmailLogoPreview()">
+                        <label class="px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white text-xs rounded-lg transition-all cursor-pointer shrink-0 flex items-center gap-1">
+                            📎 Upload
+                            <input type="file" accept=".png,.jpg,.jpeg,.svg,.webp" class="hidden" onchange="handleEmailLogoUpload(event)">
+                        </label>
+                    </div>
+                </div>
+                <div class="bg-black/20 border border-white/5 rounded-xl p-4 flex items-center justify-center min-h-[80px]">
+                    <img id="email-logo-preview" src="" style="display:none;" alt="Logo preview">
+                    <span id="email-logo-placeholder" class="text-xs text-gray-600">Logo preview will appear here</span>
                 </div>
                 <div class="flex flex-col gap-1">
-                    <label class="text-xs text-gray-400">Logo Width (px)</label>
-                    <input type="number" id="sig-logo-width" class="w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-emerald-500/50" style="max-width: 120px;" value="120">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs text-gray-400">Logo Width</label>
+                        <span id="sig-logo-width-label" class="text-xs text-emerald-400">120px</span>
+                    </div>
+                    <input type="range" id="sig-logo-width" min="40" max="300" value="120" class="w-full accent-emerald-500" oninput="updateEmailLogoPreview()">
                 </div>
                 <div class="flex flex-col gap-1">
                     <label class="text-xs text-gray-400">Default Email Signature</label>
@@ -653,34 +666,36 @@ select.form-input option{background:#0F1623}
         </div>
 
         <!-- SECTION 2: Sidebar Logo -->
-        <div class="bg-[#16191f] border border-white/5 rounded-2xl p-6">
-            <h3 class="text-white font-bold text-sm mb-1 flex items-center gap-2"><span>🖼️</span> Sidebar Logo</h3>
-            <p class="text-gray-500 text-xs mb-4">Add your store logo to the sidebar menu. Upload both a normal and inverted version for dark/light mode.</p>
-            <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-2 gap-4">
                 <div class="flex flex-col gap-2">
                     <label class="text-xs text-gray-400">Logo (Dark Mode)</label>
-                    <input type="text" id="sidebar-logo-dark" class="w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-emerald-500/50" placeholder="https://yourstore.com/logo-light.png">
+                    <label class="flex items-center justify-center gap-2 px-3 py-3 bg-black/20 border border-dashed border-white/10 rounded-xl cursor-pointer hover:border-emerald-500/50 transition-all">
+                        <span id="sidebar-dark-upload-label" class="text-xs text-gray-400">📎 Upload PNG</span>
+                        <input type="file" accept=".png,.jpg,.jpeg,.svg,.webp" class="hidden" onchange="handleSidebarLogoUpload(event, 'dark')">
+                    </label>
+                    <input type="text" id="sidebar-logo-dark" class="w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-[10px] text-gray-500 outline-none focus:border-emerald-500/50" placeholder="or paste URL here">
                     <p class="text-[10px] text-gray-600">Light/white logo for the dark sidebar</p>
                 </div>
                 <div class="flex flex-col gap-2">
                     <label class="text-xs text-gray-400">Logo (Light Mode)</label>
-                    <input type="text" id="sidebar-logo-light" class="w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-emerald-500/50" placeholder="https://yourstore.com/logo-dark.png">
+                    <label class="flex items-center justify-center gap-2 px-3 py-3 bg-black/20 border border-dashed border-white/10 rounded-xl cursor-pointer hover:border-emerald-500/50 transition-all">
+                        <span id="sidebar-light-upload-label" class="text-xs text-gray-400">📎 Upload PNG</span>
+                        <input type="file" accept=".png,.jpg,.jpeg,.svg,.webp" class="hidden" onchange="handleSidebarLogoUpload(event, 'light')">
+                    </label>
+                    <input type="text" id="sidebar-logo-light" class="w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-[10px] text-gray-500 outline-none focus:border-emerald-500/50" placeholder="or paste URL here">
                     <p class="text-[10px] text-gray-600">Dark logo for the light sidebar</p>
                 </div>
             </div>
             <div id="sidebar-logo-preview" class="mt-4 flex items-center gap-4">
-                <div class="bg-[#0c0f15] rounded-xl p-3 flex items-center justify-center h-12"><div id="view-settings" class="p-6 hidden" style="max-width:700px"><div id="view-settings" class="p-6 hidden" style="max-width:700px"></div>
-                    <img id="preview-logo-dark" src="" style="max-height:28px;display:none;" alt="Dark mode preview">
+                <div class="bg-[#0c0f15] rounded-xl p-4 flex items-center justify-center h-14 flex-1">
+                    <img id="preview-logo-dark" src="" style="max-height:32px;display:none;" alt="Dark mode preview">
                     <span id="preview-logo-dark-placeholder" class="text-xs text-gray-600">Dark mode preview</span>
                 </div>
-                <div class="bg-white rounded-xl p-3 flex items-center justify-center h-12">
-                    <img id="preview-logo-light" src="" style="max-height:28px;display:none;" alt="Light mode preview">
+                <div class="bg-white rounded-xl p-4 flex items-center justify-center h-14 flex-1">
+                    <img id="preview-logo-light" src="" style="max-height:32px;display:none;" alt="Light mode preview">
                     <span id="preview-logo-light-placeholder" class="text-xs text-gray-400">Light mode preview</span>
                 </div>
             </div>
-            <button onclick="saveSidebarLogo()" class="w-full mt-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-all">Save Logo</button>
-        </div>
-        </div>
 
         <!-- SECTION 3: Appearance -->
         <div class="bg-[#16191f] border border-white/5 rounded-2xl p-6">
@@ -1907,6 +1922,55 @@ function renderMailboxProviders() {
         </div>`;
     }).join('');
 }
+function updateEmailLogoPreview() {
+    const url = document.getElementById('sig-logo-url')?.value;
+    const width = document.getElementById('sig-logo-width')?.value || 120;
+    const preview = document.getElementById('email-logo-preview');
+    const placeholder = document.getElementById('email-logo-placeholder');
+    const label = document.getElementById('sig-logo-width-label');
+    
+    if (label) label.textContent = width + 'px';
+    
+    if (url && preview) {
+        preview.src = url;
+        preview.style.display = 'block';
+        preview.style.width = width + 'px';
+        preview.style.maxWidth = '100%';
+        if (placeholder) placeholder.style.display = 'none';
+    }
+}
+
+function handleEmailLogoUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const dataUrl = e.target.result;
+        document.getElementById('sig-logo-url').value = dataUrl;
+        updateEmailLogoPreview();
+    };
+    reader.readAsDataURL(file);
+}
+
+function handleSidebarLogoUpload(event, mode) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const label = document.getElementById('sidebar-' + mode + '-upload-label');
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const dataUrl = e.target.result;
+        document.getElementById('sidebar-logo-' + mode).value = dataUrl;
+        if (label) label.innerHTML = '<span class="text-emerald-400">✓ ' + file.name + '</span>';
+        
+        // Update preview
+        const preview = document.getElementById('preview-logo-' + mode);
+        const placeholder = document.getElementById('preview-logo-' + mode + '-placeholder');
+        if (preview) { preview.src = dataUrl; preview.style.display = 'block'; }
+        if (placeholder) placeholder.style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+}
+
 function saveSidebarLogo() {
     const darkUrl = document.getElementById('sidebar-logo-dark')?.value.trim();
     const lightUrl = document.getElementById('sidebar-logo-light')?.value.trim();
