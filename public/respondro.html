@@ -3461,29 +3461,48 @@ async function loadDashboardView() {
   }
 }
 async function dashResolveAndNotify(msgId, btn) {
-  if (btn) { btn.textContent = 'Sending...'; btn.disabled = true; }
+  if (btn) { btn.textContent = 'Generating reply...'; btn.disabled = true; }
   try {
-    var msg = null;
+    // 1. Generate an AI draft based on the full context
+    var draftRes = await fetch('/api/agents/generate-draft', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messageId: msgId })
+    });
+    var draftData = await draftRes.json();
+    
+    if (!draftData.draft) throw new Error('Failed to generate AI draft');
+
+    // 2. Get the message for sender info
     var result = await sb.from('messages').select('*').eq('id', msgId).single();
-    if (result.data) msg = result.data;
-    if (msg) {
-      var cleanEmail = msg.sender && msg.sender.includes('<') ? msg.sender.split('<')[1].replace('>','').trim() : msg.sender;
-      var cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim().split(' ')[0];
-      var resolutionText = 'Hi ' + cleanName + ',\n\nWe wanted to let you know that the issue you contacted us about (' + (msg.subject || 'your inquiry') + ') has been resolved.\n\nIf you have any other questions, feel free to reach out — we are always happy to help!\n\nBest regards,\nCustomer Support Team';
-      await fetch('/api/messages/' + msgId + '/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: resolutionText, customerEmail: cleanEmail })
-      });
-    }
-    await sb.from('messages').update({ status: 'done', sent_reply: 'Resolution notification sent', sent_at: new Date().toISOString() }).eq('id', msgId);
+    var msg = result.data;
+    if (!msg) throw new Error('Message not found');
+
+    var cleanEmail = msg.sender && msg.sender.includes('<') ? msg.sender.split('<')[1].replace('>','').trim() : msg.sender;
+
+    if (btn) { btn.textContent = 'Sending...'; }
+
+    // 3. Send the AI-generated reply
+    await fetch('/api/messages/' + msgId + '/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: draftData.draft, customerEmail: cleanEmail })
+    });
+
+    // 4. Update status with the actual reply sent
+    await sb.from('messages').update({ 
+      status: 'done', 
+      sent_reply: draftData.draft, 
+      sent_at: new Date().toISOString() 
+    }).eq('id', msgId);
+
     if (btn) { btn.textContent = '✓ Done'; btn.style.color = '#00C896'; }
-    showToast('Resolved & customer notified ✓');
+    showToast('Resolved & AI reply sent to customer ✓');
     setTimeout(function() { loadDashboardView(); }, 800);
   } catch (err) {
     console.error('Resolve error:', err);
     if (btn) { btn.textContent = 'Failed'; btn.disabled = false; }
-    showToast('Error resolving ticket');
+    showToast('Error: ' + (err.message || 'Could not resolve ticket'));
   }
 }
 
