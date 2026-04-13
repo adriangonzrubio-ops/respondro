@@ -509,6 +509,7 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
         <button onclick="setRbFilter('needs_review')" id="rbf-needs_review" class="rb-filter-btn flex-1 text-[10px] font-mono py-1.5 rounded-md transition-all" style="background:transparent;color:#5A6785">REVIEW</button>
         <button onclick="setRbFilter('automated')" id="rbf-automated" class="rb-filter-btn flex-1 text-[10px] font-mono py-1.5 rounded-md transition-all" style="background:transparent;color:#5A6785">AUTO</button>
         <button onclick="setRbFilter('archived')" id="rbf-archived" class="rb-filter-btn flex-1 text-[10px] font-mono py-1.5 rounded-md transition-all" style="background:transparent;color:#5A6785">ARCHIVED</button>
+        <button onclick="setRbFilter('spam')" id="rbf-spam" class="rb-filter-btn flex-1 text-[10px] font-mono py-1.5 rounded-md transition-all" style="background:transparent;color:#5A6785">SPAM</button>
       </div>
       <div id="rb-ticket-list" class="flex-1 overflow-y-auto p-2 space-y-1">
         <div class="text-center text-[10px] uppercase tracking-widest text-gray-600 mt-10">Loading tickets...</div>
@@ -3126,7 +3127,7 @@ async function fetchMessages() {
   if (syncIcon) syncIcon.style.animation = 'spin 0.7s linear infinite';
   try {
     try { await fetch('/api/worker'); } catch(e) {}
-    const { data: messages, error } = await sb.from('messages').select('*').in('status', ['needs_review','automated','pending','done','closed']).order('received_at', { ascending: false }).limit(100);
+    const { data: messages, error } = await sb.from('messages').select('*').in('status', ['needs_review','automated','pending','done','closed','spam']).order('received_at', { ascending: false }).limit(100);
     if (error) throw error;
     rbAllMessages = messages || [];
     renderRbTicketList(rbAllMessages);
@@ -3144,8 +3145,9 @@ function renderRbTicketList(messages) {
   const container = document.getElementById('rb-ticket-list');
   if (!container) return;
   const filtered = messages.filter(function(m) {
-    if(rbCurrentFilter === 'all') return m.status !== 'done' && m.status !== 'closed';
+    if(rbCurrentFilter === 'all') return m.status !== 'done' && m.status !== 'closed' && m.status !== 'spam';
     if(rbCurrentFilter === 'archived') return m.status === 'done' || m.status === 'closed';
+    if(rbCurrentFilter === 'spam') return m.status === 'spam';
     return m.status === rbCurrentFilter;
   });
   if (filtered.length === 0) { container.innerHTML = '<div class="text-center text-[10px] uppercase tracking-widest text-gray-700 mt-10 px-3">No tickets</div>'; return; }
