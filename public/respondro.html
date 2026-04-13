@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Respondro — AI Customer Service</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>tailwind.config={theme:{extend:{colors:{navy:'#080D1A',surface:'#0F1623',surface2:'#151E30',accent:'#00C896',warm:'#F0A500',muted:'#5A6785'},fontFamily:{display:['Syne','sans-serif'],body:['DM Sans','sans-serif'],mono:['DM Mono','monospace']}}}}</script>
+<script>tailwind.config={theme:{extend:{colors:{navy:'#080D1A',surface:'#0F1623',surface2:'#151E30',accent:'#00C896',warm:'#F0A500',muted:'#5A6785'},fontFamily:{display:['Inter','sans-serif'],body:['Inter','sans-serif'],mono:['JetBrains Mono','monospace']}}}}</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
-body{background:#080D1A;color:#E8EBF2;font-family:'DM Sans',sans-serif;overflow-x:hidden}
+body{background:#080D1A;color:#E8EBF2;font-family:'Inter',sans-serif;overflow-x:hidden}
 .grid-bg{background-image:linear-gradient(rgba(0,200,150,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,150,0.03) 1px,transparent 1px);background-size:60px 60px}
 @keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 .ticker-track{animation:ticker 28s linear infinite;display:flex;width:max-content}
@@ -24,10 +24,10 @@ body{background:#080D1A;color:#E8EBF2;font-family:'DM Sans',sans-serif;overflow-
 .fade-up{opacity:0;transform:translateY(20px);transition:opacity 0.6s ease,transform 0.6s ease}
 .fade-up.visible{opacity:1;transform:translateY(0)}
 .nav-scrolled{background:rgba(8,13,26,0.95)!important;border-bottom:1px solid rgba(255,255,255,0.07)!important;backdrop-filter:blur(12px)}
-.btn-primary{background:#00C896;color:#080D1A;font-family:'Syne',sans-serif;font-weight:700;border-radius:999px;padding:11px 22px;transition:transform 0.2s,box-shadow 0.2s;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:7px;font-size:14px;white-space:nowrap}
+.btn-primary{background:#00C896;color:#080D1A;font-family:'Inter',sans-serif;font-weight:700;border-radius:999px;padding:11px 22px;transition:transform 0.2s,box-shadow 0.2s;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:7px;font-size:14px;white-space:nowrap}
 .btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(0,200,150,0.35)}
 .btn-primary:disabled{opacity:0.5;cursor:not-allowed;transform:none;box-shadow:none}
-.btn-ghost{background:transparent;color:#E8EBF2;font-family:'Syne',sans-serif;font-weight:600;border-radius:999px;padding:10px 22px;border:1px solid rgba(255,255,255,0.15);transition:all 0.2s;cursor:pointer;font-size:14px;white-space:nowrap}
+.btn-ghost{background:transparent;color:#E8EBF2;font-family:'Inter',sans-serif;font-weight:600;border-radius:999px;padding:10px 22px;border:1px solid rgba(255,255,255,0.15);transition:all 0.2s;cursor:pointer;font-size:14px;white-space:nowrap}
 .btn-ghost:hover{border-color:rgba(255,255,255,0.3);background:rgba(255,255,255,0.04)}
 .btn-sm{padding:6px 13px!important;font-size:12px!important;border-radius:8px!important}
 .btn-icon{background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:7px;padding:4px 8px;cursor:pointer;font-size:11px;color:#8B96B0;transition:all 0.2s;display:inline-flex;align-items:center;gap:3px}
@@ -39,11 +39,11 @@ body{background:#080D1A;color:#E8EBF2;font-family:'DM Sans',sans-serif;overflow-
 .modal-overlay.open .modal-box{transform:translateY(0)}
 .modal-wide{max-width:560px}
 .modal-xl{max-width:680px}
-.form-input{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:11px 14px;color:#E8EBF2;font-family:'DM Sans',sans-serif;font-size:14px;transition:border-color 0.2s;outline:none}
+.form-input{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:11px 14px;color:#E8EBF2;font-family:'Inter',sans-serif;font-size:14px;transition:border-color 0.2s;outline:none}
 .form-input:focus{border-color:#00C896}
 .form-input::placeholder{color:#3A4760}
 select.form-input option{background:#0F1623}
-.form-label{font-family:'Syne',sans-serif;font-weight:600;font-size:11px;color:#5A6785;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:5px;display:block}
+.form-label{font-family:'Inter',sans-serif;font-weight:600;font-size:11px;color:#5A6785;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:5px;display:block}
 .provider-card{border:1px solid rgba(255,255,255,0.09);border-radius:10px;padding:10px 13px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:10px}
 .provider-card:hover{border-color:rgba(0,200,150,0.35);background:rgba(0,200,150,0.04)}
 .provider-card.connected{border-color:rgba(0,200,150,0.4);background:rgba(0,200,150,0.06)}
@@ -51,7 +51,7 @@ select.form-input option{background:#0F1623}
 .step-dot.active{background:#00C896;width:22px;border-radius:4px}
 .step-dot.done{background:#00C896}
 /* TABS */
-.sub-tab{padding:7px 14px;border-radius:8px;font-size:13px;font-family:'Syne',sans-serif;font-weight:600;cursor:pointer;background:transparent;border:none;color:#5A6785;transition:all 0.2s}
+.sub-tab{padding:7px 14px;border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;font-weight:600;cursor:pointer;background:transparent;border:none;color:#5A6785;transition:all 0.2s}
 .sub-tab.active{background:rgba(0,200,150,0.1);color:#00C896}
 /* UPLOAD ZONE */
 .upload-zone{border:2px dashed rgba(255,255,255,0.12);border-radius:12px;padding:28px;text-align:center;cursor:pointer;transition:all 0.2s;position:relative}
@@ -60,14 +60,14 @@ select.form-input option{background:#0F1623}
 /* TONE ANALYSIS */
 .tone-bar-bg{height:6px;border-radius:3px;background:rgba(255,255,255,0.07);overflow:hidden;flex:1}
 .tone-bar-fill{height:100%;border-radius:3px;background:#00C896;transition:width 1s ease}
-.tone-chip{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;font-family:'DM Mono',monospace;background:rgba(0,200,150,0.1);color:#00C896;margin:2px}
+.tone-chip{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;font-family:'JetBrains Mono',monospace;background:rgba(0,200,150,0.1);color:#00C896;margin:2px}
 /* DASHBOARD */
 #dashboard{display:none;height:100vh;overflow:hidden;flex-direction:column}
 #dashboard.active{display:flex}
 #landing.hidden{display:none}
 .dash-nav{background:#0B1120;border-bottom:1px solid rgba(255,255,255,0.06);height:56px;display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0}
 .sidebar{background:#0B1120;border-right:1px solid rgba(255,255,255,0.06);width:215px;flex-shrink:0;display:flex;flex-direction:column}
-.sidebar-item{display:flex;align-items:center;gap:9px;padding:8px 13px;border-radius:8px;margin:2px 8px;cursor:pointer;font-size:13px;color:#8B96B0;transition:all 0.2s;font-family:'DM Sans',sans-serif;font-weight:500}
+.sidebar-item{display:flex;align-items:center;gap:9px;padding:8px 13px;border-radius:8px;margin:2px 8px;cursor:pointer;font-size:13px;color:#8B96B0;transition:all 0.2s;font-family:'Inter',sans-serif;font-weight:500}
 .sidebar-item:hover{background:rgba(255,255,255,0.05);color:#E8EBF2}
 .sidebar-item.active{background:rgba(0,200,150,0.1);color:#00C896}
 .main-content{flex:1;overflow-y:auto;background:#080D1A}
@@ -85,7 +85,7 @@ select.form-input option{background:#0F1623}
 .status-bar{height:3px;border-radius:2px;background:rgba(255,255,255,0.06);overflow:hidden;flex:1;min-width:60px}
 .status-fill{height:100%;border-radius:2px;background:#00C896;width:0;transition:width 1.2s ease}
 .status-fill.amber{background:#F0A500}
-.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:600;font-family:'DM Mono',monospace}
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:600;font-family:'JetBrains Mono',monospace}
 .badge-g{background:rgba(0,200,150,0.12);color:#00C896}
 .badge-a{background:rgba(240,165,0,0.12);color:#F0A500}
 .badge-r{background:rgba(248,113,113,0.12);color:#F87171}
@@ -104,7 +104,7 @@ select.form-input option{background:#0F1623}
 .rule-toggle-dot{position:absolute;top:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left 0.25s}
 .rule-toggle.on .rule-toggle-dot{left:18px}
 .rule-toggle.off .rule-toggle-dot{left:2px}
-.rule-cat-label{font-size:10px;font-family:'Syne',sans-serif;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#3A4760;padding:10px 0 4px;display:block}
+.rule-cat-label{font-size:10px;font-family:'Inter',sans-serif;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#3A4760;padding:10px 0 4px;display:block}
 /* SHOPIFY */
 .shopify-screen{background:#F6F6F7;color:#202223;border-radius:12px;padding:0;overflow:hidden;margin:12px 0;font-size:13px}
 .shopify-header-bar{background:#008060;padding:12px 16px;color:white;font-weight:600;font-size:13px;display:flex;align-items:center;gap:8px}
@@ -113,7 +113,7 @@ select.form-input option{background:#0F1623}
 .acc-body{max-height:0;overflow:hidden;transition:max-height 0.4s ease}
 .acc-body.open{max-height:800px}
 /* CONN CHIP */
-.conn-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(0,200,150,0.12);color:#00C896;font-family:'DM Mono',monospace}
+.conn-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(0,200,150,0.12);color:#00C896;font-family:'JetBrains Mono',monospace}
 /* SHIMMER PLACEHOLDER */
 .shimmer{background:linear-gradient(90deg,rgba(255,255,255,0.04) 25%,rgba(255,255,255,0.08) 50%,rgba(255,255,255,0.04) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
 /* GUIDE STEPS */
@@ -121,7 +121,90 @@ select.form-input option{background:#0F1623}
 .guide-step:last-child{border-bottom:none}
 .guide-num{width:20px;height:20px;border-radius:50%;background:rgba(0,200,150,0.15);color:#00C896;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
 .guide-text{font-size:12px;line-height:1.5;color:#8B96B0}
-.guide-text code{background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:4px;font-family:'DM Mono',monospace;color:#E8EBF2;font-size:11px}
+.guide-text code{background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:4px;font-family:'JetBrains Mono',monospace;color:#E8EBF2;font-size:11px}
+
+/* ═══ LIGHT MODE ═══ */
+body.light{background:#F7F8FA;color:#1A1D26}
+body.light .grid-bg{background-image:linear-gradient(rgba(0,0,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,0.03) 1px,transparent 1px)}
+body.light .dash-nav{background:#FFFFFF;border-bottom:1px solid #E5E7EB}
+body.light .sidebar{background:#FFFFFF;border-right:1px solid #E5E7EB}
+body.light .sidebar-item{color:#6B7280}
+body.light .sidebar-item:hover{background:rgba(0,0,0,0.04);color:#1A1D26}
+body.light .sidebar-item.active{background:rgba(0,200,150,0.08);color:#059669}
+body.light .main-content{background:#F7F8FA}
+body.light .card{background:#FFFFFF;border-color:#E5E7EB}
+body.light .settings-card{background:#FFFFFF;border-color:#E5E7EB}
+body.light .form-input{background:#F9FAFB;border-color:#D1D5DB;color:#1A1D26}
+body.light .form-input::placeholder{color:#9CA3AF}
+body.light .form-input:focus{border-color:#059669}
+body.light .form-label{color:#6B7280}
+body.light .btn-ghost{color:#1A1D26;border-color:#D1D5DB}
+body.light .btn-ghost:hover{background:rgba(0,0,0,0.04);border-color:#9CA3AF}
+body.light .btn-icon{color:#6B7280;border-color:#D1D5DB}
+body.light .btn-icon:hover{color:#059669;border-color:rgba(5,150,105,0.4);background:rgba(5,150,105,0.04)}
+body.light .modal-overlay{background:rgba(0,0,0,0.4)}
+body.light .modal-box{background:#FFFFFF;border-color:#E5E7EB}
+body.light .kb-col{background:#F9FAFB;border-color:#E5E7EB}
+body.light .kb-ticket{background:#FFFFFF;border-color:#E5E7EB}
+body.light .kb-ticket:hover{border-color:rgba(5,150,105,0.4);box-shadow:0 4px 14px rgba(0,0,0,0.08)}
+body.light .email-row{background:#FFFFFF;border-color:#E5E7EB}
+body.light #ticket-panel{background:#FFFFFF;border-left-color:#E5E7EB}
+body.light .rule-card{background:#FFFFFF;border-color:#E5E7EB}
+body.light .provider-card{border-color:#E5E7EB}
+body.light .provider-card:hover{border-color:rgba(5,150,105,0.4);background:rgba(5,150,105,0.02)}
+body.light .sub-tab{color:#6B7280}
+body.light .sub-tab.active{background:rgba(5,150,105,0.08);color:#059669}
+body.light .upload-zone{border-color:#D1D5DB}
+body.light .upload-zone:hover{border-color:rgba(5,150,105,0.4);background:rgba(5,150,105,0.02)}
+body.light .badge-g{background:rgba(5,150,105,0.08);color:#059669}
+body.light .badge-a{background:rgba(217,119,6,0.08);color:#B45309}
+body.light .badge-r{background:rgba(220,38,38,0.08);color:#DC2626}
+body.light .badge-m{background:rgba(0,0,0,0.04);color:#6B7280}
+body.light .tone-bar-bg{background:rgba(0,0,0,0.06)}
+body.light .tone-chip{background:rgba(5,150,105,0.08);color:#059669}
+body.light .conn-chip{background:rgba(5,150,105,0.08);color:#059669}
+body.light .shimmer{background:linear-gradient(90deg,rgba(0,0,0,0.03) 25%,rgba(0,0,0,0.06) 50%,rgba(0,0,0,0.03) 75%)}
+/* Light mode: Review Board */
+body.light #view-review-board .border-white\/5{border-color:#E5E7EB}
+body.light [style*="background:#0b1120"]{background:#FFFFFF!important}
+body.light [style*="background:#0F1623"]{background:#FFFFFF!important}
+body.light [style*="background:#080D1A"]{background:#F7F8FA!important}
+body.light [style*="background:#16191f"]{background:#FFFFFF!important}
+body.light [style*="color:#E8EBF2"]{color:#1A1D26!important}
+body.light [style*="color:#5A6785"]{color:#6B7280!important}
+body.light [style*="color:#8B96B0"]{color:#6B7280!important}
+body.light [style*="color:#3A4760"]{color:#9CA3AF!important}
+body.light [style*="color:#C8D0E0"]{color:#374151!important}
+body.light [style*="border-color:rgba(255,255,255"]{border-color:#E5E7EB!important}
+/* Light mode: Agent config cards */
+body.light .bg-\[\#16191f\]{background:#FFFFFF!important;border-color:#E5E7EB!important}
+body.light .bg-\[\#0f1115\]{background:#FFFFFF!important}
+body.light .bg-\[\#0c0f15\]{background:#F3F4F6!important}
+body.light .bg-black\/20{background:rgba(0,0,0,0.03)!important}
+body.light .bg-black\/10{background:rgba(0,0,0,0.02)!important}
+body.light .bg-\[\#1c2027\]{background:#F9FAFB!important}
+body.light .border-white\/5{border-color:#E5E7EB!important}
+body.light .border-white\/10{border-color:#D1D5DB!important}
+body.light .text-white{color:#1A1D26!important}
+body.light .text-gray-300{color:#374151!important}
+body.light .text-gray-400{color:#6B7280!important}
+body.light .text-gray-500{color:#9CA3AF!important}
+body.light .text-gray-600{color:#9CA3AF!important}
+body.light .text-gray-700{color:#6B7280!important}
+body.light .hover\:text-white:hover{color:#1A1D26!important}
+body.light .hover\:bg-white\/5:hover{background:rgba(0,0,0,0.04)!important}
+body.light .hover\:bg-white\/10:hover{background:rgba(0,0,0,0.06)!important}
+body.light .bg-white\/5{background:rgba(0,0,0,0.03)!important}
+body.light .bg-white\/\[0\.02\]{background:rgba(0,0,0,0.015)!important}
+body.light .bg-white\/\[0\.03\]{background:rgba(0,0,0,0.02)!important}
+/* Light mode: Bottom bar */
+body.light .border-t.border-white\/5{border-color:#E5E7EB!important}
+body.light .bg-black\/20{background:rgba(0,0,0,0.03)!important}
+/* Light mode: Refund modal */
+body.light #refund-modal > div{background:#FFFFFF!important;border-color:#E5E7EB!important}
+/* Light mode: Store footer in sidebar */
+body.light .sidebar .p-4.border-t{background:rgba(0,0,0,0.02)}
+body.light .sidebar .p-4.border-t .text-xs{color:#374151}
 </style>
 </head>
 <body class="font-body">
@@ -213,7 +296,7 @@ select.form-input option{background:#0F1623}
 <div id="dashboard">
   <div class="dash-nav">
     <div class="flex items-center gap-2 font-display font-700 text-base mr-auto"><span style="color:#00C896">▸</span> Respondro</div>
-    <div class="flex items-center gap-2 text-xs font-mono hidden md:flex"><div class="api-dot" id="api-dot" style="background:#3A4760"></div><span id="api-status-txt" style="color:#5A6785">Demo mode</span></div>
+    <div class="flex items-center gap-2 text-xs font-mono hidden md:flex" id="api-status-container" style="display:none"><div class="api-dot" id="api-dot" style="background:#3A4760"></div><span id="api-status-txt" style="color:#5A6785"></span></div>
     <div class="flex items-center gap-3 ml-4">
       <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-display font-700" style="background:#1D4E3A;color:#00C896" id="user-avatar">?</div>
       <span class="text-sm font-500 hidden md:block" id="user-name-nav">User</span>
@@ -227,36 +310,36 @@ select.form-input option{background:#0F1623}
         <h1 class="text-xl font-bold text-white tracking-tight">Respondro</h1>
     </div>
 
-    <nav class="flex-1 px-4 space-y-2">
+    <nav class="flex-1 px-4 space-y-1">
         <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-2" style="font-size: 10px;">Workspace</div>
         <div id="link-dashboard" onclick="switchView('dashboard', this)" class="sidebar-item group flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 cursor-pointer transition-all">
-            <span class="text-lg">📥</span>
+            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
             <span class="text-sm font-medium">Dashboard</span>
         </div>
         <div id="link-review-board" onclick="switchView('review-board', this)" class="sidebar-item active w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 rounded-lg hover:bg-white/5 cursor-pointer transition-all">
-            <span class="text-lg">📥</span> 
+            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
             <span>Review Board</span>
         </div>
         
-        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-8 mb-2 px-2" style="font-size: 10px;">AI Config</div>
+        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2 px-2" style="font-size: 10px;">AI Config</div>
         <div id="link-agents" onclick="switchView('agents', this)" class="sidebar-item w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 rounded-lg hover:bg-white/5 cursor-pointer transition-all">
-            <span class="text-lg">🤖</span> 
+            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 14v-2a6 6 0 0 1 12 0v2"/><circle cx="8" cy="18" r="1"/><circle cx="16" cy="18" r="1"/></svg>
             <span>Support Agents</span>
         </div>
 
-        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-8 mb-2 px-2" style="font-size: 10px;">Connections</div>
+        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2 px-2" style="font-size: 10px;">Connections</div>
         <div id="link-integrations" onclick="switchView('integrations', this)" class="sidebar-item w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 rounded-lg hover:bg-white/5 cursor-pointer transition-all">
-            <span class="text-lg">🛍️</span> 
+            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
             <span>Shopify Store</span>
         </div>
         <div id="link-mailboxes" onclick="switchView('mailboxes', this)" class="sidebar-item w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 rounded-lg hover:bg-white/5 cursor-pointer transition-all">
-            <span class="text-lg">✉️</span> 
+            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
             <span>Email Forwarding</span>
         </div>
     </nav>
-<div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-8 mb-2 px-2" style="font-size: 10px;">Configuration</div>
+<div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2 px-2" style="font-size: 10px;">Configuration</div>
 <div id="link-settings" onclick="switchView('settings', this)" class="sidebar-item w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 rounded-lg hover:bg-white/5 cursor-pointer transition-all group">
-    <span class="text-lg">⚙️</span>
+    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     <span>Settings</span>
 </div>
     <div class="p-4 border-t border-white/5 bg-black/20">
@@ -379,7 +462,7 @@ select.form-input option{background:#0F1623}
             <div class="flex gap-3">
               <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-display font-700 flex-shrink-0 mt-0.5" style="background:rgba(0,200,150,0.15);color:#00C896">AI</div>
               <div class="flex-1 rounded-xl overflow-hidden" style="border:2px solid rgba(0,200,150,0.2);background:#0F1623">
-                <div id="rb-draft-textarea" contenteditable="true" class="w-full p-4 text-sm leading-relaxed outline-none" style="background:transparent;color:#E8EBF2;font-family:'DM Sans',sans-serif;min-height:180px;font-size:13px;line-height:1.7;white-space:pre-wrap;" data-placeholder="Draft will appear here..."></div>
+                <div id="rb-draft-textarea" contenteditable="true" class="w-full p-4 text-sm leading-relaxed outline-none" style="background:transparent;color:#E8EBF2;font-family:'Inter',sans-serif;min-height:180px;font-size:13px;line-height:1.7;white-space:pre-wrap;" data-placeholder="Draft will appear here..."></div>
                 <div id="rb-draft-loading" class="hidden p-4 flex items-center gap-3">
                   <div class="spinner"></div>
                   <span class="text-sm text-gray-500">AI is drafting a response...</span>
@@ -761,7 +844,7 @@ select.form-input option{background:#0F1623}
     <p class="text-xs font-mono mb-2" style="color:#3A4760">CUSTOMER EMAIL</p>
     <div class="rounded-xl p-3 mb-4 text-sm leading-relaxed" style="background:#080D1A;border:1px solid rgba(255,255,255,0.06);white-space:pre-wrap;font-size:12px;max-height:160px;overflow-y:auto" id="tp-body">—</div>
     <p class="text-xs font-mono mb-2" style="color:#00C896">AI DRAFT REPLY</p>
-    <textarea id="tp-draft" class="form-input text-sm" style="height:150px;resize:vertical;font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.6"></textarea>
+    <textarea id="tp-draft" class="form-input text-sm" style="height:150px;resize:vertical;font-family:'Inter',sans-serif;font-size:13px;line-height:1.6"></textarea>
   </div>
   <div class="p-4 border-t flex gap-2" style="border-color:rgba(255,255,255,0.07)">
     <button class="btn-primary flex-1 justify-center text-sm" style="padding:10px" onclick="approveTicket()">✓ Approve &amp; send</button>
@@ -890,7 +973,7 @@ select.form-input option{background:#0F1623}
         <h2 class="font-display font-700 text-xl mb-1">Connect Shopify</h2>
         <p class="text-sm mb-4" style="color:#5A6785">Connect your store for live order data, automatic refunds, and cancellations.</p>
         <div><label class="form-label">Your store URL</label><input type="text" id="s-shopify-url" class="form-input mb-3" placeholder="yourstore.myshopify.com"></div>
-        <button class="w-full flex items-center justify-center gap-3 rounded-xl py-3 mb-3 font-700 text-sm" style="background:#008060;color:#fff;border:none;cursor:pointer;font-family:'Syne',sans-serif" onclick="signupShopifyConnect()">
+        <button class="w-full flex items-center justify-center gap-3 rounded-xl py-3 mb-3 font-700 text-sm" style="background:#008060;color:#fff;border:none;cursor:pointer;font-family:'Inter',sans-serif" onclick="signupShopifyConnect()">
           <span>●</span> Install Respondro on Shopify →
         </button>
         <div id="s-shopify-confirmed" class="hidden rounded-xl p-3 mb-3" style="background:rgba(0,200,150,0.08);border:1px solid rgba(0,200,150,0.2)"><p class="text-xs" style="color:#00C896">✓ Shopify connected! Order data, tracking, and refund permissions granted.</p></div>
@@ -915,7 +998,7 @@ select.form-input option{background:#0F1623}
         <!-- Rulebook pane -->
         <div id="ss-pane-rulebook">
           <p class="text-xs mb-2" style="color:#5A6785">Paste your return policy, shipping info, and what the AI should always or never do.</p>
-          <textarea id="s-rulebook" class="form-input" style="height:110px;resize:none;font-family:'DM Mono',monospace;font-size:12px;line-height:1.5" placeholder="RETURN POLICY: 30-day returns on unopened items.&#10;SHIPPING: EU 3-5 days. DHL or PostNord.&#10;ALWAYS ESCALATE: Refunds over €100.&#10;NEVER promise a delivery date."></textarea>
+          <textarea id="s-rulebook" class="form-input" style="height:110px;resize:none;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.5" placeholder="RETURN POLICY: 30-day returns on unopened items.&#10;SHIPPING: EU 3-5 days. DHL or PostNord.&#10;ALWAYS ESCALATE: Refunds over €100.&#10;NEVER promise a delivery date."></textarea>
           <div class="upload-zone mt-2" style="padding:14px" onclick="document.getElementById('s-rulebook-file').click()">
             <input type="file" id="s-rulebook-file" accept=".txt,.pdf,.doc" onchange="handleSignupRulebookFile(this)">
             <p class="text-xs font-500">Or upload a file (TXT, PDF, DOC)</p>
@@ -924,7 +1007,7 @@ select.form-input option{background:#0F1623}
         <!-- Tone pane -->
         <div id="ss-pane-tone" class="hidden">
           <p class="text-xs mb-2" style="color:#5A6785">Paste 5–10 past CS replies you've sent. Separate each with <code style="color:#00C896">---</code> on its own line. Respondro will analyse your tone.</p>
-          <textarea id="s-tone-emails" class="form-input" style="height:110px;resize:none;font-family:'DM Mono',monospace;font-size:12px;line-height:1.5" placeholder="Hi Sarah,&#10;Thanks for reaching out! Your order shipped yesterday...&#10;Best, Sam&#10;---&#10;Hi Tom, Great news — yes we ship to Germany..."></textarea>
+          <textarea id="s-tone-emails" class="form-input" style="height:110px;resize:none;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.5" placeholder="Hi Sarah,&#10;Thanks for reaching out! Your order shipped yesterday...&#10;Best, Sam&#10;---&#10;Hi Tom, Great news — yes we ship to Germany..."></textarea>
           <div class="flex gap-2 mt-2">
             <div class="upload-zone flex-1" style="padding:12px" onclick="document.getElementById('s-tone-file').click()"><input type="file" id="s-tone-file" accept=".txt,.eml" multiple><p class="text-xs">Upload .txt or .eml files</p></div>
             <button class="btn-primary btn-sm" onclick="runToneAnalysis()">Analyse →</button>
@@ -1550,7 +1633,7 @@ function signupShopifyConnect(){
       <ul style="font-size:12px;color:#8B96B0;line-height:2.2;margin-bottom:18px;list-style:none">
         <li>✓ View orders and customers</li><li>✓ Manage refunds and order edits</li><li>✓ Read product information</li>
       </ul>
-      <button onclick="this.closest('div[style*=fixed]').remove();confirmSignupShopify('${url}')" style="width:100%;background:#008060;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Syne',sans-serif">Install app</button>
+      <button onclick="this.closest('div[style*=fixed]').remove();confirmSignupShopify('${url}')" style="width:100%;background:#008060;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif">Install app</button>
       <button onclick="this.closest('div[style*=fixed]').remove()" style="width:100%;background:transparent;color:#5A6785;border:none;padding:8px;font-size:12px;cursor:pointer;margin-top:6px">Decline</button>
     </div>
   </div>`;
@@ -2119,7 +2202,7 @@ function openProviderModal(p){
   const header=`<div class="flex items-center gap-3 mb-5"><div class="w-10 h-10 rounded-xl flex items-center justify-center font-700" style="background:${p.color}22;color:${p.color}">${p.icon}</div><div><div class="font-display font-700 text-lg">${p.name}</div><div class="text-xs" style="color:#5A6785">${p.sub}</div></div></div>`;
   if(p.type==='oauth'){
     c.innerHTML=`${header}<p class="text-sm mb-5" style="color:#8B96B0">Click below to authorise Respondro. You can revoke access at any time from your ${p.name} account.</p>
-    <div id="op1"><button class="w-full flex items-center justify-center gap-3 rounded-xl py-3 mb-3 font-700 text-sm" style="background:${p.oauthBg||p.color};color:${p.oauthColor||'#fff'};border:none;cursor:pointer;font-family:'Syne',sans-serif" onclick="simulateOAuth('${p.id}','${p.name}')"><span style="font-weight:700">${p.icon}</span>${p.oauthLabel}</button><p class="text-xs text-center" style="color:#3A4760">Read/send mail only · No contacts, calendar, or other data</p></div>
+    <div id="op1"><button class="w-full flex items-center justify-center gap-3 rounded-xl py-3 mb-3 font-700 text-sm" style="background:${p.oauthBg||p.color};color:${p.oauthColor||'#fff'};border:none;cursor:pointer;font-family:'Inter',sans-serif" onclick="simulateOAuth('${p.id}','${p.name}')"><span style="font-weight:700">${p.icon}</span>${p.oauthLabel}</button><p class="text-xs text-center" style="color:#3A4760">Read/send mail only · No contacts, calendar, or other data</p></div>
     <div id="op2" class="hidden text-center"><div style="font-size:40px;margin-bottom:10px">🎉</div><h3 class="font-display font-700 text-lg mb-2" style="color:#00C896">${p.name} connected!</h3><p class="text-sm mb-4" style="color:#5A6785">Respondro will now read and reply from your ${p.name} account.</p><button class="btn-primary w-full justify-center" onclick="closeModal('provider-modal')">Done</button></div>`;
   } else {
     const stepsHTML=(p.steps||[]).map((s,i)=>`<div class="guide-step"><div class="guide-num">${i+1}</div><div class="guide-text">${s}</div></div>`).join('');
@@ -2479,7 +2562,7 @@ function renderShopifyStep(step, url){
       </div>
       <label class="form-label">Your store URL</label>
       <input type="text" id="shopify-url-flow" class="form-input mb-4" placeholder="yourstore.myshopify.com">
-      <button class="w-full flex items-center justify-center gap-3 rounded-xl py-3 mb-2 font-700 text-sm" style="background:#008060;color:#fff;border:none;cursor:pointer;font-family:'Syne',sans-serif" onclick="triggerShopifyOAuth()">
+      <button class="w-full flex items-center justify-center gap-3 rounded-xl py-3 mb-2 font-700 text-sm" style="background:#008060;color:#fff;border:none;cursor:pointer;font-family:'Inter',sans-serif" onclick="triggerShopifyOAuth()">
         <span>●</span> Install Respondro on Shopify →
       </button>
       <p class="text-xs text-center" style="color:#3A4760">You'll be redirected to Shopify to approve — takes 30 seconds</p>`;
