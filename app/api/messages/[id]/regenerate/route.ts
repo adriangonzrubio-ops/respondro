@@ -70,8 +70,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             body: message.body_text || "",
             rulebook: finalRulebook,
             shopifyData: shopifyForAI,
-            toneExamples: finalSignature,
-            logoUrl: settings?.logo_url || ""
+            toneExamples: finalSignature
         });
 
         // 7. Save and return

@@ -83,12 +83,10 @@ let draft = "";
         draft = draft.replace(/__/g, '').replace(/^#+\s/gm, '').replace(/^[-*]\s/gm, '');
     }
 
-    // SaaS Identity Glue: We only add what's in the store's settings.
+    // Append signature if provided
     const signatureText = toneExamples ? `\n\n${toneExamples}` : "";
-// We replace the massive logo data with a simple placeholder tag
-    const logoMarker = logoUrl ? `\n\n[LOGO]` : "";
 
-    return draft + signatureText + logoMarker;
+    return draft + signatureText;
 
   } catch (error: any) {
     console.error("❌ Claude AI Error:", error.message);
