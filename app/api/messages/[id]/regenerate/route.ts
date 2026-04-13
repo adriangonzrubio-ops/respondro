@@ -22,8 +22,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             storeId = firstStore?.id;
         }
 
-        // 3. Fetch Settings
-        const { data: settings } = await supabase.from('settings').select('*').eq('store_id', storeId).maybeSingle();
+        // 3. Fetch Settings (try store_id first, fallback to first row)
+        let settings: any = null;
+        if (storeId) {
+            const { data: s1 } = await supabase.from('settings').select('*').eq('store_id', storeId).maybeSingle();
+            settings = s1;
+        }
+        if (!settings) {
+            const { data: s2 } = await supabase.from('settings').select('*').limit(1).single();
+            settings = s2;
+        }
 
         // 4. ALWAYS fetch fresh Shopify data on regenerate
         let freshShopifyData: any = null;
