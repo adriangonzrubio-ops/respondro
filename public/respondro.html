@@ -2690,9 +2690,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.log("Settings loaded successfully!");
             
             // Fill the Branding fields
-            if (settings.logo_url) document.getElementById('sig-logo-url').value = settings.logo_url;
-            if (settings.logo_width) document.getElementById('sig-logo-width').value = settings.logo_width;
+            if (settings.logo_url) { document.getElementById('sig-logo-url').value = settings.logo_url; }
+            if (settings.logo_width) { document.getElementById('sig-logo-width').value = settings.logo_width; }
             if (settings.signature) document.getElementById('sig-text').value = settings.signature;
+            // Trigger logo preview after values are set
+            if (typeof updateEmailLogoPreview === 'function') updateEmailLogoPreview();
             
             // Fill the Rulebook field (if it exists on the page)
             var rulebookEl = document.getElementById('rulebook-text');
@@ -2745,7 +2747,7 @@ async function sendSettings(settings) {
         });
         
         if (res.ok) {
-            alert("Settings saved successfully!");
+            // Success handled by showToast in saveSignature
         } else {
             const err = await res.json();
             alert("Error saving: " + err.error);
