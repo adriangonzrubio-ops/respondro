@@ -3045,7 +3045,7 @@ function buildConversationTimeline(history, currentMsg) {
         + '<span class="text-[9px] font-mono" style="color:#3A4760">' + sentDate + '</span>'
         + '<span class="text-[9px] px-1.5 py-0.5 rounded font-mono" style="background:rgba(0,200,150,0.08);color:#00C896">&#x2713; sent</span>'
         + '</div>'
-        + '<div class="rounded-xl p-3 text-xs leading-relaxed ml-8" style="background:rgba(0,200,150,0.04);border:1px solid rgba(0,200,150,0.15);white-space:pre-wrap;color:#C8D0E0">' + m.sent_reply + '</div>'
+        + '<div class="rounded-xl p-3 text-xs leading-relaxed ml-8" style="background:rgba(0,200,150,0.04);border:1px solid rgba(0,200,150,0.15);white-space:pre-wrap;color:#C8D0E0">' + m.sent_reply + (ST.settings?.logo_url ? '<div style="margin-top:12px"><img src="' + ST.settings.logo_url + '" style="width:' + (ST.settings.logo_width || 120) + 'px;max-width:100%;" alt="Logo"></div>' : '') + '</div>'
         + reasoningHtml
         + '</div>';
       allItems.push({ time: new Date(m.sent_at).getTime(), html: replyHtml });
