@@ -3318,7 +3318,7 @@ function toggleTheme() {
   }
 })();
 
-var dashFilterRange = 'today';
+window.dashFilterRange = window.dashFilterRange || 'today';
 function setDashFilter(range) {
   window.dashFilterRange = range;
   ['today','week','month','all'].forEach(function(r) {
@@ -3371,11 +3371,10 @@ async function loadDashboardView() {
     actionKeywords.some(k => (m.ai_reasoning || '').toLowerCase().includes(k) || (m.category || '').toLowerCase().includes(k))
   );
 
-  const dashFilterRange = window.dashFilterRange || 'today';
-  const now = new Date();
-  const filterDate = dashFilterRange === 'today' ? new Date(now.setHours(0,0,0,0))
-    : dashFilterRange === 'week' ? new Date(Date.now() - 7*24*60*60*1000)
-    : dashFilterRange === 'month' ? new Date(Date.now() - 30*24*60*60*1000)
+  const currentFilter = window.dashFilterRange || 'today';
+  const filterDate = currentFilter === 'today' ? new Date(new Date().setHours(0,0,0,0))
+    : currentFilter === 'week' ? new Date(Date.now() - 7*24*60*60*1000)
+    : currentFilter === 'month' ? new Date(Date.now() - 30*24*60*60*1000)
     : new Date(0);
 
   const resolvedItems = msgs.filter(m =>
@@ -3424,7 +3423,7 @@ async function loadDashboardView() {
           + '<span class="text-xs font-600 text-white truncate block">' + (msg.subject || 'No Subject') + '</span>'
           + '<span class="text-[10px]" style="color:#5A6785">' + cleanName + ' · ' + date + '</span>'
           + '</div>'
-          + '<button onclick="showResolvedSummary(\'' + msg.id + '\')" class="text-[9px] px-2 py-0.5 rounded-full font-mono cursor-pointer hover:opacity-80" style="background:rgba(0,200,150,0.1);color:#00C896;border:none">resolved</button>'
+          + '<button onclick="showResolvedSummary(&quot;' + msg.id + '&quot;)" class="text-[9px] px-2 py-0.5 rounded-full font-mono cursor-pointer hover:opacity-80" style="background:rgba(0,200,150,0.1);color:#00C896;border:none">resolved</button>'
           + '</div>';
       }).join('');
 
@@ -3436,7 +3435,7 @@ async function loadDashboardView() {
       + '</div>'
       + '<div>'
       + '<div class="flex items-center justify-between mb-3"><h4 class="text-xs font-display font-700" style="color:#00C896">✅ Resolved (' + resolvedItems.length + ')</h4>'
-      + '<div class="flex gap-1"><button onclick="setDashFilter(\'today\')" class="text-[9px] px-2 py-1 rounded" style="background:rgba(0,200,150,0.1);color:#00C896" id="df-today">Today</button><button onclick="setDashFilter(\'week\')" class="text-[9px] px-2 py-1 rounded" style="color:#5A6785" id="df-week">Week</button><button onclick="setDashFilter(\'month\')" class="text-[9px] px-2 py-1 rounded" style="color:#5A6785" id="df-month">Month</button><button onclick="setDashFilter(\'all\')" class="text-[9px] px-2 py-1 rounded" style="color:#5A6785" id="df-all">All</button></div>'
+      + '<div class="flex gap-1">' + ['today','week','month','all'].map(function(r) { var active = r === currentFilter; return '<button onclick="setDashFilter(\'' + r + '\')" class="text-[9px] px-2 py-1 rounded" style="background:' + (active ? 'rgba(0,200,150,0.1)' : 'transparent') + ';color:' + (active ? '#00C896' : '#5A6785') + '" id="df-' + r + '">' + r.charAt(0).toUpperCase() + r.slice(1) + '</button>'; }).join('') + '</div>'
       + '</div>'
       + '<div style="max-height:500px;overflow-y:auto">' + resolvedHTML + '</div>'
       + '</div>'
