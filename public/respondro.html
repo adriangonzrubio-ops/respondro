@@ -1743,7 +1743,7 @@ async function renderTicketWorkspace(msg) {
                 <div class="flex gap-4 pb-12">
                     <div class="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">AI</div>
                     <div class="flex-1 bg-white border-2 border-purple-100 rounded-2xl shadow-xl overflow-hidden">
-                        <div id="workspace-draft-area" contenteditable="true" class="w-full p-6 text-sm text-gray-800 bg-transparent outline-none min-h-[200px] leading-relaxed font-sans" style="white-space:pre-wrap;">${(msg.ai_draft || 'Generating draft...').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')}</div>
+                        <div id="workspace-draft-area" contenteditable="true" class="w-full p-6 text-sm text-gray-800 bg-transparent outline-none min-h-[200px] leading-relaxed font-sans" style="white-space:pre-wrap;">${(msg.ai_draft || 'Generating draft...').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')}${ST.settings?.logo_url ? '<div style="margin-top:12px"><img src="' + ST.settings.logo_url + '" style="width:' + (ST.settings.logo_width || 120) + 'px;max-width:100%;" alt="Store Logo"></div>' : ''}</div>
                         <div class="bg-purple-50 p-4 border-t border-purple-100 flex justify-end gap-3">
                             <button onclick="generateNewDraft('${msg.id}')" class="px-4 py-2 text-xs font-bold text-purple-600 hover:bg-purple-100 rounded-lg">Regenerate</button>
                             <button onclick="sendResponse()" class="px-6 py-2 bg-purple-600 text-white text-xs font-bold rounded-lg shadow-md hover:bg-purple-700">Send Response</button>
@@ -2313,11 +2313,13 @@ async function regenerateDraft(id) {
         const result = await res.json();
         
         if (result.draft) {
-            if (area) area.innerHTML = result.draft.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            const logoHtml2 = ST.settings?.logo_url ? '<div style="margin-top:12px"><img src="' + ST.settings.logo_url + '" style="width:' + (ST.settings.logo_width || 120) + 'px;max-width:100%;" alt="Store Logo"></div>' : '';
+            if (area) area.innerHTML = result.draft.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') + logoHtml2;
             
             // Also update the workspace draft area
             const wsArea = document.getElementById('workspace-draft-area');
-            if (wsArea) wsArea.innerHTML = result.draft.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            const logoHtml = ST.settings?.logo_url ? '<div style="margin-top:12px"><img src="' + ST.settings.logo_url + '" style="width:' + (ST.settings.logo_width || 120) + 'px;max-width:100%;" alt="Store Logo"></div>' : '';
+            if (wsArea) wsArea.innerHTML = result.draft.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') + logoHtml;
             
             // Sync result to local memory to avoid duplicate API calls
             const msg = allMessages.find(m => m.id === targetId);
