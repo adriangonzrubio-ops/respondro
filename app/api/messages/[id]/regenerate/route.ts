@@ -59,6 +59,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         // 5. Use frontend rulebook if provided, otherwise database
         const finalRulebook = body.rulebook || settings?.rulebook || "Be professional.";
         const finalSignature = body.signature || settings?.signature || "";
+        console.log("🔍 Signature debug:", { bodySignature: body.signature, settingsSignature: settings?.signature, finalSignature });
         const shopifyForAI = freshShopifyData && freshShopifyData.length > 0
             ? freshShopifyData
             : message.shopify_data || {};
