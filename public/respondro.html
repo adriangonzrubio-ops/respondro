@@ -390,6 +390,7 @@ select.form-input option{background:#0F1623}
         </div>
         <div class="flex gap-2 p-4 border-t flex-shrink-0" style="border-color:rgba(255,255,255,0.07);background:#0b1120">
           <button onclick="rbApproveSend()" class="btn-primary flex-1 justify-center" style="padding:11px;font-size:13px">✓ Approve &amp; Send</button>
+          <button onclick="openRefundModal()" id="rb-refund-btn" class="hidden" style="padding:11px;font-size:11px;background:rgba(248,113,113,0.1);color:#F87171;border:1px solid rgba(248,113,113,0.2);border-radius:10px;cursor:pointer;font-weight:700">💰 Refund</button>
           <button onclick="rbMarkResolved()" class="btn-ghost" style="padding:11px;font-size:12px;color:#00C896;border-color:rgba(0,200,150,0.2)">Mark Resolved</button>
           <button onclick="rbMarkClosed()" class="btn-ghost" style="padding:11px;font-size:12px;color:#F87171;border-color:rgba(248,113,113,0.15)">Close</button>
         </div>
@@ -765,6 +766,80 @@ select.form-input option{background:#0F1623}
   <div class="p-4 border-t flex gap-2" style="border-color:rgba(255,255,255,0.07)">
     <button class="btn-primary flex-1 justify-center text-sm" style="padding:10px" onclick="approveTicket()">✓ Approve &amp; send</button>
     <button onclick="moveTicketToCol('closed');closeTicket()" class="btn-ghost text-sm" style="padding:10px;color:#F87171;border-color:rgba(248,113,113,0.2)">Close</button>
+  </div>
+</div>
+<!-- REFUND MODAL -->
+<div id="refund-modal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;">
+  <div style="background:#16191f;border:1px solid rgba(255,255,255,0.05);border-radius:16px;padding:24px;max-width:450px;width:90%;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="color:white;font-weight:700;font-size:14px;">💰 Process Refund</h3>
+      <button onclick="closeRefundModal()" style="background:none;border:none;color:#5A6785;cursor:pointer;font-size:18px;">✕</button>
+    </div>
+    
+    <div id="refund-order-info" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:12px;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <span style="color:#5A6785;font-size:10px;">ORDER</span>
+        <span id="refund-order-number" style="color:white;font-size:12px;font-weight:700;"></span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <span style="color:#5A6785;font-size:10px;">TOTAL</span>
+        <span id="refund-order-total" style="color:white;font-size:12px;"></span>
+      </div>
+      <div style="display:flex;justify-content:space-between;">
+        <span style="color:#5A6785;font-size:10px;">ALREADY REFUNDED</span>
+        <span id="refund-already" style="color:#F0A500;font-size:12px;">0.00</span>
+      </div>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <label style="color:#8B96B0;font-size:11px;display:block;margin-bottom:6px;">Refund Type</label>
+      <div style="display:flex;gap:8px;">
+        <button onclick="setRefundType('percentage')" id="refund-type-pct" style="flex:1;padding:8px;background:rgba(0,200,150,0.1);color:#00C896;border:1px solid rgba(0,200,150,0.2);border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;">Percentage %</button>
+        <button onclick="setRefundType('custom')" id="refund-type-custom" style="flex:1;padding:8px;background:transparent;color:#5A6785;border:1px solid rgba(255,255,255,0.05);border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;">Custom Amount</button>
+        <button onclick="setRefundType('full')" id="refund-type-full" style="flex:1;padding:8px;background:transparent;color:#5A6785;border:1px solid rgba(255,255,255,0.05);border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;">Full Refund</button>
+      </div>
+    </div>
+
+    <div id="refund-pct-input" style="margin-bottom:16px;">
+      <label style="color:#8B96B0;font-size:11px;display:block;margin-bottom:6px;">Percentage</label>
+      <div style="display:flex;gap:6px;margin-bottom:8px;">
+        <button onclick="setRefundPct(10)" class="refund-pct-btn" style="flex:1;padding:6px;background:rgba(255,255,255,0.05);color:#C8D0E0;border:1px solid rgba(255,255,255,0.05);border-radius:6px;font-size:11px;cursor:pointer;">10%</button>
+        <button onclick="setRefundPct(15)" class="refund-pct-btn" style="flex:1;padding:6px;background:rgba(255,255,255,0.05);color:#C8D0E0;border:1px solid rgba(255,255,255,0.05);border-radius:6px;font-size:11px;cursor:pointer;">15%</button>
+        <button onclick="setRefundPct(25)" class="refund-pct-btn" style="flex:1;padding:6px;background:rgba(255,255,255,0.05);color:#C8D0E0;border:1px solid rgba(255,255,255,0.05);border-radius:6px;font-size:11px;cursor:pointer;">25%</button>
+        <button onclick="setRefundPct(50)" class="refund-pct-btn" style="flex:1;padding:6px;background:rgba(255,255,255,0.05);color:#C8D0E0;border:1px solid rgba(255,255,255,0.05);border-radius:6px;font-size:11px;cursor:pointer;">50%</button>
+      </div>
+      <input type="number" id="refund-pct-value" min="1" max="100" value="15" style="width:100%;background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.05);border-radius:8px;padding:8px;color:white;font-size:13px;outline:none;" oninput="updateRefundPreview()">
+    </div>
+
+    <div id="refund-custom-input" class="hidden" style="margin-bottom:16px;">
+      <label style="color:#8B96B0;font-size:11px;display:block;margin-bottom:6px;">Custom Amount</label>
+      <input type="number" id="refund-custom-value" min="0.01" step="0.01" style="width:100%;background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.05);border-radius:8px;padding:8px;color:white;font-size:13px;outline:none;" oninput="updateRefundPreview()">
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <label style="color:#8B96B0;font-size:11px;display:block;margin-bottom:6px;">Reason (optional)</label>
+      <input type="text" id="refund-reason" placeholder="e.g. Delayed shipment, damaged item..." style="width:100%;background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.05);border-radius:8px;padding:8px;color:white;font-size:12px;outline:none;">
+    </div>
+
+    <div style="background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.15);border-radius:12px;padding:12px;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="color:#F87171;font-size:11px;font-weight:700;">REFUND AMOUNT</span>
+        <span id="refund-preview-amount" style="color:#F87171;font-size:18px;font-weight:700;">0.00</span>
+      </div>
+      <div style="text-align:right;">
+        <span id="refund-preview-currency" style="color:#8B96B0;font-size:10px;"></span>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;">
+      <button onclick="closeRefundModal()" style="flex:1;padding:10px;background:rgba(255,255,255,0.05);color:#8B96B0;border:1px solid rgba(255,255,255,0.05);border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;">Cancel</button>
+      <button onclick="processRefund()" id="refund-submit-btn" style="flex:1;padding:10px;background:rgba(248,113,113,0.15);color:#F87171;border:1px solid rgba(248,113,113,0.3);border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;">Refund & Notify Customer</button>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:6px;margin-top:12px;">
+      <input type="checkbox" id="refund-send-email" checked style="accent-color:#00C896;">
+      <label for="refund-send-email" style="color:#5A6785;font-size:10px;">Send AI-generated email notifying the customer about the refund</label>
+    </div>
   </div>
 </div>
 
@@ -3213,11 +3288,195 @@ async function rbLoadShopifySidebar(msg) {
           + '</div></div>';
       }).join('');
     }
+    // Show/hide refund button based on order data
+    var refundBtn = document.getElementById('rb-refund-btn');
+    if (refundBtn) {
+      if (orders.length > 0) {
+        refundBtn.classList.remove('hidden');
+      } else {
+        refundBtn.classList.add('hidden');
+      }
+    }
   } catch(err) {
     console.error('Shopify sidebar error:', err);
     if (loadEl) loadEl.classList.add('hidden');
     if (dataEl) dataEl.classList.remove('hidden');
     if (noOrd) noOrd.classList.remove('hidden');
+  }
+}
+// ── REFUND FUNCTIONS ──
+var refundOrderData = null;
+var refundType = 'percentage';
+
+function openRefundModal() {
+  if (!rbActiveMessage) return showToast('No ticket selected');
+  
+  var shopifyData = rbActiveMessage.shopify_data;
+  if (!shopifyData || shopifyData.length === 0) return showToast('No Shopify order data found for this ticket');
+
+  var order = shopifyData[0];
+  refundOrderData = order;
+
+  document.getElementById('refund-order-number').textContent = '#' + order.order_number;
+  document.getElementById('refund-order-total').textContent = order.currency + ' ' + order.total_price;
+  document.getElementById('refund-already').textContent = order.refunded_amount ? order.currency + ' ' + order.refunded_amount : '0.00';
+  document.getElementById('refund-preview-currency').textContent = order.currency;
+
+  setRefundType('percentage');
+  updateRefundPreview();
+  
+  var modal = document.getElementById('refund-modal');
+  modal.classList.remove('hidden');
+  modal.style.display = 'flex';
+}
+
+function closeRefundModal() {
+  var modal = document.getElementById('refund-modal');
+  modal.classList.add('hidden');
+  modal.style.display = 'none';
+}
+
+function setRefundType(type) {
+  refundType = type;
+  ['percentage', 'custom', 'full'].forEach(function(t) {
+    var btn = document.getElementById('refund-type-' + (t === 'percentage' ? 'pct' : t));
+    if (btn) {
+      btn.style.background = t === type ? 'rgba(0,200,150,0.1)' : 'transparent';
+      btn.style.color = t === type ? '#00C896' : '#5A6785';
+      btn.style.borderColor = t === type ? 'rgba(0,200,150,0.2)' : 'rgba(255,255,255,0.05)';
+    }
+  });
+  document.getElementById('refund-pct-input').classList.toggle('hidden', type !== 'percentage');
+  document.getElementById('refund-custom-input').classList.toggle('hidden', type !== 'custom');
+  updateRefundPreview();
+}
+
+function setRefundPct(pct) {
+  document.getElementById('refund-pct-value').value = pct;
+  updateRefundPreview();
+}
+
+function updateRefundPreview() {
+  if (!refundOrderData) return;
+  var total = parseFloat(refundOrderData.total_price);
+  var already = parseFloat(refundOrderData.refunded_amount || 0);
+  var maxRefundable = total - already;
+  var amount = 0;
+  
+  if (refundType === 'percentage') {
+    var pct = parseFloat(document.getElementById('refund-pct-value').value) || 0;
+    amount = Math.round(total * pct / 100 * 100) / 100;
+  } else if (refundType === 'custom') {
+    amount = parseFloat(document.getElementById('refund-custom-value').value) || 0;
+  } else {
+    amount = maxRefundable;
+  }
+  
+  if (amount > maxRefundable) amount = maxRefundable;
+  
+  document.getElementById('refund-preview-amount').textContent = refundOrderData.currency + ' ' + amount.toFixed(2);
+  
+  var submitBtn = document.getElementById('refund-submit-btn');
+  if (amount <= 0 || amount > maxRefundable) {
+    submitBtn.style.opacity = '0.5';
+    submitBtn.style.pointerEvents = 'none';
+  } else {
+    submitBtn.style.opacity = '1';
+    submitBtn.style.pointerEvents = 'auto';
+  }
+}
+
+async function processRefund() {
+  if (!refundOrderData || !rbActiveMessage) return;
+  
+  var total = parseFloat(refundOrderData.total_price);
+  var refundPct = null;
+  var refundAmt = null;
+  
+  if (refundType === 'percentage') {
+    refundPct = parseFloat(document.getElementById('refund-pct-value').value);
+    refundAmt = Math.round(total * refundPct / 100 * 100) / 100;
+  } else if (refundType === 'custom') {
+    refundAmt = parseFloat(document.getElementById('refund-custom-value').value);
+  } else {
+    refundAmt = total - parseFloat(refundOrderData.refunded_amount || 0);
+    refundPct = 100;
+  }
+  
+  var reason = document.getElementById('refund-reason').value || 'Customer request';
+  var sendEmail = document.getElementById('refund-send-email').checked;
+  
+  var submitBtn = document.getElementById('refund-submit-btn');
+  submitBtn.textContent = 'Processing refund...';
+  submitBtn.style.opacity = '0.5';
+  submitBtn.style.pointerEvents = 'none';
+  
+  try {
+    // 1. Process the refund in Shopify
+    var res = await fetch('/api/shopify/refund', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        order_id: refundOrderData.id,
+        order_number: refundOrderData.order_number,
+        refund_percentage: refundPct,
+        refund_amount: refundAmt,
+        reason: reason,
+        message_id: rbActiveMessage.id
+      })
+    });
+    
+    var data = await res.json();
+    
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Refund failed');
+    }
+    
+    showToast('Refund of ' + data.refund.currency + ' ' + data.refund.amount + ' processed! ✅');
+    
+    // 2. Generate and send AI notification email if checked
+    if (sendEmail) {
+      submitBtn.textContent = 'Sending notification...';
+      
+      // Generate AI draft about the refund
+      var draftRes = await fetch('/api/agents/generate-draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId: rbActiveMessage.id })
+      });
+      var draftData = await draftRes.json();
+      
+      if (draftData.draft) {
+        var cleanEmail = rbActiveMessage.sender && rbActiveMessage.sender.includes('<') 
+          ? rbActiveMessage.sender.split('<')[1].replace('>','').trim() 
+          : rbActiveMessage.sender;
+        
+        await fetch('/api/messages/' + rbActiveMessage.id + '/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: draftData.draft, customerEmail: cleanEmail })
+        });
+        
+        await sb.from('messages').update({ 
+          status: 'done', 
+          sent_reply: draftData.draft, 
+          sent_at: new Date().toISOString() 
+        }).eq('id', rbActiveMessage.id);
+      }
+    } else {
+      await sb.from('messages').update({ status: 'done' }).eq('id', rbActiveMessage.id);
+    }
+    
+    closeRefundModal();
+    showToast('Refund complete & customer notified ✅');
+    fetchMessages();
+    
+  } catch (err) {
+    console.error('Refund error:', err);
+    submitBtn.textContent = 'Refund & Notify Customer';
+    submitBtn.style.opacity = '1';
+    submitBtn.style.pointerEvents = 'auto';
+    showToast('Error: ' + (err.message || 'Refund failed'));
   }
 }
 
