@@ -3439,28 +3439,31 @@ async function processRefund() {
     if (sendEmail) {
       submitBtn.textContent = 'Sending notification...';
       
-      // Generate AI draft about the refund
-      var draftRes = await fetch('/api/agents/generate-draft', {
+      var cleanEmail = rbActiveMessage.sender && rbActiveMessage.sender.includes('<') 
+        ? rbActiveMessage.sender.split('<')[1].replace('>','').trim() 
+        : rbActiveMessage.sender;
+      
+      // Use regenerate with refund-specific instructions so AI knows about the refund
+      var regenRes = await fetch('/api/messages/' + rbActiveMessage.id + '/regenerate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messageId: rbActiveMessage.id })
+        body: JSON.stringify({
+          rulebook: 'IMPORTANT CONTEXT: A refund of ' + data.refund.currency + ' ' + data.refund.amount + ' has just been processed for order #' + data.refund.order_number + '. Reason: ' + (reason || 'Customer request') + '. Write a brief, friendly email notifying the customer that their refund has been processed and they should see it reflected in their account within 5-10 business days. Be warm and apologetic if appropriate.',
+          signature: ST.settings?.signature || ''
+        })
       });
-      var draftData = await draftRes.json();
+      var regenData = await regenRes.json();
       
-      if (draftData.draft) {
-        var cleanEmail = rbActiveMessage.sender && rbActiveMessage.sender.includes('<') 
-          ? rbActiveMessage.sender.split('<')[1].replace('>','').trim() 
-          : rbActiveMessage.sender;
-        
+      if (regenData.draft) {
         await fetch('/api/messages/' + rbActiveMessage.id + '/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: draftData.draft, customerEmail: cleanEmail })
+          body: JSON.stringify({ text: regenData.draft, customerEmail: cleanEmail })
         });
         
         await sb.from('messages').update({ 
           status: 'done', 
-          sent_reply: draftData.draft, 
+          sent_reply: regenData.draft, 
           sent_at: new Date().toISOString() 
         }).eq('id', rbActiveMessage.id);
       }
