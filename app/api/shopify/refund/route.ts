@@ -71,17 +71,38 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    // 5. Process the refund via Shopify API
+    // 5. Find the correct parent transaction (must be a successful charge)
+    const parentTransaction = order.transactions?.find((t: any) => 
+      t.kind === 'sale' && t.status === 'success'
+    ) || order.transactions?.find((t: any) => 
+      t.kind === 'capture' && t.status === 'success'
+    ) || order.transactions?.[0];
+
+    if (!parentTransaction) {
+      return NextResponse.json({ error: 'No valid payment transaction found on this order' }, { status: 400 });
+    }
+
+    // Use the order's presentment currency (what the customer paid in)
+    const refundCurrency = order.presentment_currency || order.currency;
+
+    console.log('🔍 Refund debug:', { 
+      parentId: parentTransaction.id, 
+      parentKind: parentTransaction.kind,
+      gateway: parentTransaction.gateway,
+      currency: refundCurrency,
+      amount: actualRefundAmount 
+    });
+
     const refundPayload: any = {
       refund: {
-        currency: order.currency,
-        notify: false, // We'll send our own notification
-        note: reason || `Refund processed via Respondro`,
+        currency: refundCurrency,
+        notify: false,
+        note: reason || 'Refund processed via Respondro',
         transactions: [{
-          parent_id: order.transactions?.[0]?.id,
+          parent_id: parentTransaction.id,
           amount: actualRefundAmount.toFixed(2),
           kind: 'refund',
-          gateway: order.transactions?.[0]?.gateway || 'manual'
+          gateway: parentTransaction.gateway
         }]
       }
     };
