@@ -81,6 +81,7 @@ export async function getShopifyContext(shop: string, token: string, email: stri
             let financialDisplay = o.financial_status || 'unknown';
 
             return {
+                id: o.id,
                 order_number: o.order_number,
                 name: o.name,
                 created_at: o.created_at,
