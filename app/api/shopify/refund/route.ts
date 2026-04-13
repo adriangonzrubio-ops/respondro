@@ -14,14 +14,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'order_id or order_number required' }, { status: 400 });
     }
 
-    // 1. Get store settings
-    const { data: settings } = await supabase.from('settings').select('*').limit(1).single();
-    if (!settings?.shop_url || !settings?.shopify_access_token) {
+    // 1. Get Shopify credentials from stores table
+    const { data: store } = await supabase.from('stores').select('shopify_url, shopify_token').limit(1).single();
+    if (!store?.shopify_url || !store?.shopify_token) {
       return NextResponse.json({ error: 'Shopify not connected' }, { status: 400 });
     }
 
-    const shop = settings.shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '').trim();
-    const token = settings.shopify_access_token;
+    const shop = store.shopify_url.replace(/^https?:\/\//, '').replace(/\/$/, '').trim();
+    const token = store.shopify_token;
 
     // 2. Get the order (we need the full order data for refund calculation)
     let shopifyOrderId = order_id;
