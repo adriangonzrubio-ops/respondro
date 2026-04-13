@@ -3253,6 +3253,7 @@ async function rbLoadShopifySidebar(msg) {
       } catch(e) { console.warn('Shopify lookup failed:', e); }
     }
     const orders = Array.isArray(shopifyData) ? shopifyData : (shopifyData ? [shopifyData] : []);
+    rbActiveMessage.shopify_data = orders;
     if (loadEl) loadEl.classList.add('hidden');
     if (dataEl) dataEl.classList.remove('hidden');
     var agentChat = document.getElementById('rb-agent-chat'); if (agentChat) agentChat.classList.remove('hidden');
