@@ -205,6 +205,94 @@ body.light #refund-modal > div{background:#FFFFFF!important;border-color:#E5E7EB
 /* Light mode: Store footer in sidebar */
 body.light .sidebar .p-4.border-t{background:rgba(0,0,0,0.02)}
 body.light .sidebar .p-4.border-t .text-xs{color:#374151}
+
+/* ═══ LIGHT MODE: Review Board fixes ═══ */
+/* Header bar in review board */
+body.light #view-review-board .flex.justify-between.items-center.px-6.py-4{background:#FFFFFF!important;border-bottom:1px solid #E5E7EB!important}
+body.light #view-review-board h2{color:#1A1D26!important}
+body.light #view-review-board p{color:#6B7280!important}
+/* Ticket list sidebar */
+body.light #view-review-board .flex.flex-col.border-r{background:#FAFBFC!important;border-color:#E5E7EB!important}
+body.light #rb-search{background:#F3F4F6!important;border-color:#D1D5DB!important;color:#1A1D26!important}
+/* Filter buttons */
+body.light .rb-filter-btn{color:#6B7280!important}
+/* Ticket cards in list */
+body.light [id^="rb-ticket-card-"]{background:#FFFFFF!important;border-color:#E5E7EB!important}
+body.light [id^="rb-ticket-card-"] .text-gray-300{color:#1A1D26!important}
+body.light [id^="rb-ticket-card-"] .text-gray-600{color:#9CA3AF!important}
+/* Active ticket workspace */
+body.light #rb-workspace{background:#F7F8FA!important}
+body.light #rb-active-ticket .px-6.py-4{background:#FFFFFF!important;border-color:#E5E7EB!important}
+body.light #rb-ticket-subject{color:#1A1D26!important}
+body.light #rb-ticket-from{color:#6B7280!important}
+/* Conversation timeline */
+body.light #rb-timeline-container{background:#F3F4F6!important;border-color:#E5E7EB!important}
+body.light #rb-timeline-container .rounded-xl{background:#FFFFFF!important;border-color:#E5E7EB!important}
+body.light #rb-timeline-container [style*="background:rgba(0,200,150,0.04)"]{background:#F0FDF4!important;border-color:#BBF7D0!important}
+body.light #rb-timeline-container [style*="background:rgba(240,165,0,0.08)"]{background:#FFFBEB!important;border-color:#FDE68A!important}
+body.light #rb-timeline-container .text-white{color:#1A1D26!important}
+body.light #rb-timeline-container [style*="white-space:pre-wrap"]{color:#374151!important}
+/* AI Draft area */
+body.light #rb-draft-textarea{background:#FFFFFF!important;color:#1A1D26!important;border-color:#D1D5DB!important}
+body.light .flex-1.rounded-xl.overflow-hidden[style*="border:2px solid rgba(0,200,150"]{background:#FFFFFF!important;border-color:#86EFAC!important}
+/* Bottom action bar */
+body.light #rb-active-ticket .flex.gap-2.p-4.border-t{background:#FFFFFF!important;border-color:#E5E7EB!important}
+body.light #rb-active-ticket .btn-primary{background:#059669!important;color:#FFFFFF!important}
+body.light #rb-active-ticket .btn-ghost{background:#F3F4F6!important;color:#374151!important;border-color:#D1D5DB!important}
+body.light #rb-refund-btn{background:#FEF2F2!important;color:#DC2626!important;border-color:#FECACA!important}
+/* Shopify sidebar */
+body.light #rb-shopify-sidebar{background:#FAFBFC!important;border-color:#E5E7EB!important}
+body.light #rb-shopify-sidebar .rounded-xl{background:#FFFFFF!important;border-color:#E5E7EB!important}
+body.light #rb-shopify-sidebar .text-white{color:#1A1D26!important}
+body.light #rb-shop-avatar{background:#E5E7EB!important;color:#374151!important}
+/* AI Instructions box */
+body.light #rb-agent-chat{border-color:#E5E7EB!important}
+body.light #rb-agent-instructions{background:#F3F4F6!important;border-color:#D1D5DB!important;color:#1A1D26!important}
+/* Pending badge */
+body.light .flex.items-center.gap-2.text-xs.font-mono.px-3.py-1\.5.rounded-full[style*="background:rgba(240,165,0"]{background:#FFFBEB!important;border-color:#FDE68A!important}
+/* Refresh button */
+body.light button[onclick="fetchMessages()"]{background:#F3F4F6!important;border-color:#D1D5DB!important;color:#374151!important}
+/* Regenerate button */
+body.light #rb-regen-btn{background:#F3F4F6!important;border-color:#D1D5DB!important;color:#374151!important}
+
+/* ═══ LIGHT MODE: Dashboard fixes ═══ */
+body.light #view-dashboard h2{color:#1A1D26!important}
+body.light #view-dashboard .settings-card{background:#FFFFFF!important;border-color:#E5E7EB!important}
+body.light #view-dashboard .text-2xl{color:#1A1D26!important}
+body.light #dash-action-queue [style*="background:rgba(240,165,0"]{background:#FFFBEB!important;border-color:#FDE68A!important}
+body.light #dash-action-queue [style*="background:rgba(0,200,150"]{background:#F0FDF4!important;border-color:#BBF7D0!important}
+body.light #dash-action-queue .text-white{color:#1A1D26!important}
+
+/* ═══ LIGHT MODE: Refund modal ═══ */
+body.light #refund-modal > div > div{background:#FFFFFF!important;border-color:#E5E7EB!important}
+body.light #refund-modal h3{color:#1A1D26!important}
+body.light #refund-modal label{color:#6B7280!important}
+body.light #refund-modal input[type="number"]{background:#F3F4F6!important;border-color:#D1D5DB!important;color:#1A1D26!important}
+body.light #refund-modal input[type="text"]{background:#F3F4F6!important;border-color:#D1D5DB!important;color:#1A1D26!important}
+body.light #refund-modal #refund-order-info{background:#F9FAFB!important;border-color:#E5E7EB!important}
+body.light #refund-modal .refund-pct-btn{background:#F3F4F6!important;border-color:#D1D5DB!important;color:#374151!important}
+body.light #refund-modal #refund-submit-btn{background:#FEF2F2!important;color:#DC2626!important;border-color:#FECACA!important}
+
+/* ═══ LIGHT MODE: Resolution summary popup ═══ */
+body.light div[style*="background:#16191f"][style*="border-radius:16px"]{background:#FFFFFF!important;border-color:#E5E7EB!important}
+
+/* ═══ LIGHT MODE: Agents & Settings pages ═══ */
+body.light #view-agents h2{color:#1A1D26!important}
+body.light #view-agents p{color:#6B7280!important}
+body.light #view-agent-config h2{color:#1A1D26!important}
+body.light #view-agent-config h4{color:#1A1D26!important}
+body.light #view-integrations h2{color:#1A1D26!important}
+body.light #view-mailboxes h2{color:#1A1D26!important}
+body.light #view-settings h2{color:#1A1D26!important}
+body.light #view-settings h3{color:#1A1D26!important}
+body.light #view-settings p.text-sm{color:#6B7280!important}
+body.light #view-settings label{color:#6B7280!important}
+body.light #view-settings input[type="text"],body.light #view-settings textarea{background:#F3F4F6!important;border-color:#D1D5DB!important;color:#1A1D26!important}
+
+/* ═══ LIGHT MODE: Top nav bar ═══ */
+body.light .dash-nav .font-display{color:#1A1D26!important}
+body.light #user-name-nav{color:#1A1D26!important}
+body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!important}
 </style>
 </head>
 <body class="font-body">
