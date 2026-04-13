@@ -67,7 +67,22 @@ export async function POST(req: Request) {
       }
     }
 
-    const rulebook = settings?.rulebook || 'Be helpful, professional and empathetic.';
+    let rulebook = settings?.rulebook || 'Be helpful, professional and empathetic.';
+    
+    // Fetch agent rulebooks and policies
+    const storeId = message.store_id || settings?.store_id;
+    if (storeId) {
+      const { data: agents } = await supabase.from('support_agents').select('agent_type, rulebook, is_enabled').eq('store_id', storeId);
+      if (agents && agents.length > 0) {
+        const agentRules = agents.filter(a => a.is_enabled && a.rulebook).map(a => `[${a.agent_type.toUpperCase()} AGENT]:\n${a.rulebook}`).join('\n\n');
+        if (agentRules) rulebook += '\n\n' + agentRules;
+      }
+      const { data: policies } = await supabase.from('store_policies').select('policy_type, policy_content').eq('store_id', storeId);
+      if (policies && policies.length > 0) {
+        const policyText = policies.filter(p => p.policy_content).map(p => `[${p.policy_type.replace(/_/g, ' ').toUpperCase()}]:\n${p.policy_content.substring(0, 3000)}`).join('\n\n');
+        if (policyText) rulebook += '\n\nSTORE POLICIES:\n' + policyText;
+      }
+    }
 
     // 3. Generate with Claude
     const response = await anthropic.messages.create({
@@ -93,7 +108,14 @@ TASK: Write a professional, warm, complete email reply.
     });
 
     const rawContent = response.content[0].type === 'text' ? response.content[0].text : '';
-    const draft = rawContent.replace(/^["']|["']$/g, '').trim();
+    let draft = rawContent.replace(/^["']|["']$/g, '').trim();
+    // Strip markdown but keep ** for bold
+    draft = draft.replace(/__/g, '').replace(/^#+\s/gm, '').replace(/^[-*]\s/gm, '');
+    // Append signature
+    const signature = settings?.signature || '';
+    if (signature) {
+      draft = draft + '\n\n' + signature;
+    }
 
     // 4. Save draft to DB
     await supabase
