@@ -2602,21 +2602,6 @@ function syncShopifyUI() {
     }
 }
 
-// --- SIGNATURE SETTINGS ---
-function saveSignature() {
-  const url = document.getElementById('sig-logo-url').value;
-  const width = document.getElementById('sig-logo-width').value;
-  const text = document.getElementById('sig-text').value;
-  
-  localStorage.setItem('respondro_signature', JSON.stringify({ url, width, text }));
-  
-  const btn = event.target;
-  const originalText = btn.innerText;
-  btn.innerText = "Saved!";
-  btn.classList.add('bg-emerald-500');
-  setTimeout(() => { btn.innerText = originalText; btn.classList.remove('bg-emerald-500'); }, 2000);
-}
-
 async function handleToneScreenshot(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -2725,21 +2710,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Function for the Branding "Save" button
 async function saveSignature() {
     const settings = {
-        logo_url: document.getElementById('sig-logo-url').value,
-        logo_width: document.getElementById('sig-logo-width').value,
-        signature: document.getElementById('sig-text').value,
-        rulebook: document.getElementById('rulebook-text').value // Keep the current rulebook text too
+        logo_url: document.getElementById('sig-logo-url')?.value || '',
+        logo_width: document.getElementById('sig-logo-width')?.value || '120',
+        signature: document.getElementById('sig-text')?.value || ''
     };
     await sendSettings(settings);
+    showToast('Branding saved! ✨');
 }
 
 // Function for the Rulebook "Save" button
 async function saveRulebook() {
+    const rulebookText = document.getElementById('rulebook-text')?.value;
+    if (!rulebookText) return showToast('No rulebook text found.');
     const settings = {
-        rulebook: document.getElementById('rulebook-text').value,
-        logo_url: document.getElementById('sig-logo-url').value,
-        logo_width: document.getElementById('sig-logo-width').value,
-        signature: document.getElementById('sig-text').value
+        rulebook: rulebookText,
+        logo_url: document.getElementById('sig-logo-url')?.value || '',
+        logo_width: document.getElementById('sig-logo-width')?.value || '120',
+        signature: document.getElementById('sig-text')?.value || ''
     };
     await sendSettings(settings);
 }
