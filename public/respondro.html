@@ -933,7 +933,11 @@ select.form-input option{background:#0F1623}
   // Global helper: set draft content with bold rendering
 function setDraft(el, text) {
     if (!el) return;
-    el.innerHTML = (text || '').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    let html = (text || '').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    if (ST.settings?.logo_url) {
+        html += '<div style="margin-top:12px"><img src="' + ST.settings.logo_url + '" style="width:' + (ST.settings.logo_width || 120) + 'px;max-width:100%;" alt="Store Logo"></div>';
+    }
+    el.innerHTML = html;
 }
 function getDraft(el) {
     if (!el) return '';
