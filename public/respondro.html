@@ -3153,7 +3153,9 @@ function renderRbTicketList(messages) {
   const container = document.getElementById('rb-ticket-list');
   if (!container) return;
   const filtered = messages.filter(function(m) {
-    if(rbCurrentFilter === 'all') return m.status !== 'done' && m.status !== 'closed' && m.status !== 'spam';
+    if(rbCurrentFilter === 'all') return m.status === 'needs_review' || m.status === 'automated' || m.status === 'pending';
+    if(rbCurrentFilter === 'needs_review') return m.status === 'needs_review' || m.status === 'pending';
+    if(rbCurrentFilter === 'automated') return m.status === 'automated';
     if(rbCurrentFilter === 'archived') return m.status === 'done' || m.status === 'closed';
     if(rbCurrentFilter === 'spam') return m.status === 'spam';
     return m.status === rbCurrentFilter;
@@ -3168,11 +3170,30 @@ function renderRbTicketList(messages) {
     const statusBadge = msg.status === 'automated' ? '<span class="badge badge-g" style="font-size:9px">AUTO</span>' : hasDraft ? '<span class="badge badge-g" style="font-size:9px;background:rgba(0,200,150,0.1)">DRAFT READY</span>' : '<span class="badge badge-a" style="font-size:9px">NEEDS DRAFT</span>';
     const isArchived = msg.status === 'done' || msg.status === 'closed';
     const priorityColor = msg.priority === 'High' ? '#F87171' : msg.priority === 'Medium' ? '#F0A500' : '#5A6785';
+    var catColors = {
+      'refund_request':'background:rgba(248,113,113,0.12);color:#F87171',
+      'cancellation':'background:rgba(248,113,113,0.12);color:#F87171',
+      'complaint':'background:rgba(248,113,113,0.12);color:#F87171',
+      'damaged_item':'background:rgba(248,113,113,0.12);color:#F87171',
+      'missing_item':'background:rgba(240,165,0,0.12);color:#F0A500',
+      'order_status':'background:rgba(0,200,150,0.1);color:#00C896',
+      'shipping':'background:rgba(0,200,150,0.1);color:#00C896',
+      'product_question':'background:rgba(167,139,250,0.12);color:#A78BFA',
+      'exchange':'background:rgba(240,165,0,0.12);color:#F0A500',
+      'return':'background:rgba(240,165,0,0.12);color:#F0A500',
+      'billing':'background:rgba(248,113,113,0.12);color:#F87171',
+      'address_change':'background:rgba(0,200,150,0.1);color:#00C896',
+      'thank_you':'background:rgba(0,200,150,0.1);color:#00C896',
+      'spam':'background:rgba(255,255,255,0.06);color:#5A6785'
+    };
+    var catStyle = catColors[msg.category] || 'background:rgba(255,255,255,0.06);color:#5A6785';
+    var catLabel = (msg.category || 'general').replace(/_/g, ' ');
+
     return '<div onclick="rbOpenTicket(\'' + msg.id + '\')" id="rb-ticket-card-' + msg.id + '" class="p-3 rounded-xl cursor-pointer transition-all relative" style="background:' + (isActive?'rgba(0,200,150,0.07)':'rgba(255,255,255,0.02)') + ';border:1px solid ' + (isActive?'rgba(0,200,150,0.25)':'rgba(255,255,255,0.05)') + ';margin-bottom:4px;opacity:' + (isArchived?'0.45':'1') + '">'
       + '<div style="position:absolute;left:0;top:8px;bottom:8px;width:2px;border-radius:1px;background:' + priorityColor + ';opacity:0.7"></div>'
       + '<div class="flex justify-between items-start mb-1 pl-2"><span class="text-[10px] font-600 text-gray-300 truncate" style="max-width:160px">' + cleanName + '</span><span class="text-[9px] font-mono text-gray-600 flex-shrink-0 ml-1">' + timeStr + '</span></div>'
       + '<div class="text-[11px] text-gray-400 truncate mb-2 pl-2">' + (msg.subject || 'No Subject') + '</div>'
-      + '<div class="flex items-center gap-1.5 pl-2">' + statusBadge + (msg.category ? '<span class="text-[9px] font-mono text-gray-600">' + msg.category + '</span>' : '') + '</div>'
+      + '<div class="flex items-center gap-1.5 pl-2 flex-wrap">' + statusBadge + '<span class="text-[9px] font-mono px-1.5 py-0.5 rounded-full" style="' + catStyle + '">' + catLabel + '</span></div>'
       + '</div>';
   }).join('');
 }
@@ -3220,8 +3241,9 @@ async function rbOpenTicket(msgId) {
 
     const badge = document.getElementById('rb-ticket-badge');
     if (badge) {
-      badge.className = msg.status === 'automated' ? 'badge badge-g text-[10px]' : 'badge badge-a text-[10px]';
-      badge.textContent = msg.status === 'automated' ? 'automated' : 'review';
+      var badgeClass = msg.status === 'automated' ? 'badge badge-g text-[10px]' : msg.status === 'spam' ? 'badge badge-m text-[10px]' : 'badge badge-a text-[10px]';
+      badge.className = badgeClass;
+      badge.textContent = msg.status === 'automated' ? 'auto-sent' : msg.status === 'spam' ? 'spam' : 'review';
     }
 
     const rb = document.getElementById('rb-reasoning-block');
