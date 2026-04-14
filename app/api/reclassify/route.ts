@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Anthropic } from '@anthropic-ai/sdk';
 
+export async function GET(request: Request) {
+    // Redirect GET to POST so you can call it from browser
+    return POST(request);
+}
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -23,8 +28,9 @@ export async function POST(request: Request) {
     }
 
     try {
+        const { searchParams } = new URL(request.url);
         const body = await request.json().catch(() => ({}));
-        const batchSize = body.batch || 15;
+        const batchSize = body.batch || parseInt(searchParams.get('batch') || '15');
 
         // Fetch messages still labeled "General" or "general"
         const { data: messages, error } = await supabase
