@@ -46,7 +46,7 @@ PREVIOUS TICKET: Category was "${previousCategory}" (status: ${previousStatus}).
                 content: `You are an autonomous customer service AI for ${storeName}. Your job is to classify emails, detect required Shopify actions, and draft replies.
 
 STORE RULEBOOK:
-${rulebook}
+${rulebook.substring(0, 4000)}
 
 EMAIL SUBJECT: ${subject}
 EMAIL BODY: ${body}
@@ -200,8 +200,8 @@ For "address_change":
         // Retry with simpler prompt
         try {
             const retry = await anthropic.messages.create({
-                model: 'claude-haiku-4-5-20251001',
-                max_tokens: 800,
+                model: 'claude-sonnet-4-6',
+                max_tokens: 1000,
                 messages: [{
                     role: 'user',
                     content: `Classify this customer email for ${storeName} and write a reply.
@@ -232,8 +232,12 @@ Return JSON: {"path":"REVIEW","category":"pick_one","priority":"Medium","confide
         // Final fallback
         const customerName = body.match(/(?:^|\n)\s*([A-Z][a-z]+ ?[A-Z]?[a-z]*)\s*$/m)?.[1] || '';
         const greeting = customerName ? `Hi ${customerName.split(' ')[0]},` : 'Hi,';
-        let fallbackDraft = `${greeting}\n\nThank you for reaching out. I am looking into your inquiry and will get back to you shortly with more details.`;
-        if (signature) fallbackDraft += '\n\n' + signature;
+        let fallbackDraft = `${greeting}\n\nThank you for reaching out. We have received your message and will get back to you as soon as possible.`;
+        if (signature) {
+            fallbackDraft += '\n\n' + signature;
+        } else {
+            fallbackDraft += '\n\nBest regards,\nCustomer Support';
+        }
 
         return {
             path: 'REVIEW', category: 'general', priority: 'Medium',

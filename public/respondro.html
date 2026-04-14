@@ -508,6 +508,9 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
       <button onclick="fetchMessages()" class="flex items-center gap-2 text-xs px-4 py-2 rounded-lg border transition-all" style="background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.08);color:#8B96B0">
         <span id="rb-sync-icon">↻</span> Refresh
       </button>
+      <button onclick="sendAllDrafts()" id="rb-send-all-btn" class="flex items-center gap-2 text-xs px-4 py-2 rounded-lg border transition-all" style="background:rgba(0,200,150,0.08);border-color:rgba(0,200,150,0.2);color:#00C896">
+        ✓ Send All Drafts
+      </button>
     </div>
   </div>
   <div class="flex flex-1 overflow-hidden">
@@ -3926,6 +3929,49 @@ async function processRefund() {
     submitBtn.style.pointerEvents = 'auto';
     showToast('Error: ' + (err.message || 'Refund failed'));
   }
+}
+
+async function sendAllDrafts() {
+  var eligible = rbAllMessages.filter(function(m) {
+    return (m.status === 'needs_review' || m.status === 'pending' || m.status === 'queued') && m.ai_draft && m.ai_draft.length > 20 && m.category !== 'spam';
+  });
+
+  if (eligible.length === 0) { showToast('No drafts ready to send'); return; }
+  if (!confirm('Send ' + eligible.length + ' AI-drafted replies to customers? This cannot be undone.')) return;
+
+  var btn = document.getElementById('rb-send-all-btn');
+  if (btn) { btn.textContent = 'Sending 0/' + eligible.length + '...'; btn.disabled = true; }
+
+  var sent = 0;
+  var failed = 0;
+
+  for (var i = 0; i < eligible.length; i++) {
+    var msg = eligible[i];
+    try {
+      var res = await fetch('/api/messages/' + msg.id + '/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: msg.ai_draft, customerEmail: msg.sender })
+      });
+
+      if (res.ok) {
+        await sb.from('messages').update({ status: 'done', sent_reply: msg.ai_draft, sent_at: new Date().toISOString() }).eq('id', msg.id);
+        sent++;
+      } else {
+        failed++;
+      }
+    } catch(e) {
+      failed++;
+    }
+    if (btn) btn.textContent = 'Sending ' + (sent + failed) + '/' + eligible.length + '...';
+  }
+
+  if (btn) { btn.innerHTML = '✓ Send All Drafts'; btn.disabled = false; }
+  showToast('Sent ' + sent + ' replies' + (failed > 0 ? ', ' + failed + ' failed' : ''));
+
+  // Refresh the list
+  var { data: messages } = await sb.from('messages').select('*').in('status', ['needs_review','automated','pending','done','closed','spam','queued']).order('received_at', { ascending: false }).limit(100);
+  if (messages) { rbAllMessages = messages; renderRbTicketList(messages); updateRbPendingCount(); }
 }
 
 async function rbApproveSend() {
