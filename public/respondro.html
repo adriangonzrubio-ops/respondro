@@ -3919,7 +3919,7 @@ async function loadDashboardView() {
     : currentFilter === 'month' ? new Date(now.getTime() - 30*24*60*60*1000)
     : new Date(0);
 
-  var { data: msgs } = await sb.from('messages').select('status, ai_reasoning, subject, sender, id, received_at, category, priority, sent_at, updated_at');
+  var { data: msgs } = await sb.from('messages').select('*');
   if (!msgs) return;
 
   // Filter messages by time range
