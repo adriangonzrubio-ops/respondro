@@ -120,7 +120,7 @@ async function fetchAndDraft(conn: any) {
             }
 
             // Download max 8 new emails into memory
-            const batch = trulyNew.slice(0, 8);
+            const batch = trulyNew.slice(0, 4);
             console.log(`📬 ${unseenUids.length} unseen, ${trulyNew.length} new, downloading ${batch.length}`);
 
             const messages: any = client.fetch(batch, { source: true, uid: true }, { uid: true });
