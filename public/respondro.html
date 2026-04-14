@@ -3320,10 +3320,11 @@ async function fetchMessages() {
 function renderRbTicketList(messages) {
   const container = document.getElementById('rb-ticket-list');
   if (!container) return;
+  var reviewCategories = ['refund_request','cancellation','complaint','damaged_item','missing_item','billing','exchange','return'];
   const filtered = messages.filter(function(m) {
     var isSpam = m.status === 'spam' || m.category === 'spam';
     if(rbCurrentFilter === 'all') return (m.status === 'needs_review' || m.status === 'automated' || m.status === 'pending' || m.status === 'queued') && !isSpam;
-    if(rbCurrentFilter === 'needs_review') return (m.status === 'needs_review' || m.status === 'pending') && !isSpam;
+    if(rbCurrentFilter === 'needs_review') return (m.status === 'needs_review' || m.status === 'pending') && !isSpam && reviewCategories.indexOf(m.category) > -1;
     if(rbCurrentFilter === 'automated') return (m.status === 'automated' || m.status === 'queued') && !isSpam;
     if(rbCurrentFilter === 'archived') return m.status === 'done' || m.status === 'closed';
     if(rbCurrentFilter === 'spam') return isSpam;
@@ -3333,7 +3334,7 @@ function renderRbTicketList(messages) {
   // Update tab counts
   var allMsgs = messages;
   var countAll = allMsgs.filter(function(m) { var s = m.status === 'spam' || m.category === 'spam'; return (m.status === 'needs_review' || m.status === 'automated' || m.status === 'pending' || m.status === 'queued') && !s; }).length;
-  var countReview = allMsgs.filter(function(m) { return (m.status === 'needs_review' || m.status === 'pending') && m.category !== 'spam' && m.status !== 'spam'; }).length;
+  var countReview = allMsgs.filter(function(m) { return (m.status === 'needs_review' || m.status === 'pending') && m.category !== 'spam' && m.status !== 'spam' && reviewCategories.indexOf(m.category) > -1; }).length;
   var countAuto = allMsgs.filter(function(m) { return (m.status === 'automated' || m.status === 'queued') && m.category !== 'spam' && m.status !== 'spam'; }).length;
   var countArchived = allMsgs.filter(function(m) { return m.status === 'done' || m.status === 'closed'; }).length;
   var countSpam = allMsgs.filter(function(m) { return m.status === 'spam' || m.category === 'spam'; }).length;

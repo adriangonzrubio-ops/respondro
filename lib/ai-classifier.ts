@@ -174,10 +174,16 @@ For "address_change":
             parsed.action_parameters = null;
         }
 
-        // Safety: confidence < 90 → REVIEW
-        if (parsed.path === 'AUTOMATE' && (parsed.confidence || 0) < 90) {
+        // Safety: confidence threshold depends on whether an action is needed
+        var safeAutoCategories = ['order_status', 'shipping', 'product_question', 'thank_you', 'general', 'address_change'];
+        var confidenceThreshold = 90;
+        // Lower threshold for simple queries with no Shopify mutation
+        if (parsed.required_action === 'none' && safeAutoCategories.indexOf(parsed.category) > -1) {
+            confidenceThreshold = 75;
+        }
+        if (parsed.path === 'AUTOMATE' && (parsed.confidence || 0) < confidenceThreshold) {
             parsed.path = 'REVIEW';
-            parsed.reason = (parsed.reason || '') + ' [Downgraded: confidence ' + parsed.confidence + '% < 90%]';
+            parsed.reason = (parsed.reason || '') + ' [Downgraded: confidence ' + parsed.confidence + '% < ' + confidenceThreshold + '%]';
         }
 
         // Safety: if action detected but no Shopify data, force REVIEW

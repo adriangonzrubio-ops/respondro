@@ -120,13 +120,20 @@ async function fetchAndProcess(conn: any) {
                 const fromAddress = parsed.from?.value[0]?.address || "";
                 const fromName = parsed.from?.value[0]?.name || "";
 
+                // Use the email's actual Date header, but validate it
+                let emailDate = parsed.date ? parsed.date.toISOString() : new Date().toISOString();
+                // If the parsed date is in the future (more than 1 hour ahead), it's likely wrong — use now
+                if (parsed.date && parsed.date.getTime() > Date.now() + 3600000) {
+                    emailDate = new Date().toISOString();
+                }
+
                 downloaded.push({
                     uid: msg.uid,
                     from: fromName ? `"${fromName}" <${fromAddress}>` : fromAddress,
                     fromAddress, fromName,
                     subject: parsed.subject || "",
                     body: parsed.text || "",
-                    date: parsed.date?.toISOString() || new Date().toISOString(),
+                    date: emailDate,
                     inReplyTo: (parsed.inReplyTo as string) || "",
                     references: (parsed.references || []) as string[],
                 });
@@ -311,7 +318,6 @@ async function fetchAndProcess(conn: any) {
                     ai_action: aiAction,
                     ai_action_result: aiActionResult,
                     scheduled_send_at: finalStatus === 'queued' ? new Date(Date.now() + (parseInt(store.auto_reply_delay_minutes) || 5) * 60 * 1000).toISOString() : null,
-                    received_at: email.date,
                     external_id: email.uid.toString()
                 }).eq('id', mergeTargetId);
                 console.log(`🔗 Merged into ${mergeTargetId}: ${email.subject} → ${triage.category} (${finalStatus})`);
