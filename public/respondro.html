@@ -272,6 +272,22 @@ body.light #refund-modal input[type="text"]{background:#F3F4F6!important;border-
 body.light #refund-modal #refund-order-info{background:#F9FAFB!important;border-color:#E5E7EB!important}
 body.light #refund-modal .refund-pct-btn{background:#F3F4F6!important;border-color:#D1D5DB!important;color:#374151!important}
 body.light #refund-modal #refund-submit-btn{background:#FEF2F2!important;color:#DC2626!important;border-color:#FECACA!important}
+body.light #refund-modal span[style*="color:white"],body.light #refund-modal span[style*="color:#fff"]{color:#1A1D26!important}
+body.light #refund-modal #refund-order-number{color:#1A1D26!important}
+body.light #refund-modal #refund-order-total{color:#1A1D26!important}
+body.light #refund-modal #refund-pct-value{color:#1A1D26!important}
+body.light #refund-modal #refund-custom-value{color:#1A1D26!important}
+
+/* Light mode: Resolved summary popup */
+body.light div[style*="position:fixed"][style*="z-index:9999"] div[style*="border-radius:16px"]{background:#FFFFFF!important;border-color:#E5E7EB!important}
+body.light div[style*="position:fixed"][style*="z-index:9999"] h3{color:#1A1D26!important}
+body.light div[style*="position:fixed"][style*="z-index:9999"] p[style*="color:white"]{color:#1A1D26!important}
+body.light div[style*="position:fixed"][style*="z-index:9999"] span[style*="color:white"]{color:#1A1D26!important}
+body.light div[style*="position:fixed"][style*="z-index:9999"] p[style*="color:#8B96B0"]{color:#6B7280!important}
+
+/* Light mode: Save Branding button */
+body.light button.bg-emerald-600,body.light button[class*="bg-emerald-600"]{color:#FFFFFF!important}
+body.light button.bg-emerald-600:hover,body.light button[class*="bg-emerald-600"]:hover{color:#FFFFFF!important}
 
 /* ═══ LIGHT MODE: Resolution summary popup ═══ */
 body.light div[style*="background:#16191f"][style*="border-radius:16px"]{background:#FFFFFF!important;border-color:#E5E7EB!important}
@@ -3650,15 +3666,21 @@ async function processRefund() {
   var refundPct = null;
   var refundAmt = null;
   
+  var already = parseFloat(refundOrderData.refunded_amount || 0);
+  var maxRefundable = total - already;
+
   if (refundType === 'percentage') {
     refundPct = parseFloat(document.getElementById('refund-pct-value').value);
     refundAmt = Math.round(total * refundPct / 100 * 100) / 100;
   } else if (refundType === 'custom') {
     refundAmt = parseFloat(document.getElementById('refund-custom-value').value);
   } else {
-    refundAmt = total - parseFloat(refundOrderData.refunded_amount || 0);
-    refundPct = 100;
+    refundAmt = maxRefundable;
+    refundPct = null;
   }
+
+  // Safety cap: never exceed what's actually refundable
+  if (refundAmt > maxRefundable) refundAmt = Math.round(maxRefundable * 100) / 100;
   
   var reason = document.getElementById('refund-reason').value || 'Customer request';
   var sendEmail = document.getElementById('refund-send-email').checked;
