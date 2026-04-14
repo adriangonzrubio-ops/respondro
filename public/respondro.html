@@ -521,12 +521,12 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
       <div class="p-3 border-b border-white/5">
         <input type="text" id="rb-search" placeholder="Search tickets..." oninput="filterTickets(this.value)" class="w-full text-xs px-3 py-2 rounded-lg outline-none" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#E8EBF2">
       </div>
-      <div class="flex gap-1 p-2 border-b border-white/5">
-        <button onclick="setRbFilter('all')" id="rbf-all" class="rb-filter-btn flex-1 text-[10px] font-mono py-1.5 rounded-md transition-all" style="background:rgba(0,200,150,0.1);color:#00C896"><span id="rbf-all-count"></span> ALL</button>
-        <button onclick="setRbFilter('needs_review')" id="rbf-needs_review" class="rb-filter-btn flex-1 text-[10px] font-mono py-1.5 rounded-md transition-all" style="background:transparent;color:#5A6785"><span id="rbf-review-count"></span> REVIEW</button>
-        <button onclick="setRbFilter('automated')" id="rbf-automated" class="rb-filter-btn flex-1 text-[10px] font-mono py-1.5 rounded-md transition-all" style="background:transparent;color:#5A6785"><span id="rbf-auto-count"></span> AUTO</button>
-        <button onclick="setRbFilter('archived')" id="rbf-archived" class="rb-filter-btn flex-1 text-[10px] font-mono py-1.5 rounded-md transition-all" style="background:transparent;color:#5A6785"><span id="rbf-archived-count"></span> ARCHIVED</button>
-        <button onclick="setRbFilter('spam')" id="rbf-spam" class="rb-filter-btn flex-1 text-[10px] font-mono py-1.5 rounded-md transition-all" style="background:transparent;color:#5A6785"><span id="rbf-spam-count"></span> SPAM</button>
+      <div class="flex gap-1 p-2 border-b border-white/5" style="overflow-x:auto">
+        <button onclick="setRbFilter('all')" id="rbf-all" class="rb-filter-btn text-[10px] font-mono py-1.5 px-3 rounded-md transition-all whitespace-nowrap" style="background:rgba(0,200,150,0.1);color:#00C896"><span id="rbf-all-count"></span> All</button>
+        <button onclick="setRbFilter('needs_review')" id="rbf-needs_review" class="rb-filter-btn text-[10px] font-mono py-1.5 px-3 rounded-md transition-all whitespace-nowrap" style="background:transparent;color:#5A6785"><span id="rbf-review-count"></span> Review</button>
+        <button onclick="setRbFilter('automated')" id="rbf-automated" class="rb-filter-btn text-[10px] font-mono py-1.5 px-3 rounded-md transition-all whitespace-nowrap" style="background:transparent;color:#5A6785"><span id="rbf-auto-count"></span> Auto</button>
+        <button onclick="setRbFilter('archived')" id="rbf-archived" class="rb-filter-btn text-[10px] font-mono py-1.5 px-3 rounded-md transition-all whitespace-nowrap" style="background:transparent;color:#5A6785"><span id="rbf-archived-count"></span> Archived</button>
+        <button onclick="setRbFilter('spam')" id="rbf-spam" class="rb-filter-btn text-[10px] font-mono py-1.5 px-3 rounded-md transition-all whitespace-nowrap" style="background:transparent;color:#5A6785"><span id="rbf-spam-count"></span> Spam</button>
       </div>
       <div id="rb-ticket-list" class="flex-1 overflow-y-auto p-2 space-y-1">
         <div class="text-center text-[10px] uppercase tracking-widest text-gray-600 mt-10">Loading tickets...</div>
@@ -3369,9 +3369,14 @@ function renderRbTicketList(messages) {
     }
   });
 
-  // Sort OLDEST first (ascending by received_at)
+  // Sort OLDEST first (ascending) — longest waiting customer on top
   var threads = Object.values(grouped).sort(function(a, b) {
-    return new Date(a.latest.received_at || 0).getTime() - new Date(b.latest.received_at || 0).getTime();
+    var dateA = a.latest.received_at ? new Date(a.latest.received_at).getTime() : 0;
+    var dateB = b.latest.received_at ? new Date(b.latest.received_at).getTime() : 0;
+    // Invalid dates go to bottom
+    if (isNaN(dateA)) dateA = 0;
+    if (isNaN(dateB)) dateB = 0;
+    return dateA - dateB;
   });
 
   if (threads.length === 0) { container.innerHTML = '<div class="text-center text-[10px] uppercase tracking-widest text-gray-700 mt-10 px-3">No tickets</div>'; return; }
@@ -3382,10 +3387,21 @@ function renderRbTicketList(messages) {
     var cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
     var isActive = rbActiveMessage && rbActiveMessage.id === msg.id;
     
-    // Use ACTUAL received_at timestamp, not current time
+    // Use ACTUAL received_at timestamp
     var rawDate = msg.received_at;
-    var date = rawDate ? new Date(rawDate) : new Date(msg.updated_at || Date.now());
-    if (isNaN(date.getTime()) || date.getFullYear() < 2020) date = new Date(msg.updated_at || Date.now());
+    var date = null;
+    if (rawDate) {
+      date = new Date(rawDate);
+      // If the date is invalid or clearly wrong (future or too old), try updated_at
+      if (isNaN(date.getTime()) || date.getFullYear() < 2020 || date.getTime() > Date.now() + 86400000) {
+        date = null;
+      }
+    }
+    if (!date && msg.updated_at) {
+      date = new Date(msg.updated_at);
+      if (isNaN(date.getTime())) date = null;
+    }
+    if (!date) date = new Date();
     var timeStr = date.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + ' ' + date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
     
     var hasDraft = msg.ai_draft && msg.ai_draft.length > 10;
@@ -3969,7 +3985,6 @@ async function sendMarkedDrafts() {
   var ids = Array.from(window.rbMarkedIds);
   var eligible = rbAllMessages.filter(function(m) { return ids.indexOf(m.id) > -1 && m.ai_draft && m.ai_draft.length > 20; });
   if (eligible.length === 0) { showToast('No marked emails have drafts ready'); return; }
-  if (!confirm('Send ' + eligible.length + ' marked replies?')) return;
 
   var btn = document.getElementById('rb-send-marked-btn');
   if (btn) { btn.textContent = 'Sending...'; btn.disabled = true; }
@@ -4004,7 +4019,6 @@ async function sendAllDrafts() {
   });
 
   if (eligible.length === 0) { showToast('No drafts ready to send'); return; }
-  if (!confirm('Send ' + eligible.length + ' AI-drafted replies to customers? This cannot be undone.')) return;
 
   var btn = document.getElementById('rb-send-all-btn');
   if (btn) { btn.textContent = 'Sending 0/' + eligible.length + '...'; btn.disabled = true; }
