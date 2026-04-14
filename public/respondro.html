@@ -898,6 +898,113 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
             </div>
         </div>
 
+<!-- SECTION: AI Autonomy Controls -->
+        <div class="bg-[#16191f] border border-white/5 rounded-2xl p-6 lg:col-span-2">
+            <h3 class="text-white font-bold text-sm mb-1 flex items-center gap-2"><span>🤖</span> AI Autonomy</h3>
+            <p class="text-gray-500 text-xs mb-5">Control what Respondro can do automatically. Toggle features on when you're comfortable with the AI's performance.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <!-- Auto-Reply -->
+                <div class="bg-black/20 border border-white/5 rounded-xl p-4">
+                    <div class="flex items-start justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(0,200,150,0.1)">
+                                <svg class="w-4 h-4" style="color:#00C896" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4z"/></svg>
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-white">Auto-Reply</p>
+                                <p class="text-[10px] text-gray-500">AI sends replies automatically</p>
+                            </div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="toggle-auto-reply" onchange="saveAutonomySettings()" class="sr-only peer">
+                            <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                        </label>
+                    </div>
+                    <p class="text-[10px] text-gray-600 leading-relaxed">When enabled, emails with 90%+ confidence are auto-sent after a delay. When disabled, all emails go to Review Board for manual approval.</p>
+                </div>
+
+                <!-- Auto-Refund -->
+                <div class="bg-black/20 border border-white/5 rounded-xl p-4">
+                    <div class="flex items-start justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(248,113,113,0.1)">
+                                <svg class="w-4 h-4" style="color:#F87171" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-white">Auto-Refund</p>
+                                <p class="text-[10px] text-gray-500">AI processes refunds in Shopify</p>
+                            </div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="toggle-auto-refund" onchange="saveAutonomySettings()" class="sr-only peer">
+                            <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                        </label>
+                    </div>
+                    <p class="text-[10px] text-gray-600 leading-relaxed">When enabled, the AI can issue refunds up to your max amount. When disabled, refund requests go to Review Board.</p>
+                </div>
+
+                <!-- Auto-Cancel -->
+                <div class="bg-black/20 border border-white/5 rounded-xl p-4">
+                    <div class="flex items-start justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(240,165,0,0.1)">
+                                <svg class="w-4 h-4" style="color:#F0A500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-white">Auto-Cancel</p>
+                                <p class="text-[10px] text-gray-500">AI cancels unfulfilled orders</p>
+                            </div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="toggle-auto-cancel" onchange="saveAutonomySettings()" class="sr-only peer">
+                            <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                        </label>
+                    </div>
+                    <p class="text-[10px] text-gray-600 leading-relaxed">When enabled, the AI can cancel unfulfilled orders when customers request it. Already shipped orders always go to Review.</p>
+                </div>
+
+                <!-- Auto-Address Change -->
+                <div class="bg-black/20 border border-white/5 rounded-xl p-4">
+                    <div class="flex items-start justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(167,139,250,0.1)">
+                                <svg class="w-4 h-4" style="color:#A78BFA" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-white">Auto-Address Change</p>
+                                <p class="text-[10px] text-gray-500">AI updates shipping addresses</p>
+                            </div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="toggle-auto-address" onchange="saveAutonomySettings()" class="sr-only peer">
+                            <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                        </label>
+                    </div>
+                    <p class="text-[10px] text-gray-600 leading-relaxed">When enabled, the AI can update shipping addresses on unfulfilled orders. Already shipped orders always go to Review.</p>
+                </div>
+            </div>
+
+            <!-- Advanced Settings -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-400">Auto-Reply Delay (minutes)</label>
+                    <p class="text-[10px] text-gray-600 mb-1">Time before auto-replies are sent. Gives you a window to review and cancel.</p>
+                    <input type="number" id="auto-reply-delay" min="0" max="60" value="5" onchange="saveAutonomySettings()" class="w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-emerald-500/50">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-400">Max Auto-Refund Amount</label>
+                    <p class="text-[10px] text-gray-600 mb-1">AI won't auto-refund orders above this amount. Higher amounts go to Review.</p>
+                    <div class="flex items-center gap-2">
+                        <input type="number" id="max-auto-refund" min="0" step="1" value="50" onchange="saveAutonomySettings()" class="flex-1 bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-emerald-500/50">
+                        <span class="text-xs text-gray-500" id="refund-currency-label">USD</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="autonomy-save-status" class="hidden text-[10px] text-emerald-400 mt-3"></div>
+        </div>
+
         <!-- SECTION 4: Subscription -->
         <div class="bg-[#16191f] border border-white/5 rounded-2xl p-6">
             <h3 class="text-white font-bold text-sm mb-1 flex items-center gap-2"><span>💳</span> Subscription</h3>
@@ -2966,6 +3073,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             // Sync with global state
             if (typeof ST !== 'undefined') ST.settings = settings;
+            // Load autonomy toggles
+            if (typeof loadAutonomySettings === 'function') loadAutonomySettings();
         }
 
         // Trigger the email sync now that we have settings
@@ -2977,6 +3086,48 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error("Could not load settings:", err);
     }
 });
+// ═══ AUTONOMY SETTINGS ═══
+async function loadAutonomySettings() {
+    if (!ST.settings) return;
+    var s = ST.settings;
+    var el = function(id) { return document.getElementById(id); };
+    if (el('toggle-auto-reply')) el('toggle-auto-reply').checked = !!s.auto_reply_enabled;
+    if (el('toggle-auto-refund')) el('toggle-auto-refund').checked = !!s.auto_refund_enabled;
+    if (el('toggle-auto-cancel')) el('toggle-auto-cancel').checked = !!s.auto_cancel_enabled;
+    if (el('toggle-auto-address')) el('toggle-auto-address').checked = !!s.auto_address_change_enabled;
+    if (el('auto-reply-delay')) el('auto-reply-delay').value = s.auto_reply_delay_minutes || 5;
+    if (el('max-auto-refund')) el('max-auto-refund').value = s.max_auto_refund_amount || 50;
+    if (el('refund-currency-label') && s.currency) el('refund-currency-label').textContent = s.currency || 'USD';
+}
+
+async function saveAutonomySettings() {
+    var settings = {
+        auto_reply_enabled: document.getElementById('toggle-auto-reply')?.checked || false,
+        auto_refund_enabled: document.getElementById('toggle-auto-refund')?.checked || false,
+        auto_cancel_enabled: document.getElementById('toggle-auto-cancel')?.checked || false,
+        auto_address_change_enabled: document.getElementById('toggle-auto-address')?.checked || false,
+        auto_reply_delay_minutes: parseInt(document.getElementById('auto-reply-delay')?.value) || 5,
+        max_auto_refund_amount: parseFloat(document.getElementById('max-auto-refund')?.value) || 50
+    };
+
+    try {
+        var res = await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings)
+        });
+        if (res.ok) {
+            // Update local state
+            Object.assign(ST.settings, settings);
+            var status = document.getElementById('autonomy-save-status');
+            if (status) { status.classList.remove('hidden'); status.textContent = 'Settings saved ✓'; setTimeout(function() { status.classList.add('hidden'); }, 2000); }
+            showToast('Autonomy settings saved ✓');
+        }
+    } catch(e) {
+        showToast('Error saving settings');
+    }
+}
+
 // Function for the Branding "Save" button
 async function saveSignature() {
     const settings = {

@@ -8,8 +8,6 @@ import type { ActionResult } from '@/lib/shopify';
 
 export const dynamic = 'force-dynamic';
 
-const DELAY_MINUTES = 5; // Human review window before auto-send
-
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const key = searchParams.get('key');
@@ -216,67 +214,73 @@ async function fetchAndProcess(conn: any) {
             let aiAction: string | null = null;
             let aiActionResult: any = null;
             let finalDraft = triage.draft;
-            const scheduledSendAt = new Date(Date.now() + DELAY_MINUTES * 60 * 1000).toISOString();
 
             if (triage.path === 'SPAM') {
                 finalStatus = 'spam';
                 finalDraft = '';
             } else if (triage.path === 'AUTOMATE') {
-                // ── AUTONOMOUS ACTION EXECUTION ──
-                if (triage.required_action !== 'none' && triage.action_parameters) {
+                // ── CHECK STORE AUTONOMY SETTINGS ──
+                const autoReplyEnabled = !!store.auto_reply_enabled;
+                const autoRefundEnabled = !!store.auto_refund_enabled;
+                const autoCancelEnabled = !!store.auto_cancel_enabled;
+                const autoAddressEnabled = !!store.auto_address_change_enabled;
+                const maxAutoRefund = parseFloat(store.max_auto_refund_amount) || 50;
+                const delayMinutes = parseInt(store.auto_reply_delay_minutes) || 5;
+                const scheduledAt = new Date(Date.now() + delayMinutes * 60 * 1000).toISOString();
+
+                if (!autoReplyEnabled) {
+                    finalStatus = 'needs_review';
+                    triage.reason = (triage.reason || '') + ' [Auto-reply disabled in store settings]';
+                } else if (triage.required_action !== 'none' && triage.action_parameters) {
                     const actionOrderNum = triage.action_parameters.order_number || orderNum;
 
                     if (triage.required_action === 'refund' && actionOrderNum) {
-                        const refundAmt = triage.action_parameters.refund_type === 'partial' ? triage.action_parameters.refund_amount : undefined;
-                        const result: ActionResult = await executeRefund(store.shop_url, store.shopify_access_token, actionOrderNum, refundAmt);
-                        aiAction = 'refund';
-                        aiActionResult = result;
-
-                        if (result.success) {
-                            finalStatus = 'queued';
-                            triage.reason = (triage.reason || '') + ` [AI ACTION: ${result.details}]`;
-                            console.log(`🤖 AI Refund executed: ${result.details}`);
-                        } else {
+                        if (!autoRefundEnabled) {
                             finalStatus = 'needs_review';
-                            triage.reason = (triage.reason || '') + ` [AI ACTION FAILED: ${result.details}]`;
-                            console.warn(`⚠️ AI Refund failed: ${result.details}`);
+                            triage.reason = (triage.reason || '') + ' [Auto-refund disabled in store settings]';
+                        } else {
+                            const orderData = shopifyData?.find((o: any) => String(o.order_number) === String(actionOrderNum).replace('#',''));
+                            const orderTotal = orderData ? parseFloat(orderData.total_price) : 0;
+                            const refundAmt = triage.action_parameters.refund_type === 'partial' ? (triage.action_parameters.refund_amount || 0) : orderTotal;
+                            
+                            if (refundAmt > maxAutoRefund) {
+                                finalStatus = 'needs_review';
+                                triage.reason = (triage.reason || '') + ` [Refund amount ${refundAmt} exceeds max auto-refund limit of ${maxAutoRefund}]`;
+                            } else {
+                                const result = await executeRefund(store.shop_url, store.shopify_access_token, actionOrderNum, triage.action_parameters.refund_type === 'partial' ? triage.action_parameters.refund_amount : undefined);
+                                aiAction = 'refund';
+                                aiActionResult = result;
+                                if (result.success) { finalStatus = 'queued'; triage.reason = (triage.reason || '') + ` [AI ACTION: ${result.details}]`; }
+                                else { finalStatus = 'needs_review'; triage.reason = (triage.reason || '') + ` [AI ACTION FAILED: ${result.details}]`; }
+                            }
                         }
-
                     } else if (triage.required_action === 'cancel' && actionOrderNum) {
-                        const result: ActionResult = await cancelOrder(store.shop_url, store.shopify_access_token, actionOrderNum);
-                        aiAction = 'cancel';
-                        aiActionResult = result;
-
-                        if (result.success) {
-                            finalStatus = 'queued';
-                            triage.reason = (triage.reason || '') + ` [AI ACTION: ${result.details}]`;
-                            console.log(`🤖 AI Cancel executed: ${result.details}`);
-                        } else {
+                        if (!autoCancelEnabled) {
                             finalStatus = 'needs_review';
-                            triage.reason = (triage.reason || '') + ` [AI ACTION FAILED: ${result.details}]`;
+                            triage.reason = (triage.reason || '') + ' [Auto-cancel disabled in store settings]';
+                        } else {
+                            const result = await cancelOrder(store.shop_url, store.shopify_access_token, actionOrderNum);
+                            aiAction = 'cancel';
+                            aiActionResult = result;
+                            if (result.success) { finalStatus = 'queued'; triage.reason = (triage.reason || '') + ` [AI ACTION: ${result.details}]`; }
+                            else { finalStatus = 'needs_review'; triage.reason = (triage.reason || '') + ` [AI ACTION FAILED: ${result.details}]`; }
                         }
-
                     } else if (triage.required_action === 'address_change' && actionOrderNum && triage.action_parameters.new_address) {
-                        const result: ActionResult = await updateShippingAddress(store.shop_url, store.shopify_access_token, actionOrderNum, triage.action_parameters.new_address);
-                        aiAction = 'address_change';
-                        aiActionResult = result;
-
-                        if (result.success) {
-                            finalStatus = 'queued';
-                            triage.reason = (triage.reason || '') + ` [AI ACTION: ${result.details}]`;
-                            console.log(`🤖 AI Address Change executed: ${result.details}`);
-                        } else {
+                        if (!autoAddressEnabled) {
                             finalStatus = 'needs_review';
-                            triage.reason = (triage.reason || '') + ` [AI ACTION FAILED: ${result.details}]`;
+                            triage.reason = (triage.reason || '') + ' [Auto-address change disabled in store settings]';
+                        } else {
+                            const result = await updateShippingAddress(store.shop_url, store.shopify_access_token, actionOrderNum, triage.action_parameters.new_address);
+                            aiAction = 'address_change';
+                            aiActionResult = result;
+                            if (result.success) { finalStatus = 'queued'; triage.reason = (triage.reason || '') + ` [AI ACTION: ${result.details}]`; }
+                            else { finalStatus = 'needs_review'; triage.reason = (triage.reason || '') + ` [AI ACTION FAILED: ${result.details}]`; }
                         }
-
                     } else {
-                        // Action requested but missing data
                         finalStatus = 'needs_review';
-                        triage.reason = (triage.reason || '') + ' [Action requested but missing order number or parameters]';
+                        triage.reason = (triage.reason || '') + ' [Action requested but missing data]';
                     }
                 } else {
-                    // No action needed, just auto-reply (standard queries)
                     finalStatus = 'queued';
                 }
             } else {
@@ -306,7 +310,7 @@ async function fetchAndProcess(conn: any) {
                     ai_reasoning: triage.reason || '',
                     ai_action: aiAction,
                     ai_action_result: aiActionResult,
-                    scheduled_send_at: finalStatus === 'queued' ? scheduledSendAt : null,
+                    scheduled_send_at: finalStatus === 'queued' ? new Date(Date.now() + (parseInt(store.auto_reply_delay_minutes) || 5) * 60 * 1000).toISOString() : null,
                     received_at: email.date,
                     external_id: email.uid.toString()
                 }).eq('id', mergeTargetId);
@@ -329,7 +333,7 @@ async function fetchAndProcess(conn: any) {
                     shopify_data: shopifyData && shopifyData.length > 0 ? shopifyData : null,
                     external_id: email.uid.toString(),
                     received_at: email.date,
-                    scheduled_send_at: finalStatus === 'queued' ? scheduledSendAt : null
+                    scheduled_send_at: finalStatus === 'queued' ? new Date(Date.now() + (parseInt(store.auto_reply_delay_minutes) || 5) * 60 * 1000).toISOString() : null
                 }, { onConflict: 'external_id' });
             }
 
