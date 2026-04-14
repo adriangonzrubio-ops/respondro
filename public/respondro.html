@@ -484,14 +484,9 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
     <div class="settings-card text-center" style="margin:0"><div class="text-xs mb-1" style="color:#888">Actions Needed</div><div class="text-2xl font-bold" id="dash-stat-actions" style="color:#F0A500">—</div></div>
     <div class="settings-card text-center" style="margin:0"><div class="text-xs mb-1" style="color:#888">Resolved</div><div class="text-2xl font-bold" id="dash-stat-resolved">—</div></div>
   </div>
-  <div class="settings-card" style="margin:0 0 16px 0">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="font-display font-600 text-sm">🔔 Human Action Queue</h3>
-      <span class="text-[10px] font-mono px-2 py-1 rounded-full" style="background:rgba(240,165,0,0.1);color:#F0A500">Actions flagged by AI</span>
-    </div>
-    <div id="dash-action-queue" class="space-y-3">
-      <div class="text-xs text-center py-6" style="color:#5A6785">Loading action queue...</div>
-    </div>
+  <div id="dash-time-filter" class="flex justify-end mb-4"></div>
+  <div id="dash-action-queue" class="space-y-3">
+    <div class="text-xs text-center py-6" style="color:#5A6785">Loading action queue...</div>
   </div>
   <div class="settings-card" style="margin:0">
     <h3 class="font-display font-600 text-sm mb-4">Recent Activity</h3>
@@ -3922,21 +3917,21 @@ async function loadDashboardView() {
   var { data: msgs } = await sb.from('messages').select('*');
   if (!msgs) return;
 
-  // Filter messages by time range
+  // Time-filtered for stats
   var timeFiltered = msgs.filter(function(m) {
-    var d = new Date(m.received_at || m.updated_at || 0);
-    return d >= filterDate;
+    return new Date(m.received_at || m.updated_at || 0) >= filterDate;
   });
 
-  // Stats from time-filtered messages
   var review = timeFiltered.filter(function(m) { return (m.status === 'needs_review' || m.status === 'pending') && m.category !== 'spam'; }).length;
   var auto = timeFiltered.filter(function(m) { return m.status === 'automated' && m.category !== 'spam'; }).length;
-  var done = timeFiltered.filter(function(m) { return m.status === 'done' || m.status === 'closed'; }).length;
   var actionKeywords = ['refund', 'cancel', 'replacement', 'escalat', 'manual', 'process', 'issue', 'partial', 'damage', 'wrong', 'missing'];
-  var actionItems = timeFiltered.filter(function(m) {
+  var allActionItems = msgs.filter(function(m) {
     return m.status === 'needs_review' && actionKeywords.some(function(k) { return (m.ai_reasoning || '').toLowerCase().includes(k) || (m.category || '').toLowerCase().includes(k); });
   });
-  var actions = actionItems.length;
+  var actions = timeFiltered.filter(function(m) {
+    return m.status === 'needs_review' && actionKeywords.some(function(k) { return (m.ai_reasoning || '').toLowerCase().includes(k) || (m.category || '').toLowerCase().includes(k); });
+  }).length;
+  var done = timeFiltered.filter(function(m) { return m.status === 'done' || m.status === 'closed'; }).length;
 
   var el = function(id, val) { var e = document.getElementById(id); if(e) e.textContent = val; };
   el('dash-stat-review', review);
@@ -3944,28 +3939,33 @@ async function loadDashboardView() {
   el('dash-stat-actions', actions);
   el('dash-stat-resolved', done);
 
-  // Time filter buttons HTML
-  var timeFilterHtml = '<div class="flex gap-1">' + ['today','week','month','all'].map(function(r) {
-    var active = r === currentFilter;
-    return '<button onclick="setDashFilter(\'' + r + '\')" class="text-[10px] px-3 py-1.5 rounded-lg font-600" style="background:' + (active ? 'rgba(0,200,150,0.1)' : 'transparent') + ';color:' + (active ? '#00C896' : '#5A6785') + ';border:1px solid ' + (active ? 'rgba(0,200,150,0.2)' : 'transparent') + '">' + r.charAt(0).toUpperCase() + r.slice(1) + '</button>';
-  }).join('') + '</div>';
+  // Stats time filter (above stat cards)
+  var tfContainer = document.getElementById('dash-time-filter');
+  if (tfContainer) {
+    tfContainer.innerHTML = ['today','week','month','all'].map(function(r) {
+      var active = r === currentFilter;
+      return '<button onclick="setDashFilter(\'' + r + '\')" class="text-[10px] px-3 py-1.5 rounded-lg font-600" style="background:' + (active ? 'rgba(0,200,150,0.1)' : 'transparent') + ';color:' + (active ? '#00C896' : '#5A6785') + ';border:1px solid ' + (active ? 'rgba(0,200,150,0.2)' : 'transparent') + '">' + r.charAt(0).toUpperCase() + r.slice(1) + '</button>';
+    }).join('');
+  }
 
-  // Resolved items (always use the selected time filter)
+  // Resolved (time-filtered)
   var resolvedItems = msgs.filter(function(m) {
-    var isDone = m.status === 'done' || m.status === 'closed';
-    if (!isDone) return false;
-    var resolveDate = new Date(m.sent_at || m.updated_at || m.received_at || 0);
-    return resolveDate >= filterDate;
-  }).sort(function(a, b) {
-    return new Date(b.sent_at || b.updated_at || 0).getTime() - new Date(a.sent_at || a.updated_at || 0).getTime();
-  }).slice(0, 30);
+    if (m.status !== 'done' && m.status !== 'closed') return false;
+    if (!actionKeywords.some(function(k) { return (m.ai_reasoning || '').toLowerCase().includes(k) || (m.category || '').toLowerCase().includes(k); })) return false;
+    return new Date(m.sent_at || m.updated_at || m.received_at || 0) >= filterDate;
+  }).sort(function(a, b) { return new Date(b.sent_at || b.updated_at || 0).getTime() - new Date(a.sent_at || a.updated_at || 0).getTime(); }).slice(0, 30);
+
+  // Resolved time filter
+  var resolvedFilterHtml = '<div class="flex gap-1">' + ['today','week','month','all'].map(function(r) {
+    var active = r === currentFilter;
+    return '<button onclick="setDashFilter(\'' + r + '\')" class="text-[9px] px-2 py-1 rounded" style="background:' + (active ? 'rgba(0,200,150,0.1)' : 'transparent') + ';color:' + (active ? '#00C896' : '#5A6785') + '">' + r.charAt(0).toUpperCase() + r.slice(1) + '</button>';
+  }).join('') + '</div>';
 
   var queue = document.getElementById('dash-action-queue');
   if (queue) {
-    // Needs Action cards
-    var needsActionHTML = actionItems.length === 0
+    var needsActionHTML = allActionItems.length === 0
       ? '<div class="text-xs text-center py-6" style="color:#5A6785">No pending actions</div>'
-      : actionItems.map(function(msg) {
+      : allActionItems.map(function(msg) {
         var cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
         var date = new Date(msg.received_at).toLocaleDateString('en-GB', {day:'numeric', month:'short'});
         var priorityColor = msg.priority === 'High' || msg.priority === 'Urgent' ? '#F87171' : msg.priority === 'Medium' ? '#F0A500' : '#5A6785';
@@ -3985,7 +3985,6 @@ async function loadDashboardView() {
           + '</div></div></div>';
       }).join('');
 
-    // Resolved cards
     var resolvedHTML = resolvedItems.length === 0
       ? '<div class="text-xs text-center py-6" style="color:#5A6785">No resolved actions in this period</div>'
       : resolvedItems.map(function(msg) {
@@ -4002,21 +4001,36 @@ async function loadDashboardView() {
       }).join('');
 
     queue.innerHTML = ''
+      + '<div class="settings-card" style="margin:0 0 16px 0">'
       + '<div class="flex items-center justify-between mb-4">'
       + '<h3 class="font-display font-600 text-sm">🔔 Human Action Queue</h3>'
-      + timeFilterHtml
+      + '<span class="text-[10px] font-mono px-2 py-1 rounded-full" style="background:rgba(240,165,0,0.1);color:#F0A500">Actions flagged by AI</span>'
       + '</div>'
       + '<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">'
       + '<div>'
-      + '<div class="flex items-center justify-between mb-3"><h4 class="text-xs font-display font-700" style="color:#F0A500">⚠️ Needs Action (' + actionItems.length + ')</h4></div>'
+      + '<h4 class="text-xs font-display font-700 mb-3" style="color:#F0A500">⚠️ Needs Action (' + allActionItems.length + ')</h4>'
       + '<div style="max-height:500px;overflow-y:auto">' + needsActionHTML + '</div>'
       + '</div>'
       + '<div>'
-      + '<div class="flex items-center justify-between mb-3"><h4 class="text-xs font-display font-700" style="color:#00C896">✅ Resolved (' + resolvedItems.length + ')</h4></div>'
+      + '<div class="flex items-center justify-between mb-3"><h4 class="text-xs font-display font-700" style="color:#00C896">✅ Resolved (' + resolvedItems.length + ')</h4>' + resolvedFilterHtml + '</div>'
       + '<div style="max-height:500px;overflow-y:auto">' + resolvedHTML + '</div>'
       + '</div>'
-      + '</div>';
+      + '</div></div>';
   }
+
+  var recent = msgs.filter(function(m) { return m.status === 'done' || m.status === 'automated'; }).slice(0, 8);
+  var recentEl = document.getElementById('dash-recent');
+  if (recentEl) {
+    recentEl.innerHTML = recent.length === 0 ? '<div class="text-xs" style="color:#5A6785">No recent activity yet.</div>'
+      : recent.map(function(msg) {
+        var cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
+        var icon = msg.status === 'automated' ? '⚡' : '✅';
+        var label = msg.status === 'automated' ? 'Auto-sent' : 'Resolved';
+        var color = msg.status === 'automated' ? '#00C896' : '#5A6785';
+        return '<div class="flex items-center gap-3 py-2 text-xs" style="border-bottom:1px solid rgba(255,255,255,0.04)"><span>' + icon + '</span><span class="flex-1 truncate">' + cleanName + ' — ' + (msg.subject || 'No Subject') + '</span><span class="text-[10px] px-2 py-0.5 rounded-full font-mono" style="background:' + color + '18;color:' + color + '">' + label + '</span></div>';
+      }).join('');
+  }
+}
 
   // Recent activity
   var recent = msgs.filter(function(m) { return m.status === 'done' || m.status === 'automated'; }).slice(0, 8);
@@ -4036,7 +4050,6 @@ async function loadDashboardView() {
           + '</div>';
       }).join('');
   }
-}
 
 async function showActionSummary(msgId) {
   const { data: msg } = await sb.from('messages').select('subject, sender, body_text, ai_reasoning, ai_draft, category, priority, shopify_data, received_at').eq('id', msgId).single();
@@ -4127,12 +4140,27 @@ async function dashResolveAndNotify(msgId, btn) {
 }
 
 async function dashOpenTicketAndRefund(msgId) {
-  switchView('review-board', document.getElementById('link-review-board'));
-  await fetchMessages();
-  setTimeout(function() {
-    rbOpenTicket(msgId);
-    setTimeout(function() { openRefundModal(); }, 1500);
-  }, 1000);
+  // Load the message's Shopify data and open refund modal directly
+  var { data: msg } = await sb.from('messages').select('*').eq('id', msgId).single();
+  if (!msg) return showToast('Message not found');
+
+  rbActiveMessage = msg;
+
+  // Load Shopify data
+  var shopifyData = msg.shopify_data;
+  if (!shopifyData || (Array.isArray(shopifyData) && shopifyData.length === 0)) {
+    var cleanEmail = msg.sender && msg.sender.includes('<') ? msg.sender.split('<')[1].replace('>','').trim() : msg.sender;
+    try {
+      var res = await fetch('/api/shopify/lookup', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:cleanEmail, messageId:msg.id, subject:msg.subject, body:msg.body_text})});
+      if (res.ok) { var d = await res.json(); shopifyData = d.orders || []; }
+    } catch(e) {}
+  }
+
+  var orders = Array.isArray(shopifyData) ? shopifyData : (shopifyData ? [shopifyData] : []);
+  rbActiveMessage.shopify_data = orders;
+
+  if (orders.length === 0) return showToast('No Shopify order found for this customer');
+  openRefundModal();
 }
 
 async function dashOpenTicket(msgId) {

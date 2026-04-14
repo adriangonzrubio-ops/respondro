@@ -246,6 +246,7 @@ async function fetchAndDraft(conn: any) {
             let finalStatus: string;
             if (triage.path === 'SPAM') {
                 finalStatus = 'spam';
+                triage.draft = '';  // Never generate drafts for spam
             } else if (triage.path === 'AUTOMATE') {
                 finalStatus = 'automated';
             } else {

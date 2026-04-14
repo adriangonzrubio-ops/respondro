@@ -135,8 +135,41 @@ OUTPUT - Return ONLY this JSON:
         return parsed;
 
     } catch (error: any) {
-        console.error('❌ AI Classifier error:', error.message);
+        console.error('❌ AI Classifier error (attempt 1):', error.message);
         
+        // Retry once with a simpler prompt
+        try {
+            const retry = await anthropic.messages.create({
+                model: 'claude-haiku-4-5-20251001',
+                max_tokens: 800,
+                messages: [{
+                    role: 'user',
+                    content: `Classify this customer email and write a short reply for ${storeName}.
+
+Subject: ${subject}
+Body: ${body.substring(0, 500)}
+Shopify: ${JSON.stringify(shopifyData).substring(0, 500)}
+
+Categories: order_status, shipping, refund_request, cancellation, exchange, return, address_change, damaged_item, missing_item, product_question, billing, complaint, thank_you, general, spam
+
+Return JSON: {"path":"REVIEW","category":"pick_one","priority":"Low|Medium|High","draft":"Hi [name], your reply here","reason":"why","confidence":50}`
+                }],
+            });
+            const retryContent = retry.content[0].type === 'text' ? retry.content[0].text : '';
+            const retryJson = retryContent.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+            const retryMatch = retryJson.match(/\{[\s\S]*\}/);
+            if (retryMatch) {
+                const parsed = JSON.parse(retryMatch[0]);
+                if (parsed.draft) parsed.draft = parsed.draft.replace(/\*\*/g, '').replace(/__/g, '');
+                if (signature && parsed.draft && parsed.path !== 'SPAM') parsed.draft = parsed.draft.trim() + '\n\n' + signature;
+                parsed.reason = (parsed.reason || '') + ' [retry after first attempt failed]';
+                return parsed;
+            }
+        } catch (retryErr: any) {
+            console.error('❌ AI Classifier retry also failed:', retryErr.message);
+        }
+        
+        // Final fallback
         const customerName = body.match(/(?:^|\n)\s*([A-Z][a-z]+ ?[A-Z]?[a-z]*)\s*$/m)?.[1] || '';
         const greeting = customerName ? `Hi ${customerName.split(' ')[0]},` : 'Hi,';
         const hasOrder = shopifyData && JSON.stringify(shopifyData).length > 10;
