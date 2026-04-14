@@ -21,7 +21,7 @@ export async function POST(req: Request) {
 
     if (!message) throw new Error('Message not found');
 
-    // 2. Get settings — try message.store_id first, then fall back to first store
+    // 2. Get settings
     let settings = null;
     let storeName = 'Our Store';
 
@@ -38,12 +38,11 @@ export async function POST(req: Request) {
         .select('store_name')
         .eq('id', message.store_id)
         .single();
-      storeName = store?.store_name || 'Our Store';
+      storeName = store?.store_name || settings?.store_name || 'Our Store';
     }
 
-    // Fallback: if still no settings, grab the first store's settings
+    // Fallback
     if (!settings) {
-      console.warn('⚠️ No store_id on message, falling back to first store');
       const { data: firstStore } = await supabase
         .from('stores')
         .select('*')
@@ -58,8 +57,8 @@ export async function POST(req: Request) {
           .eq('store_id', firstStore.id)
           .single();
         settings = s;
+        if (settings?.store_name) storeName = settings.store_name;
 
-        // Also patch the message with the correct store_id
         await supabase
           .from('messages')
           .update({ store_id: firstStore.id })
@@ -90,7 +89,7 @@ export async function POST(req: Request) {
       max_tokens: 1200,
       messages: [{
         role: 'user',
-        content: `You are a senior Support Lead for ${storeName}.
+        content: `You are a support agent for ${storeName}. Write a reply to this customer email.
 
 RULEBOOK: ${rulebook}
 
@@ -98,19 +97,46 @@ CUSTOMER EMAIL: ${message.body_text}
 
 SHOPIFY DATA: ${JSON.stringify(message.shopify_data || {})}
 
-TASK: Write a professional, warm, complete email reply. 
-- Address the customer by first name if available
-- Be specific using the Shopify data if relevant  
-- Follow the rulebook exactly
-- DO NOT write any sign-off or signature. End the email body just before where a signature would go.
-- Output ONLY the email body, no subject line, no placeholders like [Name]`
+CRITICAL RULES:
+1. Output ONLY the email text you would send to the customer
+2. NEVER include your thinking, analysis, situation assessment, or internal reasoning
+3. NEVER start with "Looking at", "Based on", "Let me check", "I can see that"
+4. Start directly with "Hi [first name]," then address their question
+5. Be specific using Shopify data (order numbers, tracking, products)
+6. Follow the rulebook exactly
+7. Write in plain text, no markdown
+8. Short paragraphs, friendly human tone
+9. DO NOT write any sign-off or signature
+10. No placeholders like [Name] — use real data or omit
+11. Match the customer's language if not English
+
+Output ONLY the email body text. Nothing else.`
       }],
     });
 
     const rawContent = response.content[0].type === 'text' ? response.content[0].text : '';
     let draft = rawContent.replace(/^["']|["']$/g, '').trim();
-    // Strip markdown but keep ** for bold
-    draft = draft.replace(/__/g, '').replace(/^#+\s/gm, '').replace(/^[-*]\s/gm, '');
+    
+    // Strip markdown
+    draft = draft.replace(/\*\*/g, '').replace(/__/g, '').replace(/^#+\s/gm, '').replace(/^[-*]\s/gm, '');
+    
+    // Strip any "thinking" that leaked into the output
+    let lines = draft.split('\n');
+    let emailStart = 0;
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line.match(/^(Hi|Hello|Hey|Dear|Good morning|Good afternoon|Good evening|Thank you for|Thanks for)/i)) {
+            emailStart = i;
+            break;
+        }
+        if (line.match(/^(Looking at|Based on|Let me|I can see|The order|The customer|This qualifies|This is a|No prior|Days since|That's \d|Order #?\d|---)/i) || line === '') {
+            emailStart = i + 1;
+        }
+    }
+    if (emailStart > 0 && emailStart < lines.length) {
+        draft = lines.slice(emailStart).join('\n').trim();
+    }
+
     // Append signature
     const signature = settings?.signature || '';
     if (signature) {

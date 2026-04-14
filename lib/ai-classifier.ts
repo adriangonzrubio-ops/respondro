@@ -22,107 +22,58 @@ export async function classifyAndDraft(
   previousStatus?: string | null
 ): Promise<ClassificationResult> {
     try {
-        // Build context about previous interactions for re-classification
         let escalationContext = '';
         if (previousCategory && previousStatus) {
             escalationContext = `
 PREVIOUS TICKET CONTEXT:
-- This customer previously had a ticket categorized as: "${previousCategory}" (status: ${previousStatus})
-- If their intent has CHANGED or ESCALATED (e.g., went from asking about order status to demanding a refund), you MUST update the category to reflect the NEW intent.
-- If the customer is now angrier or more demanding than before, increase priority accordingly.`;
+- Previously categorized as: "${previousCategory}" (status: ${previousStatus})
+- If intent has CHANGED or ESCALATED, update category and increase priority.`;
         }
 
         const response = await anthropic.messages.create({
             model: 'claude-sonnet-4-6',
-            max_tokens: 1500,
+            max_tokens: 1200,
             messages: [{
                 role: 'user',
-                content: `You are the Lead Support Agent for ${storeName}.
+                content: `You are a support agent for ${storeName}. Classify this email and write a reply.
 
 RULEBOOK:
 ${rulebook}
 
-CUSTOMER EMAIL SUBJECT: ${subject}
-CUSTOMER EMAIL BODY: ${body}
+EMAIL SUBJECT: ${subject}
+EMAIL BODY: ${body}
 
 SHOPIFY DATA: ${JSON.stringify(shopifyData)}
 ${escalationContext}
 
-═══ CATEGORY DEFINITIONS (pick exactly one) ═══
+CATEGORIES (pick one):
+order_status, shipping, refund_request, cancellation, exchange, return, address_change, damaged_item, missing_item, product_question, billing, complaint, thank_you, general, spam
 
-order_status        → Customer asking where their order is, tracking updates, delivery ETA
-shipping            → Questions about shipping methods, costs, delivery times, countries
-refund_request      → Customer wants money back (partial or full)
-cancellation        → Customer wants to cancel their order before it ships
-exchange            → Customer wants to swap for a different product/size/color
-return              → Customer wants to return an item (not necessarily a refund)
-address_change      → Customer needs their shipping address updated
-damaged_item        → Item arrived broken, defective, or not as described
-missing_item        → Item missing from order, or entire order not received
-product_question    → Questions about products, sizing, availability, specs
-billing             → Payment issues, double charges, invoice requests
-complaint           → General unhappiness about experience (not tied to specific issue above)
-thank_you           → Customer expressing gratitude, positive feedback
-general             → Anything that doesn't fit above categories
-spam                → Marketing emails, newsletters, automated notifications, vendor promos, phishing, not from a real customer
+PATH RULES:
+SPAM = marketing, newsletters, automated notifications, vendor promos, phishing, not a real customer. Draft must be empty string.
+AUTOMATE = you have Shopify data, standard inquiry (order_status/shipping/product_question/thank_you/address_change), neutral tone, confidence 85%+, no refund/cancellation/complaint needed
+REVIEW = refund/cancellation/complaint/damaged/missing/billing/exchange, angry customer, insufficient data, legal threats, confidence below 85%
 
-═══ PATH RULES ═══
+PRIORITY:
+Urgent = legal threats, chargebacks, orders over $500
+High = refunds, cancellations, damaged items, angry customers
+Medium = standard with some complexity
+Low = simple questions, thank-yous, spam
 
-PATH = "SPAM" when:
-- The email is from a marketing service, newsletter, automated system, or promotional sender
-- The email is a notification from another SaaS tool (e.g., Shopify notifications, payment processor alerts)
-- The email is clearly not from a real customer seeking support
-- Phishing, scam, or irrelevant commercial email
-→ For spam, set draft to "" (empty), category to "spam", priority to "Low"
+CRITICAL DRAFT RULES:
+1. The "draft" field must ONLY contain the email text you send to the customer
+2. NEVER put analysis, thinking, situation assessment, or internal notes in "draft"
+3. NEVER start draft with "Looking at", "Based on", "Let me check", "I can see that"
+4. Start with "Hi [name]," then directly address their question
+5. Put ALL your reasoning and analysis in the "reason" field instead
+6. Plain text only, no markdown
+7. Short paragraphs, friendly human tone
+8. Use real data from Shopify (order numbers, tracking, products)
+9. No sign-off or signature, no placeholders like [Name]
+10. Match customer's language if not English
 
-PATH = "AUTOMATE" when ALL of these are true:
-- You have enough Shopify data to give a complete, specific answer
-- The inquiry is standard: order_status, shipping, product_question, thank_you, or address_change (on unfulfilled orders)
-- The customer tone is neutral or positive (not angry, not demanding)
-- No refund, cancellation, complaint, or issue requiring human judgment
-- Your confidence in the answer is 85% or higher
-- The draft you write is a COMPLETE reply that fully resolves the customer's question
-
-PATH = "REVIEW" when ANY of these are true:
-- Category is refund_request, cancellation, complaint, damaged_item, missing_item, billing, or exchange
-- Customer is angry, upset, frustrated, or threatening
-- You don't have enough data to answer confidently (no Shopify match, unclear request)
-- The email mentions legal action, fraud, chargebacks, or social media complaints
-- The request requires judgment not covered by the rulebook
-- Your confidence is below 85%
-- The customer's intent has ESCALATED from a previous ticket
-
-═══ PRIORITY RULES ═══
-
-Urgent  → Legal threats, chargeback mentions, social media threats, VIP customers, orders over $500
-High    → Refund/cancellation requests, damaged items, angry customers, missing orders, escalated follow-ups
-Medium  → Standard inquiries with some complexity, exchanges, returns
-Low     → Simple questions, thank-you messages, general inquiries, spam
-
-═══ WRITING RULES ═══
-
-- Write in plain text only. NEVER use markdown (no **, __, #, bullet points, or dashes as list items).
-- Sound like a real, friendly human support agent — not a chatbot.
-- Keep paragraphs short (2-3 sentences max).
-- Start with "Hi [first name]," if you can identify their name from the email body or sender.
-- Reference specific order numbers, tracking numbers, and product names from Shopify data.
-- If the order has tracking, include the tracking number and carrier.
-- If the order is fulfilled, say so. If unfulfilled, acknowledge the wait.
-- DO NOT write any sign-off or signature. End the email body naturally.
-- DO NOT use placeholder text like [Name] or [Order Number] — use real data or omit.
-- Match the customer's language if the email is not in English.
-
-═══ OUTPUT ═══
-
-Return ONLY valid JSON (no markdown fences, no extra text):
-{
-  "path": "AUTOMATE" | "REVIEW" | "SPAM",
-  "category": "one_of_the_categories_above",
-  "priority": "Low" | "Medium" | "High" | "Urgent",
-  "draft": "the complete email reply text (empty string for spam)",
-  "reason": "1-2 sentence explanation of why you chose this path and category",
-  "confidence": 0-100
-}`
+OUTPUT - Return ONLY this JSON:
+{"path":"AUTOMATE|REVIEW|SPAM","category":"category","priority":"Low|Medium|High|Urgent","draft":"customer-facing email only","reason":"internal analysis","confidence":0-100}`
             }],
         });
 
@@ -133,13 +84,34 @@ Return ONLY valid JSON (no markdown fences, no extra text):
         
         const parsed: ClassificationResult = JSON.parse(jsonMatch[0]);
 
-        // Strip any markdown from the draft
+        // Strip markdown from draft
         if (parsed.draft) {
             parsed.draft = parsed.draft
                 .replace(/\*\*/g, '')
                 .replace(/__/g, '')
                 .replace(/^#+\s/gm, '')
                 .replace(/^[-*]\s/gm, '');
+            
+            // Safety: strip any "thinking" that leaked into the draft
+            let lines = parsed.draft.split('\n');
+            let emailStart = 0;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                // Found the actual email greeting
+                if (line.match(/^(Hi|Hello|Hey|Dear|Good morning|Good afternoon|Good evening|Thank you for|Thanks for)/i)) {
+                    emailStart = i;
+                    break;
+                }
+                // These are analysis lines — skip them
+                if (line.match(/^(Looking at|Based on|Let me|I can see|The order|The customer|This qualifies|This is a|No prior|Days since|That's \d|Order #?\d|---)/i) || line === '') {
+                    emailStart = i + 1;
+                }
+            }
+            
+            if (emailStart > 0 && emailStart < lines.length) {
+                parsed.draft = lines.slice(emailStart).join('\n').trim();
+            }
         }
 
         // Append signature for non-spam
@@ -147,17 +119,17 @@ Return ONLY valid JSON (no markdown fences, no extra text):
             parsed.draft = parsed.draft.trim() + '\n\n' + signature;
         }
 
-        // Safety check: if confidence is low but path is AUTOMATE, downgrade to REVIEW
+        // Safety: low confidence → REVIEW
         if (parsed.path === 'AUTOMATE' && (parsed.confidence || 0) < 85) {
             parsed.path = 'REVIEW';
-            parsed.reason = (parsed.reason || '') + ' [Downgraded from AUTOMATE: confidence below 85%]';
+            parsed.reason = (parsed.reason || '') + ' [Downgraded: confidence below 85%]';
         }
 
-        // Safety check: dangerous categories should never be auto-sent
-        const reviewOnlyCategories = ['refund_request', 'cancellation', 'complaint', 'damaged_item', 'missing_item', 'billing', 'exchange'];
-        if (parsed.path === 'AUTOMATE' && reviewOnlyCategories.includes(parsed.category)) {
+        // Safety: dangerous categories never auto-send
+        const reviewOnly = ['refund_request', 'cancellation', 'complaint', 'damaged_item', 'missing_item', 'billing', 'exchange'];
+        if (parsed.path === 'AUTOMATE' && reviewOnly.includes(parsed.category)) {
             parsed.path = 'REVIEW';
-            parsed.reason = (parsed.reason || '') + ` [Downgraded from AUTOMATE: ${parsed.category} requires human review]`;
+            parsed.reason = (parsed.reason || '') + ` [Downgraded: ${parsed.category} requires human review]`;
         }
 
         return parsed;
@@ -165,26 +137,15 @@ Return ONLY valid JSON (no markdown fences, no extra text):
     } catch (error: any) {
         console.error('❌ AI Classifier error:', error.message);
         
-        // Build a smarter fallback
         const customerName = body.match(/(?:^|\n)\s*([A-Z][a-z]+ ?[A-Z]?[a-z]*)\s*$/m)?.[1] || '';
         const greeting = customerName ? `Hi ${customerName.split(' ')[0]},` : 'Hi,';
         const hasOrder = shopifyData && JSON.stringify(shopifyData).length > 10;
         
-        let fallbackDraft: string;
-        if (hasOrder) {
-            fallbackDraft = `${greeting}\n\nThank you for contacting us. I can see your order details and am looking into this for you. I will follow up shortly with a full update.`;
-        } else {
-            fallbackDraft = `${greeting}\n\nThank you for reaching out. I am looking into your inquiry and will get back to you shortly with more details.`;
-        }
+        let fallbackDraft = hasOrder
+            ? `${greeting}\n\nThank you for contacting us. I can see your order details and am looking into this for you. I will follow up shortly with a full update.`
+            : `${greeting}\n\nThank you for reaching out. I am looking into your inquiry and will get back to you shortly with more details.`;
         if (signature) fallbackDraft += '\n\n' + signature;
         
-        return {
-            path: 'REVIEW',
-            category: 'general',
-            priority: 'Medium',
-            draft: fallbackDraft,
-            reason: `AI error — fallback used: ${error.message}`,
-            confidence: 0
-        };
+        return { path: 'REVIEW', category: 'general', priority: 'Medium', draft: fallbackDraft, reason: `AI error — fallback: ${error.message}`, confidence: 0 };
     }
 }

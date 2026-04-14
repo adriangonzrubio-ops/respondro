@@ -44,6 +44,15 @@ async function fetchAndDraft(conn: any) {
     const { data: store } = await supabase.from('settings').select('*').eq('store_id', conn.store_id).single();
     if (!store) return 0;
 
+    // 2. Get all external_ids we already have in DB to skip them fast
+    const { data: existingMsgs } = await supabase
+        .from('messages')
+        .select('external_id')
+        .eq('connection_id', conn.id)
+        .not('external_id', 'is', null);
+    
+    const processedUids = new Set((existingMsgs || []).map(m => m.external_id));
+
     const client = new ImapFlow({
         host: conn.imap_host,
         port: conn.imap_port || 993,
@@ -66,9 +75,54 @@ async function fetchAndDraft(conn: any) {
             return 0;
         }
 
-        // Process in batches of 20 to avoid Vercel timeout
-        const batch = unseenUids.slice(0, 20);
-        console.log(`📬 Found ${unseenUids.length} unseen emails for ${conn.imap_user}, processing batch of ${batch.length}`);
+        // Filter out emails we already processed (fast DB check, no AI needed)
+        const newUids = unseenUids.filter(uid => !processedUids.has(uid.toString()));
+        
+        if (newUids.length === 0) {
+            // All unseen emails are already in our DB — just mark them as read
+            console.log(`📬 ${unseenUids.length} unseen but all already in DB for ${conn.imap_user}`);
+            try {
+                for (const uid of unseenUids.slice(0, 50)) {
+                    await client.messageFlagsAdd(uid, ['\\Seen'], { uid: true });
+                }
+            } catch(e) {}
+            lock.release();
+            await client.logout();
+            return 0;
+        }
+
+        // Process max 8 NEW emails per run (each needs an AI call ~3-5s = ~40s max)
+        const batch = newUids.slice(0, 8);
+        console.log(`📬 Found ${unseenUids.length} unseen (${newUids.length} new) for ${conn.imap_user}, processing batch of ${batch.length}`);
+
+        // Pre-load agent rulebooks and policies ONCE (not per email)
+        const { data: agents } = await supabase
+            .from('support_agents')
+            .select('agent_type, rulebook, is_enabled')
+            .eq('store_id', conn.store_id);
+
+        const { data: policies } = await supabase
+            .from('store_policies')
+            .select('policy_type, policy_content')
+            .eq('store_id', conn.store_id);
+
+        let fullRulebook = store.rulebook || '';
+        
+        if (agents && agents.length > 0) {
+            const agentRules = agents
+                .filter((a: any) => a.is_enabled && a.rulebook)
+                .map((a: any) => `[${a.agent_type.toUpperCase()} AGENT RULES]:\n${a.rulebook}`)
+                .join('\n\n');
+            if (agentRules) fullRulebook += '\n\n' + agentRules;
+        }
+
+        if (policies && policies.length > 0) {
+            const policyText = policies
+                .filter((p: any) => p.policy_content)
+                .map((p: any) => `[${p.policy_type.replace(/_/g, ' ').toUpperCase()}]:\n${p.policy_content.substring(0, 3000)}`)
+                .join('\n\n');
+            if (policyText) fullRulebook += '\n\nSTORE POLICIES:\n' + policyText;
+        }
 
         const messages: any = client.fetch(batch, { source: true, uid: true, flags: true }, { uid: true });
 
@@ -81,23 +135,16 @@ async function fetchAndDraft(conn: any) {
             const from = fromName ? `"${fromName}" <${fromAddress}>` : fromAddress;
             const body = parsed.text || "";
             const subject = parsed.subject || "";
-            const messageId = parsed.messageId || "";
             const inReplyTo = parsed.inReplyTo || "";
             const references = (parsed.references || []) as string[];
 
-            // 2. Check if this email already exists
-            const { data: existing } = await supabase.from('messages')
-                .select('id, status, ai_draft')
-                .eq('external_id', msg.uid.toString())
-                .single();
-
-            if (existing && (existing.status === 'automated' || existing.status === 'spam' || (existing.ai_draft && existing.ai_draft.length > 10))) {
-                // Mark as read on the IMAP server so we don't fetch it again
+            // Double-check this specific UID isn't already in DB
+            if (processedUids.has(msg.uid.toString())) {
                 try { await client.messageFlagsAdd(msg.uid, ['\\Seen'], { uid: true }); } catch(e) {}
                 continue;
             }
 
-            // 3. CHECK FOR REPLY TO PREVIOUS TICKET (re-labeling logic)
+            // Check for reply to previous ticket (re-labeling)
             let reopenedTicketId: string | null = null;
             let previousCategory: string | null = null;
             let previousStatus: string | null = null;
@@ -119,7 +166,7 @@ async function fetchAndDraft(conn: any) {
                     }
                 }
 
-                // Fallback: check by sender email + similar subject
+                // Fallback: sender + similar subject
                 if (!reopenedTicketId && fromAddress) {
                     const { data: prevByEmail } = await supabase.from('messages')
                         .select('id, status, subject, category')
@@ -131,8 +178,8 @@ async function fetchAndDraft(conn: any) {
                     if (prevByEmail) {
                         const cleanSubject = subject.replace(/^(Re:|Fwd:|Fw:)\s*/gi, '').trim().toLowerCase();
                         const match = prevByEmail.find(m => {
-                            const prevSubject = (m.subject || '').replace(/^(Re:|Fwd:|Fw:)\s*/gi, '').trim().toLowerCase();
-                            return prevSubject === cleanSubject;
+                            const prev = (m.subject || '').replace(/^(Re:|Fwd:|Fw:)\s*/gi, '').trim().toLowerCase();
+                            return prev === cleanSubject;
                         });
                         if (match) {
                             reopenedTicketId = match.id;
@@ -143,55 +190,23 @@ async function fetchAndDraft(conn: any) {
                 }
             }
 
-            // 4. Shopify Context
+            // Shopify Context
             const orderNum = extractOrderNumber(body) || extractOrderNumber(subject);
             const shopifyData = await getShopifyContext(
-                store.shop_url,
-                store.shopify_access_token,
-                fromAddress,
-                orderNum,
-                fromName
+                store.shop_url, store.shopify_access_token,
+                fromAddress, orderNum, fromName
             );
 
-            // 5. Fetch agent rulebooks and store policies
-            const { data: agents } = await supabase
-                .from('support_agents')
-                .select('agent_type, rulebook, is_enabled')
-                .eq('store_id', conn.store_id);
-
-            const { data: policies } = await supabase
-                .from('store_policies')
-                .select('policy_type, policy_content')
-                .eq('store_id', conn.store_id);
-
-            let fullRulebook = store.rulebook || '';
-            
-            if (agents && agents.length > 0) {
-                const agentRules = agents
-                    .filter((a: any) => a.is_enabled && a.rulebook)
-                    .map((a: any) => `[${a.agent_type.toUpperCase()} AGENT RULES]:\n${a.rulebook}`)
-                    .join('\n\n');
-                if (agentRules) fullRulebook += '\n\n' + agentRules;
-            }
-
-            if (policies && policies.length > 0) {
-                const policyText = policies
-                    .filter((p: any) => p.policy_content)
-                    .map((p: any) => `[${p.policy_type.replace(/_/g, ' ').toUpperCase()}]:\n${p.policy_content.substring(0, 3000)}`)
-                    .join('\n\n');
-                if (policyText) fullRulebook += '\n\nSTORE POLICIES:\n' + policyText;
-            }
-
-            // 6. AI Classification (with previous context for re-labeling)
+            // AI Classification (with previous context for re-labeling)
             const triage = await classifyAndDraft(
-                subject, body, fullRulebook, store.store_name || 'Our Store', shopifyData, store.signature,
-                previousCategory,
-                previousStatus
+                subject, body, fullRulebook,
+                store.store_name || 'Our Store',
+                shopifyData, store.signature,
+                previousCategory, previousStatus
             );
 
-            // 7. Determine final status based on AI path
+            // Determine final status
             let finalStatus: string;
-            
             if (triage.path === 'SPAM') {
                 finalStatus = 'spam';
             } else if (triage.path === 'AUTOMATE') {
@@ -200,20 +215,19 @@ async function fetchAndDraft(conn: any) {
                 finalStatus = 'needs_review';
             }
 
-            // If this is a reply to an archived ticket, always flag for review (unless spam)
+            // Reopened tickets always go to review (unless spam)
             if (reopenedTicketId && finalStatus !== 'spam') {
                 finalStatus = 'needs_review';
-                triage.reason = (triage.reason || '') + ' [Customer replied to previous thread — reopened for review]';
+                triage.reason = (triage.reason || '') + ' [Reopened from previous thread]';
                 
-                // Check if category escalated (e.g., order_status → refund_request)
-                const escalationCategories = ['refund_request', 'cancellation', 'complaint', 'damaged_item', 'missing_item'];
-                if (previousCategory && !escalationCategories.includes(previousCategory) && escalationCategories.includes(triage.category)) {
+                const escalationCats = ['refund_request', 'cancellation', 'complaint', 'damaged_item', 'missing_item'];
+                if (previousCategory && !escalationCats.includes(previousCategory) && escalationCats.includes(triage.category)) {
                     triage.priority = 'High';
-                    triage.reason = (triage.reason || '') + ` [ESCALATED: changed from "${previousCategory}" to "${triage.category}"]`;
+                    triage.reason += ` [ESCALATED: ${previousCategory} → ${triage.category}]`;
                 }
             }
 
-            // 8. Upsert the message
+            // Upsert message
             const { data: upserted } = await (supabase.from('messages') as any).upsert({
                 connection_id: conn.id,
                 store_id: conn.store_id,
@@ -224,13 +238,13 @@ async function fetchAndDraft(conn: any) {
                 priority: triage.priority || 'Medium',
                 status: finalStatus,
                 ai_draft: triage.draft || '',
-                ai_reasoning: triage.reason || 'Sync cycle completed.',
+                ai_reasoning: triage.reason || 'Processed.',
                 shopify_data: shopifyData && shopifyData.length > 0 ? shopifyData : null,
                 external_id: msg.uid.toString(),
                 received_at: parsed.date?.toISOString() || new Date().toISOString()
             }, { onConflict: 'external_id' }).select('id');
 
-            // 9. AUTO-SEND if classified as AUTOMATE
+            // AUTO-SEND if AUTOMATE
             if (finalStatus === 'automated' && triage.draft && upserted?.[0]?.id) {
                 try {
                     const msgId = upserted[0].id;
@@ -238,10 +252,7 @@ async function fetchAndDraft(conn: any) {
                     const sendRes = await fetch(`${appUrl}/api/messages/${msgId}/send`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            text: triage.draft,
-                            customerEmail: fromAddress
-                        })
+                        body: JSON.stringify({ text: triage.draft, customerEmail: fromAddress })
                     });
 
                     if (sendRes.ok) {
@@ -250,22 +261,18 @@ async function fetchAndDraft(conn: any) {
                             sent_reply: triage.draft,
                             sent_at: new Date().toISOString()
                         }).eq('id', msgId);
-                        console.log(`✅ Auto-sent reply to ${fromAddress} for: ${subject}`);
+                        console.log(`✅ Auto-sent to ${fromAddress}: ${subject}`);
                     } else {
                         await supabase.from('messages').update({ status: 'needs_review' }).eq('id', msgId);
-                        console.error(`⚠️ Auto-send failed for ${fromAddress}, moved to review`);
+                        console.warn(`⚠️ Auto-send failed for ${fromAddress}, moved to review`);
                     }
                 } catch (sendErr: any) {
                     console.error(`❌ Auto-send error: ${sendErr.message}`);
                 }
             }
 
-            // 10. Mark email as read on IMAP server after processing
-            try {
-                await client.messageFlagsAdd(msg.uid, ['\\Seen'], { uid: true });
-            } catch (flagErr) {
-                // Non-critical — email will just be re-fetched next cycle
-            }
+            // Mark as read on IMAP
+            try { await client.messageFlagsAdd(msg.uid, ['\\Seen'], { uid: true }); } catch(e) {}
 
             emailsProcessed++;
         }
