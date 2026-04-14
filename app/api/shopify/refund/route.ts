@@ -58,20 +58,23 @@ export async function POST(req: Request) {
     const totalPrice = parseFloat(order.total_price_set?.presentment_money?.amount || order.total_price);
     let actualRefundAmount: number;
 
-    if (refund_percentage) {
-      actualRefundAmount = Math.round((totalPrice * refund_percentage / 100) * 100) / 100;
-    } else if (refund_amount) {
-      actualRefundAmount = parseFloat(refund_amount);
+    // Calculate already refunded FIRST so we can use it in all calculations
+    const alreadyRefunded = order.refunds?.reduce((sum: number, r: any) =>
+      sum + r.transactions?.reduce((s: number, t: any) => s + parseFloat(t.amount || 0), 0), 0) || 0;
+    const maxRefundable = totalPrice - alreadyRefunded;
+
+    if (refund_amount) {
+      // Explicit amount takes priority — use as-is but cap to max
+      actualRefundAmount = Math.min(parseFloat(refund_amount), maxRefundable);
+    } else if (refund_percentage) {
+      // Percentage of the REMAINING refundable amount, not the total
+      actualRefundAmount = Math.round((maxRefundable * refund_percentage / 100) * 100) / 100;
     } else {
-      // Full refund
-      actualRefundAmount = totalPrice;
+      // Full refund of whatever is left
+      actualRefundAmount = maxRefundable;
     }
 
     // Check if already refunded
-    const alreadyRefunded = order.refunds?.reduce((sum: number, r: any) =>
-      sum + r.transactions?.reduce((s: number, t: any) => s + parseFloat(t.amount || 0), 0), 0) || 0;
-
-    const maxRefundable = totalPrice - alreadyRefunded;
     if (actualRefundAmount > maxRefundable) {
       return NextResponse.json({ 
         error: `Cannot refund ${actualRefundAmount}. Max refundable: ${maxRefundable.toFixed(2)} (already refunded: ${alreadyRefunded.toFixed(2)})` 
