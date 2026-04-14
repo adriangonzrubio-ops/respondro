@@ -3153,11 +3153,12 @@ function renderRbTicketList(messages) {
   const container = document.getElementById('rb-ticket-list');
   if (!container) return;
   const filtered = messages.filter(function(m) {
-    if(rbCurrentFilter === 'all') return m.status === 'needs_review' || m.status === 'automated' || m.status === 'pending';
-    if(rbCurrentFilter === 'needs_review') return m.status === 'needs_review' || m.status === 'pending';
-    if(rbCurrentFilter === 'automated') return m.status === 'automated';
+    var isSpam = m.status === 'spam' || m.category === 'spam';
+    if(rbCurrentFilter === 'all') return (m.status === 'needs_review' || m.status === 'automated' || m.status === 'pending') && !isSpam;
+    if(rbCurrentFilter === 'needs_review') return (m.status === 'needs_review' || m.status === 'pending') && !isSpam;
+    if(rbCurrentFilter === 'automated') return m.status === 'automated' && !isSpam;
     if(rbCurrentFilter === 'archived') return m.status === 'done' || m.status === 'closed';
-    if(rbCurrentFilter === 'spam') return m.status === 'spam';
+    if(rbCurrentFilter === 'spam') return isSpam;
     return m.status === rbCurrentFilter;
   });
   if (filtered.length === 0) { container.innerHTML = '<div class="text-center text-[10px] uppercase tracking-widest text-gray-700 mt-10 px-3">No tickets</div>'; return; }
@@ -3747,7 +3748,7 @@ function filterTickets(query) {
 }
 
 function updateRbPendingCount() {
-  const p = rbAllMessages.filter(function(m) { return m.status === 'needs_review' || m.status === 'pending'; });
+  const p = rbAllMessages.filter(function(m) { return (m.status === 'needs_review' || m.status === 'pending') && m.category !== 'spam'; });
   const el = document.getElementById('rb-pending-count');
   if (el) el.textContent = p.length + ' pending';
 }
