@@ -3138,7 +3138,7 @@ async function fetchMessages() {
   if (syncIcon) syncIcon.style.animation = 'spin 0.7s linear infinite';
   try {
     // Load existing emails from DB INSTANTLY (no waiting)
-    const { data: messages, error } = await sb.from('messages').select('*').in('status', ['needs_review','automated','pending','done','closed','spam']).order('received_at', { ascending: false }).limit(100);
+    const { data: messages, error } = await sb.from('messages').select('*').in('status', ['needs_review','automated','pending','done','closed','spam','queued']).order('received_at', { ascending: false }).limit(100);
     if (error) throw error;
     rbAllMessages = messages || [];
     renderRbTicketList(rbAllMessages);
@@ -3154,7 +3154,7 @@ async function fetchMessages() {
   fetch('/api/worker').then(() => {
     console.log('📬 Background sync complete, refreshing...');
     // Auto-refresh the list after worker finishes
-    sb.from('messages').select('*').in('status', ['needs_review','automated','pending','done','closed','spam']).order('received_at', { ascending: false }).limit(100).then(({ data }) => {
+    sb.from('messages').select('*').in('status', ['needs_review','automated','pending','done','closed','spam','queued']).order('received_at', { ascending: false }).limit(100).then(({ data }) => {
       if (data) { rbAllMessages = data; renderRbTicketList(data); updateRbPendingCount(); }
     });
   }).catch(() => {});
@@ -3165,9 +3165,9 @@ function renderRbTicketList(messages) {
   if (!container) return;
   const filtered = messages.filter(function(m) {
     var isSpam = m.status === 'spam' || m.category === 'spam';
-    if(rbCurrentFilter === 'all') return (m.status === 'needs_review' || m.status === 'automated' || m.status === 'pending') && !isSpam;
+    if(rbCurrentFilter === 'all') return (m.status === 'needs_review' || m.status === 'automated' || m.status === 'pending' || m.status === 'queued') && !isSpam;
     if(rbCurrentFilter === 'needs_review') return (m.status === 'needs_review' || m.status === 'pending') && !isSpam;
-    if(rbCurrentFilter === 'automated') return m.status === 'automated' && !isSpam;
+    if(rbCurrentFilter === 'automated') return (m.status === 'automated' || m.status === 'queued') && !isSpam;
     if(rbCurrentFilter === 'archived') return m.status === 'done' || m.status === 'closed';
     if(rbCurrentFilter === 'spam') return isSpam;
     return m.status === rbCurrentFilter;
@@ -3224,10 +3224,19 @@ function renderRbTicketList(messages) {
     var timeStr = date.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + ' ' + date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
     var hasDraft = msg.ai_draft && msg.ai_draft.length > 10;
     var statusBadge = msg.status === 'automated'
-      ? '<span class="badge badge-g" style="font-size:9px">AUTO</span>'
-      : hasDraft
-        ? '<span class="badge badge-g" style="font-size:9px;background:rgba(0,200,150,0.1)">DRAFT READY</span>'
-        : '<span class="badge badge-a" style="font-size:9px">NEEDS DRAFT</span>';
+      ? '<span class="badge badge-g" style="font-size:9px">AUTO-SENT</span>'
+      : msg.status === 'queued'
+        ? '<span class="badge" style="font-size:9px;background:rgba(167,139,250,0.12);color:#A78BFA">QUEUED ' + (msg.scheduled_send_at ? new Date(msg.scheduled_send_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '') + '</span>'
+        : hasDraft
+          ? '<span class="badge badge-g" style="font-size:9px;background:rgba(0,200,150,0.1)">DRAFT READY</span>'
+          : '<span class="badge badge-a" style="font-size:9px">NEEDS DRAFT</span>';
+    // Add AI action badge if present
+    var actionBadge = '';
+    if (msg.ai_action) {
+      var actionLabels = {'refund':'💰 REFUNDED','cancel':'🚫 CANCELLED','address_change':'📍 ADDRESS UPDATED'};
+      var actionSuccess = msg.ai_action_result && msg.ai_action_result.success;
+      actionBadge = '<span class="badge" style="font-size:9px;background:' + (actionSuccess ? 'rgba(0,200,150,0.1);color:#00C896' : 'rgba(248,113,113,0.1);color:#F87171') + '">' + (actionLabels[msg.ai_action] || msg.ai_action) + (actionSuccess ? '' : ' ❌') + '</span>';
+    }
     var isArchived = msg.status === 'done' || msg.status === 'closed';
     var priorityColor = (msg._displayPriority || msg.priority) === 'High' || (msg._displayPriority || msg.priority) === 'Urgent' ? '#F87171' : (msg._displayPriority || msg.priority) === 'Medium' ? '#F0A500' : '#5A6785';
 
@@ -3257,7 +3266,7 @@ function renderRbTicketList(messages) {
       + '<div style="position:absolute;left:0;top:8px;bottom:8px;width:2px;border-radius:1px;background:' + priorityColor + ';opacity:0.7"></div>'
       + '<div class="flex justify-between items-start mb-1 pl-2"><span class="text-[10px] font-600 text-gray-300 truncate" style="max-width:140px">' + cleanName + '</span><span class="text-[9px] font-mono text-gray-600 flex-shrink-0 ml-1">' + timeStr + '</span></div>'
       + '<div class="text-[11px] text-gray-400 truncate mb-2 pl-2">' + (msg.subject || 'No Subject') + '</div>'
-      + '<div class="flex items-center gap-1.5 pl-2 flex-wrap">' + statusBadge + '<span class="text-[9px] font-mono px-1.5 py-0.5 rounded-full" style="' + catStyle + '">' + catLabel + '</span>' + threadBadge + '</div>'
+      + '<div class="flex items-center gap-1.5 pl-2 flex-wrap">' + statusBadge + actionBadge + '<span class="text-[9px] font-mono px-1.5 py-0.5 rounded-full" style="' + catStyle + '">' + catLabel + '</span>' + threadBadge + '</div>'
       + '</div>';
   }).join('');
 }
@@ -3305,9 +3314,20 @@ async function rbOpenTicket(msgId) {
 
     const badge = document.getElementById('rb-ticket-badge');
     if (badge) {
-      var badgeClass = msg.status === 'automated' ? 'badge badge-g text-[10px]' : msg.status === 'spam' ? 'badge badge-m text-[10px]' : 'badge badge-a text-[10px]';
+      var badgeClass = msg.status === 'automated' ? 'badge badge-g text-[10px]' : msg.status === 'queued' ? 'badge text-[10px]' : msg.status === 'spam' ? 'badge badge-m text-[10px]' : 'badge badge-a text-[10px]';
       badge.className = badgeClass;
-      badge.textContent = msg.status === 'automated' ? 'auto-sent' : msg.status === 'spam' ? 'spam' : 'review';
+      if (msg.status === 'queued') { badge.style.cssText = 'background:rgba(167,139,250,0.12);color:#A78BFA;'; }
+      badge.textContent = msg.status === 'automated' ? 'auto-sent' : msg.status === 'queued' ? 'queued' : msg.status === 'spam' ? 'spam' : 'review';
+    }
+    // Show AI action info if present
+    var catEl = document.getElementById('rb-ticket-category');
+    if (catEl) {
+      var catText = msg.category || '';
+      if (msg.ai_action) {
+        var actionLabels2 = {'refund':'💰 Refunded','cancel':'🚫 Cancelled','address_change':'📍 Address Updated'};
+        catText = (actionLabels2[msg.ai_action] || msg.ai_action) + ' · ' + catText;
+      }
+      catEl.textContent = catText;
     }
 
     const rb = document.getElementById('rb-reasoning-block');
@@ -3817,7 +3837,7 @@ function filterTickets(query) {
 }
 
 function updateRbPendingCount() {
-  const p = rbAllMessages.filter(function(m) { return (m.status === 'needs_review' || m.status === 'pending') && m.category !== 'spam'; });
+  const p = rbAllMessages.filter(function(m) { return (m.status === 'needs_review' || m.status === 'pending' || m.status === 'queued') && m.category !== 'spam'; });
   const el = document.getElementById('rb-pending-count');
   if (el) el.textContent = p.length + ' pending';
 }
