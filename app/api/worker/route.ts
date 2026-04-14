@@ -263,6 +263,42 @@ async function fetchAndDraft(conn: any) {
                 }
             }
 
+            // Check if sender already has an open ticket — merge into it
+            let mergeTargetId: string | null = null;
+            if (email.fromAddress) {
+                const { data: openTicket } = await supabase.from('messages')
+                    .select('id, category, priority, body_text')
+                    .ilike('sender', `%${email.fromAddress}%`)
+                    .in('status', ['needs_review', 'pending', 'automated'])
+                    .eq('store_id', conn.store_id)
+                    .order('received_at', { ascending: false })
+                    .limit(1)
+                    .single();
+
+                if (openTicket) {
+                    mergeTargetId = openTicket.id;
+                    // Update existing ticket with new email content
+                    await supabase.from('messages').update({
+                        subject: email.subject,
+                        body_text: email.body,
+                        category: triage.category || openTicket.category,
+                        priority: triage.priority || openTicket.priority,
+                        status: finalStatus === 'spam' ? 'spam' : 'needs_review',
+                        ai_draft: triage.draft || '',
+                        ai_reasoning: triage.reason || '',
+                        received_at: email.date,
+                        external_id: email.uid.toString()
+                    }).eq('id', openTicket.id);
+
+                    console.log(`🔗 Merged into existing ticket ${openTicket.id} for ${email.fromAddress}`);
+                }
+            }
+
+            // Only create new ticket if no merge target found
+            if (mergeTargetId) {
+                emailsProcessed++;
+                continue;
+            }
             // Upsert
             const { data: upserted } = await (supabase.from('messages') as any).upsert({
                 connection_id: conn.id,

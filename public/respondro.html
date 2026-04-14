@@ -3161,16 +3161,65 @@ function renderRbTicketList(messages) {
     if(rbCurrentFilter === 'spam') return isSpam;
     return m.status === rbCurrentFilter;
   });
-  if (filtered.length === 0) { container.innerHTML = '<div class="text-center text-[10px] uppercase tracking-widest text-gray-700 mt-10 px-3">No tickets</div>'; return; }
-  container.innerHTML = filtered.map(function(msg) {
-    const cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
-    const isActive = rbActiveMessage && rbActiveMessage.id === msg.id;
-    var rawDate = msg.received_at || msg.updated_at; var date = new Date(rawDate); if (isNaN(date.getTime()) || date.getFullYear() < 2020) date = new Date(msg.received_at || msg.updated_at || Date.now());
-    const timeStr = date.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + ' ' + date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-    const hasDraft = msg.ai_draft && msg.ai_draft.length > 10;
-    const statusBadge = msg.status === 'automated' ? '<span class="badge badge-g" style="font-size:9px">AUTO</span>' : hasDraft ? '<span class="badge badge-g" style="font-size:9px;background:rgba(0,200,150,0.1)">DRAFT READY</span>' : '<span class="badge badge-a" style="font-size:9px">NEEDS DRAFT</span>';
-    const isArchived = msg.status === 'done' || msg.status === 'closed';
-    const priorityColor = msg.priority === 'High' ? '#F87171' : msg.priority === 'Medium' ? '#F0A500' : '#5A6785';
+
+  // Group by sender email — show only the latest message per customer
+  var grouped = {};
+  filtered.forEach(function(msg) {
+    var senderEmail = msg.sender && msg.sender.includes('<') ? msg.sender.split('<')[1].replace('>','').trim().toLowerCase() : (msg.sender || '').toLowerCase();
+    if (!senderEmail) senderEmail = msg.id; // fallback for no sender
+    if (!grouped[senderEmail]) {
+      grouped[senderEmail] = { latest: msg, count: 1, hasReview: msg.status === 'needs_review' || msg.status === 'pending' };
+    } else {
+      grouped[senderEmail].count++;
+      if (msg.status === 'needs_review' || msg.status === 'pending') grouped[senderEmail].hasReview = true;
+      // Keep the most recent email as the displayed card
+      var existingDate = new Date(grouped[senderEmail].latest.received_at || 0).getTime();
+      var newDate = new Date(msg.received_at || 0).getTime();
+      if (newDate > existingDate) {
+        // Inherit the most urgent category/priority from the thread
+        var prevCat = grouped[senderEmail].latest.category;
+        var escalationCats = ['refund_request','cancellation','complaint','damaged_item','missing_item','billing'];
+        if (escalationCats.indexOf(prevCat) > -1 && escalationCats.indexOf(msg.category) === -1) {
+          // Previous was more urgent — keep that category on the card
+          msg._displayCategory = prevCat;
+          msg._displayPriority = grouped[senderEmail].latest.priority;
+        }
+        grouped[senderEmail].latest = msg;
+      } else {
+        // Older message — check if it had a more urgent category
+        var olderCat = msg.category;
+        var escalationCats2 = ['refund_request','cancellation','complaint','damaged_item','missing_item','billing'];
+        if (escalationCats2.indexOf(olderCat) > -1) {
+          grouped[senderEmail].latest._displayCategory = grouped[senderEmail].latest._displayCategory || olderCat;
+        }
+      }
+    }
+  });
+
+  var threads = Object.values(grouped).sort(function(a, b) {
+    return new Date(b.latest.received_at || 0).getTime() - new Date(a.latest.received_at || 0).getTime();
+  });
+
+  if (threads.length === 0) { container.innerHTML = '<div class="text-center text-[10px] uppercase tracking-widest text-gray-700 mt-10 px-3">No tickets</div>'; return; }
+
+  container.innerHTML = threads.map(function(thread) {
+    var msg = thread.latest;
+    var threadCount = thread.count;
+    var cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
+    var isActive = rbActiveMessage && rbActiveMessage.id === msg.id;
+    var rawDate = msg.received_at || msg.updated_at;
+    var date = new Date(rawDate);
+    if (isNaN(date.getTime()) || date.getFullYear() < 2020) date = new Date(Date.now());
+    var timeStr = date.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + ' ' + date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    var hasDraft = msg.ai_draft && msg.ai_draft.length > 10;
+    var statusBadge = msg.status === 'automated'
+      ? '<span class="badge badge-g" style="font-size:9px">AUTO</span>'
+      : hasDraft
+        ? '<span class="badge badge-g" style="font-size:9px;background:rgba(0,200,150,0.1)">DRAFT READY</span>'
+        : '<span class="badge badge-a" style="font-size:9px">NEEDS DRAFT</span>';
+    var isArchived = msg.status === 'done' || msg.status === 'closed';
+    var priorityColor = (msg._displayPriority || msg.priority) === 'High' || (msg._displayPriority || msg.priority) === 'Urgent' ? '#F87171' : (msg._displayPriority || msg.priority) === 'Medium' ? '#F0A500' : '#5A6785';
+
     var catColors = {
       'refund_request':'background:rgba(248,113,113,0.12);color:#F87171',
       'cancellation':'background:rgba(248,113,113,0.12);color:#F87171',
@@ -3187,14 +3236,17 @@ function renderRbTicketList(messages) {
       'thank_you':'background:rgba(0,200,150,0.1);color:#00C896',
       'spam':'background:rgba(255,255,255,0.06);color:#5A6785'
     };
-    var catStyle = catColors[msg.category] || 'background:rgba(255,255,255,0.06);color:#5A6785';
-    var catLabel = (msg.category || 'general').replace(/_/g, ' ');
+    var displayCat = msg._displayCategory || msg.category;
+    var catStyle = catColors[displayCat] || 'background:rgba(255,255,255,0.06);color:#5A6785';
+    var catLabel = (displayCat || 'general').replace(/_/g, ' ');
+
+    var threadBadge = threadCount > 1 ? '<span class="text-[9px] font-mono px-1.5 py-0.5 rounded-full" style="background:rgba(255,255,255,0.08);color:#8B96B0">' + threadCount + ' emails</span>' : '';
 
     return '<div onclick="rbOpenTicket(\'' + msg.id + '\')" id="rb-ticket-card-' + msg.id + '" class="p-3 rounded-xl cursor-pointer transition-all relative" style="background:' + (isActive?'rgba(0,200,150,0.07)':'rgba(255,255,255,0.02)') + ';border:1px solid ' + (isActive?'rgba(0,200,150,0.25)':'rgba(255,255,255,0.05)') + ';margin-bottom:4px;opacity:' + (isArchived?'0.45':'1') + '">'
       + '<div style="position:absolute;left:0;top:8px;bottom:8px;width:2px;border-radius:1px;background:' + priorityColor + ';opacity:0.7"></div>'
-      + '<div class="flex justify-between items-start mb-1 pl-2"><span class="text-[10px] font-600 text-gray-300 truncate" style="max-width:160px">' + cleanName + '</span><span class="text-[9px] font-mono text-gray-600 flex-shrink-0 ml-1">' + timeStr + '</span></div>'
+      + '<div class="flex justify-between items-start mb-1 pl-2"><span class="text-[10px] font-600 text-gray-300 truncate" style="max-width:140px">' + cleanName + '</span><span class="text-[9px] font-mono text-gray-600 flex-shrink-0 ml-1">' + timeStr + '</span></div>'
       + '<div class="text-[11px] text-gray-400 truncate mb-2 pl-2">' + (msg.subject || 'No Subject') + '</div>'
-      + '<div class="flex items-center gap-1.5 pl-2 flex-wrap">' + statusBadge + '<span class="text-[9px] font-mono px-1.5 py-0.5 rounded-full" style="' + catStyle + '">' + catLabel + '</span></div>'
+      + '<div class="flex items-center gap-1.5 pl-2 flex-wrap">' + statusBadge + '<span class="text-[9px] font-mono px-1.5 py-0.5 rounded-full" style="' + catStyle + '">' + catLabel + '</span>' + threadBadge + '</div>'
       + '</div>';
   }).join('');
 }
