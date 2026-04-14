@@ -508,6 +508,9 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
       <button onclick="fetchMessages()" class="flex items-center gap-2 text-xs px-4 py-2 rounded-lg border transition-all" style="background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.08);color:#8B96B0">
         <span id="rb-sync-icon">↻</span> Refresh
       </button>
+      <button onclick="sendMarkedDrafts()" id="rb-send-marked-btn" class="flex items-center gap-2 text-xs px-4 py-2 rounded-lg border transition-all" style="background:rgba(0,200,150,0.08);border-color:rgba(0,200,150,0.2);color:#00C896;opacity:0.5">
+        Send Marked
+      </button>
       <button onclick="sendAllDrafts()" id="rb-send-all-btn" class="flex items-center gap-2 text-xs px-4 py-2 rounded-lg border transition-all" style="background:rgba(0,200,150,0.08);border-color:rgba(0,200,150,0.2);color:#00C896">
         ✓ Send All Drafts
       </button>
@@ -519,11 +522,11 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
         <input type="text" id="rb-search" placeholder="Search tickets..." oninput="filterTickets(this.value)" class="w-full text-xs px-3 py-2 rounded-lg outline-none" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#E8EBF2">
       </div>
       <div class="flex gap-1 p-2 border-b border-white/5">
-        <button onclick="setRbFilter('all')" id="rbf-all" class="rb-filter-btn flex-1 text-[10px] font-mono py-1.5 rounded-md transition-all" style="background:rgba(0,200,150,0.1);color:#00C896">ALL</button>
-        <button onclick="setRbFilter('needs_review')" id="rbf-needs_review" class="rb-filter-btn flex-1 text-[10px] font-mono py-1.5 rounded-md transition-all" style="background:transparent;color:#5A6785">REVIEW</button>
-        <button onclick="setRbFilter('automated')" id="rbf-automated" class="rb-filter-btn flex-1 text-[10px] font-mono py-1.5 rounded-md transition-all" style="background:transparent;color:#5A6785">AUTO</button>
-        <button onclick="setRbFilter('archived')" id="rbf-archived" class="rb-filter-btn flex-1 text-[10px] font-mono py-1.5 rounded-md transition-all" style="background:transparent;color:#5A6785">ARCHIVED</button>
-        <button onclick="setRbFilter('spam')" id="rbf-spam" class="rb-filter-btn flex-1 text-[10px] font-mono py-1.5 rounded-md transition-all" style="background:transparent;color:#5A6785">SPAM</button>
+        <button onclick="setRbFilter('all')" id="rbf-all" class="rb-filter-btn flex-1 text-[10px] font-mono py-1.5 rounded-md transition-all" style="background:rgba(0,200,150,0.1);color:#00C896"><span id="rbf-all-count"></span> ALL</button>
+        <button onclick="setRbFilter('needs_review')" id="rbf-needs_review" class="rb-filter-btn flex-1 text-[10px] font-mono py-1.5 rounded-md transition-all" style="background:transparent;color:#5A6785"><span id="rbf-review-count"></span> REVIEW</button>
+        <button onclick="setRbFilter('automated')" id="rbf-automated" class="rb-filter-btn flex-1 text-[10px] font-mono py-1.5 rounded-md transition-all" style="background:transparent;color:#5A6785"><span id="rbf-auto-count"></span> AUTO</button>
+        <button onclick="setRbFilter('archived')" id="rbf-archived" class="rb-filter-btn flex-1 text-[10px] font-mono py-1.5 rounded-md transition-all" style="background:transparent;color:#5A6785"><span id="rbf-archived-count"></span> ARCHIVED</button>
+        <button onclick="setRbFilter('spam')" id="rbf-spam" class="rb-filter-btn flex-1 text-[10px] font-mono py-1.5 rounded-md transition-all" style="background:transparent;color:#5A6785"><span id="rbf-spam-count"></span> SPAM</button>
       </div>
       <div id="rb-ticket-list" class="flex-1 overflow-y-auto p-2 space-y-1">
         <div class="text-center text-[10px] uppercase tracking-widest text-gray-600 mt-10">Loading tickets...</div>
@@ -3327,42 +3330,47 @@ function renderRbTicketList(messages) {
     return m.status === rbCurrentFilter;
   });
 
-  // Group by sender email — show only the latest message per customer
+  // Update tab counts
+  var allMsgs = messages;
+  var countAll = allMsgs.filter(function(m) { var s = m.status === 'spam' || m.category === 'spam'; return (m.status === 'needs_review' || m.status === 'automated' || m.status === 'pending' || m.status === 'queued') && !s; }).length;
+  var countReview = allMsgs.filter(function(m) { return (m.status === 'needs_review' || m.status === 'pending') && m.category !== 'spam' && m.status !== 'spam'; }).length;
+  var countAuto = allMsgs.filter(function(m) { return (m.status === 'automated' || m.status === 'queued') && m.category !== 'spam' && m.status !== 'spam'; }).length;
+  var countArchived = allMsgs.filter(function(m) { return m.status === 'done' || m.status === 'closed'; }).length;
+  var countSpam = allMsgs.filter(function(m) { return m.status === 'spam' || m.category === 'spam'; }).length;
+  var setCount = function(id, n) { var el = document.getElementById(id); if (el) el.textContent = n > 0 ? n + '' : ''; };
+  setCount('rbf-all-count', countAll);
+  setCount('rbf-review-count', countReview);
+  setCount('rbf-auto-count', countAuto);
+  setCount('rbf-archived-count', countArchived);
+  setCount('rbf-spam-count', countSpam);
+
+  // Group by sender email
   var grouped = {};
   filtered.forEach(function(msg) {
     var senderEmail = msg.sender && msg.sender.includes('<') ? msg.sender.split('<')[1].replace('>','').trim().toLowerCase() : (msg.sender || '').toLowerCase();
-    if (!senderEmail) senderEmail = msg.id; // fallback for no sender
+    if (!senderEmail) senderEmail = msg.id;
     if (!grouped[senderEmail]) {
       grouped[senderEmail] = { latest: msg, count: 1, hasReview: msg.status === 'needs_review' || msg.status === 'pending' };
     } else {
       grouped[senderEmail].count++;
       if (msg.status === 'needs_review' || msg.status === 'pending') grouped[senderEmail].hasReview = true;
-      // Keep the most recent email as the displayed card
       var existingDate = new Date(grouped[senderEmail].latest.received_at || 0).getTime();
       var newDate = new Date(msg.received_at || 0).getTime();
       if (newDate > existingDate) {
-        // Inherit the most urgent category/priority from the thread
         var prevCat = grouped[senderEmail].latest.category;
         var escalationCats = ['refund_request','cancellation','complaint','damaged_item','missing_item','billing'];
         if (escalationCats.indexOf(prevCat) > -1 && escalationCats.indexOf(msg.category) === -1) {
-          // Previous was more urgent — keep that category on the card
           msg._displayCategory = prevCat;
           msg._displayPriority = grouped[senderEmail].latest.priority;
         }
         grouped[senderEmail].latest = msg;
-      } else {
-        // Older message — check if it had a more urgent category
-        var olderCat = msg.category;
-        var escalationCats2 = ['refund_request','cancellation','complaint','damaged_item','missing_item','billing'];
-        if (escalationCats2.indexOf(olderCat) > -1) {
-          grouped[senderEmail].latest._displayCategory = grouped[senderEmail].latest._displayCategory || olderCat;
-        }
       }
     }
   });
 
+  // Sort OLDEST first (ascending by received_at)
   var threads = Object.values(grouped).sort(function(a, b) {
-    return new Date(b.latest.received_at || 0).getTime() - new Date(a.latest.received_at || 0).getTime();
+    return new Date(a.latest.received_at || 0).getTime() - new Date(b.latest.received_at || 0).getTime();
   });
 
   if (threads.length === 0) { container.innerHTML = '<div class="text-center text-[10px] uppercase tracking-widest text-gray-700 mt-10 px-3">No tickets</div>'; return; }
@@ -3372,10 +3380,13 @@ function renderRbTicketList(messages) {
     var threadCount = thread.count;
     var cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
     var isActive = rbActiveMessage && rbActiveMessage.id === msg.id;
-    var rawDate = msg.received_at || msg.updated_at;
-    var date = new Date(rawDate);
-    if (isNaN(date.getTime()) || date.getFullYear() < 2020) date = new Date(Date.now());
+    
+    // Use ACTUAL received_at timestamp, not current time
+    var rawDate = msg.received_at;
+    var date = rawDate ? new Date(rawDate) : new Date(msg.updated_at || Date.now());
+    if (isNaN(date.getTime()) || date.getFullYear() < 2020) date = new Date(msg.updated_at || Date.now());
     var timeStr = date.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + ' ' + date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    
     var hasDraft = msg.ai_draft && msg.ai_draft.length > 10;
     var statusBadge = msg.status === 'automated'
       ? '<span class="badge badge-g" style="font-size:9px">AUTO-SENT</span>'
@@ -3384,12 +3395,11 @@ function renderRbTicketList(messages) {
         : hasDraft
           ? '<span class="badge badge-g" style="font-size:9px;background:rgba(0,200,150,0.1)">DRAFT READY</span>'
           : '<span class="badge badge-a" style="font-size:9px">NEEDS DRAFT</span>';
-    // Add AI action badge if present
     var actionBadge = '';
     if (msg.ai_action) {
-      var actionLabels = {'refund':'💰 REFUNDED','cancel':'🚫 CANCELLED','address_change':'📍 ADDRESS UPDATED'};
+      var actionLabels = {'refund':'💰 REFUNDED','cancel':'🚫 CANCELLED','address_change':'📍 ADDRESS'};
       var actionSuccess = msg.ai_action_result && msg.ai_action_result.success;
-      actionBadge = '<span class="badge" style="font-size:9px;background:' + (actionSuccess ? 'rgba(0,200,150,0.1);color:#00C896' : 'rgba(248,113,113,0.1);color:#F87171') + '">' + (actionLabels[msg.ai_action] || msg.ai_action) + (actionSuccess ? '' : ' ❌') + '</span>';
+      actionBadge = '<span class="badge" style="font-size:9px;background:' + (actionSuccess ? 'rgba(0,200,150,0.1);color:#00C896' : 'rgba(248,113,113,0.1);color:#F87171') + '">' + (actionLabels[msg.ai_action] || msg.ai_action) + '</span>';
     }
     var isArchived = msg.status === 'done' || msg.status === 'closed';
     var priorityColor = (msg._displayPriority || msg.priority) === 'High' || (msg._displayPriority || msg.priority) === 'Urgent' ? '#F87171' : (msg._displayPriority || msg.priority) === 'Medium' ? '#F0A500' : '#5A6785';
@@ -3413,15 +3423,20 @@ function renderRbTicketList(messages) {
     var displayCat = msg._displayCategory || msg.category;
     var catStyle = catColors[displayCat] || 'background:rgba(255,255,255,0.06);color:#5A6785';
     var catLabel = (displayCat || 'general').replace(/_/g, ' ');
+    var threadBadge = threadCount > 1 ? '<span class="text-[9px] font-mono px-1.5 py-0.5 rounded-full" style="background:rgba(255,255,255,0.08);color:#8B96B0">' + threadCount + '</span>' : '';
 
-    var threadBadge = threadCount > 1 ? '<span class="text-[9px] font-mono px-1.5 py-0.5 rounded-full" style="background:rgba(255,255,255,0.08);color:#8B96B0">' + threadCount + ' emails</span>' : '';
+    // Checkbox for multi-select
+    var isMarked = window.rbMarkedIds && window.rbMarkedIds.has(msg.id);
+    var checkbox = '<input type="checkbox" ' + (isMarked ? 'checked' : '') + ' onclick="event.stopPropagation();rbToggleMark(\'' + msg.id + '\', this.checked)" style="accent-color:#00C896;width:14px;height:14px;flex-shrink:0;cursor:pointer;margin-top:2px">';
 
-    return '<div onclick="rbOpenTicket(\'' + msg.id + '\')" id="rb-ticket-card-' + msg.id + '" class="p-3 rounded-xl cursor-pointer transition-all relative" style="background:' + (isActive?'rgba(0,200,150,0.07)':'rgba(255,255,255,0.02)') + ';border:1px solid ' + (isActive?'rgba(0,200,150,0.25)':'rgba(255,255,255,0.05)') + ';margin-bottom:4px;opacity:' + (isArchived?'0.45':'1') + '">'
+    return '<div class="flex items-start gap-2">'
+      + checkbox
+      + '<div onclick="rbOpenTicket(\'' + msg.id + '\')" id="rb-ticket-card-' + msg.id + '" class="flex-1 p-3 rounded-xl cursor-pointer transition-all relative" style="background:' + (isActive?'rgba(0,200,150,0.07)':'rgba(255,255,255,0.02)') + ';border:1px solid ' + (isActive?'rgba(0,200,150,0.25)':'rgba(255,255,255,0.05)') + ';margin-bottom:4px;opacity:' + (isArchived?'0.45':'1') + '">'
       + '<div style="position:absolute;left:0;top:8px;bottom:8px;width:2px;border-radius:1px;background:' + priorityColor + ';opacity:0.7"></div>'
       + '<div class="flex justify-between items-start mb-1 pl-2"><span class="text-[10px] font-600 text-gray-300 truncate" style="max-width:140px">' + cleanName + '</span><span class="text-[9px] font-mono text-gray-600 flex-shrink-0 ml-1">' + timeStr + '</span></div>'
       + '<div class="text-[11px] text-gray-400 truncate mb-2 pl-2">' + (msg.subject || 'No Subject') + '</div>'
       + '<div class="flex items-center gap-1.5 pl-2 flex-wrap">' + statusBadge + actionBadge + '<span class="text-[9px] font-mono px-1.5 py-0.5 rounded-full" style="' + catStyle + '">' + catLabel + '</span>' + threadBadge + '</div>'
-      + '</div>';
+      + '</div></div>';
   }).join('');
 }
 
@@ -3929,6 +3944,57 @@ async function processRefund() {
     submitBtn.style.pointerEvents = 'auto';
     showToast('Error: ' + (err.message || 'Refund failed'));
   }
+}
+
+// ═══ MULTI-SELECT ═══
+window.rbMarkedIds = window.rbMarkedIds || new Set();
+
+function rbToggleMark(id, checked) {
+  if (checked) { window.rbMarkedIds.add(id); } else { window.rbMarkedIds.delete(id); }
+  updateMarkedCount();
+}
+
+function updateMarkedCount() {
+  var btn = document.getElementById('rb-send-marked-btn');
+  if (btn) {
+    var count = window.rbMarkedIds.size;
+    btn.textContent = count > 0 ? 'Send ' + count + ' Marked' : 'Send Marked';
+    btn.style.opacity = count > 0 ? '1' : '0.5';
+  }
+}
+
+async function sendMarkedDrafts() {
+  if (!window.rbMarkedIds || window.rbMarkedIds.size === 0) { showToast('No emails marked'); return; }
+  var ids = Array.from(window.rbMarkedIds);
+  var eligible = rbAllMessages.filter(function(m) { return ids.indexOf(m.id) > -1 && m.ai_draft && m.ai_draft.length > 20; });
+  if (eligible.length === 0) { showToast('No marked emails have drafts ready'); return; }
+  if (!confirm('Send ' + eligible.length + ' marked replies?')) return;
+
+  var btn = document.getElementById('rb-send-marked-btn');
+  if (btn) { btn.textContent = 'Sending...'; btn.disabled = true; }
+  var sent = 0;
+
+  for (var i = 0; i < eligible.length; i++) {
+    var msg = eligible[i];
+    try {
+      var res = await fetch('/api/messages/' + msg.id + '/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: msg.ai_draft, customerEmail: msg.sender })
+      });
+      if (res.ok) {
+        await sb.from('messages').update({ status: 'done', sent_reply: msg.ai_draft, sent_at: new Date().toISOString() }).eq('id', msg.id);
+        sent++;
+        window.rbMarkedIds.delete(msg.id);
+      }
+    } catch(e) {}
+  }
+
+  if (btn) { btn.textContent = 'Send Marked'; btn.disabled = false; }
+  showToast('Sent ' + sent + ' replies');
+  window.rbMarkedIds.clear();
+  var { data: msgs } = await sb.from('messages').select('*').in('status', ['needs_review','automated','pending','done','closed','spam','queued']).order('received_at', { ascending: false }).limit(100);
+  if (msgs) { rbAllMessages = msgs; renderRbTicketList(msgs); updateRbPendingCount(); }
 }
 
 async function sendAllDrafts() {

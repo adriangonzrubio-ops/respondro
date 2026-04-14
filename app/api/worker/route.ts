@@ -110,7 +110,7 @@ async function fetchAndProcess(conn: any) {
 
             if (trulyNew.length === 0) { lock.release(); await client.logout(); return 0; }
 
-            const batch = trulyNew.slice(0, 4);
+            const batch = trulyNew.slice(0, 6);
             console.log(`📬 ${unseenUids.length} unseen, ${trulyNew.length} new, downloading ${batch.length}`);
 
             const messages: any = client.fetch(batch, { source: true, uid: true }, { uid: true });
