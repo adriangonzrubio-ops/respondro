@@ -37,9 +37,20 @@ export async function GET(request: Request) {
     }
 }
 
-async function fetchAndDraft(conn: any) {
-    let emailsProcessed = 0;
+// Holds a downloaded email ready for AI processing
+interface DownloadedEmail {
+    uid: number;
+    from: string;
+    fromAddress: string;
+    fromName: string;
+    subject: string;
+    body: string;
+    date: string;
+    inReplyTo: string;
+    references: string[];
+}
 
+async function fetchAndDraft(conn: any) {
     const { data: store } = await supabase.from('settings').select('*').eq('store_id', conn.store_id).single();
     if (!store) return 0;
 
@@ -52,139 +63,157 @@ async function fetchAndDraft(conn: any) {
     
     const processedUids = new Set((existingMsgs || []).map(m => m.external_id));
 
+    // ═══════════════════════════════════════════════
+    // PHASE 1: IMAP — download emails, then disconnect
+    // Keep this phase as SHORT as possible
+    // ═══════════════════════════════════════════════
+    const downloaded: DownloadedEmail[] = [];
+
     const client = new ImapFlow({
         host: conn.imap_host,
         port: conn.imap_port || 993,
         secure: true,
         auth: { user: conn.imap_user, pass: conn.imap_pass },
-        connectionTimeout: 30000,
-        socketTimeout: 120000,
-        greetingTimeout: 15000,
+        connectionTimeout: 15000,
         logger: false
-    } as any);
-
-    await client.connect();
-    let lock = await client.getMailboxLock('INBOX');
+    });
 
     try {
-        const unseenUids = await client.search({ seen: false }, { uid: true });
-        
-        if (!unseenUids || unseenUids.length === 0) {
-            lock.release();
-            await client.logout();
-            return 0;
-        }
+        await client.connect();
+        const lock = await client.getMailboxLock('INBOX');
 
-        // STEP 1: Separate already-processed from truly new
-        const alreadyInDb: number[] = [];
-        const trulyNew: number[] = [];
-
-        for (const uid of unseenUids) {
-            if (processedUids.has(uid.toString())) {
-                alreadyInDb.push(uid);
-            } else {
-                trulyNew.push(uid);
+        try {
+            const unseenUids = await client.search({ seen: false }, { uid: true });
+            
+            if (!unseenUids || unseenUids.length === 0) {
+                lock.release();
+                await client.logout();
+                return 0;
             }
-        }
 
-        // STEP 2: Mark already-processed emails as READ on IMAP (no download needed)
-        if (alreadyInDb.length > 0) {
-            console.log(`📭 Marking ${alreadyInDb.length} already-processed emails as read...`);
-            for (let i = 0; i < alreadyInDb.length; i += 50) {
-                const chunk = alreadyInDb.slice(i, i + 50);
-                try {
-                    await client.messageFlagsAdd(chunk, ['\\Seen'], { uid: true });
-                } catch (e) {}
+            // Separate already-processed from truly new
+            const alreadyInDb: number[] = [];
+            const trulyNew: number[] = [];
+
+            for (const uid of unseenUids) {
+                if (processedUids.has(uid.toString())) {
+                    alreadyInDb.push(uid);
+                } else {
+                    trulyNew.push(uid);
+                }
             }
-        }
 
-        if (trulyNew.length === 0) {
-            console.log(`📬 ${unseenUids.length} unseen, all already in DB. Cleaned up.`);
+            // Mark already-processed as read (no download)
+            if (alreadyInDb.length > 0) {
+                console.log(`📭 Marking ${alreadyInDb.length} already-processed as read...`);
+                for (let i = 0; i < alreadyInDb.length; i += 50) {
+                    const chunk = alreadyInDb.slice(i, i + 50);
+                    try { await client.messageFlagsAdd(chunk, ['\\Seen'], { uid: true }); } catch(e) {}
+                }
+            }
+
+            if (trulyNew.length === 0) {
+                console.log(`📬 All ${unseenUids.length} unseen already in DB. Done.`);
+                lock.release();
+                await client.logout();
+                return 0;
+            }
+
+            // Download max 8 new emails into memory
+            const batch = trulyNew.slice(0, 8);
+            console.log(`📬 ${unseenUids.length} unseen, ${trulyNew.length} new, downloading ${batch.length}`);
+
+            const messages: any = client.fetch(batch, { source: true, uid: true }, { uid: true });
+
+            for await (const msg of messages) {
+                if (!msg.source) continue;
+                const parsed = await simpleParser(msg.source);
+                const fromAddress = parsed.from?.value[0]?.address || "";
+                const fromName = parsed.from?.value[0]?.name || "";
+
+                downloaded.push({
+                    uid: msg.uid,
+                    from: fromName ? `"${fromName}" <${fromAddress}>` : fromAddress,
+                    fromAddress,
+                    fromName,
+                    subject: parsed.subject || "",
+                    body: parsed.text || "",
+                    date: parsed.date?.toISOString() || new Date().toISOString(),
+                    inReplyTo: (parsed.inReplyTo as string) || "",
+                    references: (parsed.references || []) as string[],
+                });
+
+                // Mark as read immediately
+                try { await client.messageFlagsAdd(msg.uid, ['\\Seen'], { uid: true }); } catch(e) {}
+            }
+        } finally {
             lock.release();
-            await client.logout();
-            return 0;
         }
 
-        // STEP 3: Only fetch truly new emails (max 8 per run)
-        const batch = trulyNew.slice(0, 8);
-        console.log(`📬 ${unseenUids.length} unseen, ${trulyNew.length} new, processing ${batch.length}`);
+        await client.logout();
+    } catch (imapErr: any) {
+        console.error(`❌ IMAP error: ${imapErr.message}`);
+        try { await client.logout(); } catch(e) {}
+        // If we downloaded some emails before the error, still process them
+        if (downloaded.length === 0) return 0;
+    }
 
-        // Pre-load rulebooks and policies ONCE
-        const { data: agents } = await supabase
-            .from('support_agents')
-            .select('agent_type, rulebook, is_enabled')
-            .eq('store_id', conn.store_id);
+    console.log(`📥 Downloaded ${downloaded.length} emails. IMAP closed. Starting AI processing...`);
 
-        const { data: policies } = await supabase
-            .from('store_policies')
-            .select('policy_type, policy_content')
-            .eq('store_id', conn.store_id);
+    // ═══════════════════════════════════════════════
+    // PHASE 2: AI PROCESSING — no IMAP connection open
+    // Can take as long as needed without socket timeout
+    // ═══════════════════════════════════════════════
 
-        let fullRulebook = store.rulebook || '';
-        
-        if (agents && agents.length > 0) {
-            const agentRules = agents
-                .filter((a: any) => a.is_enabled && a.rulebook)
-                .map((a: any) => `[${a.agent_type.toUpperCase()} AGENT RULES]:\n${a.rulebook}`)
-                .join('\n\n');
-            if (agentRules) fullRulebook += '\n\n' + agentRules;
-        }
+    // Pre-load rulebooks and policies ONCE
+    const { data: agents } = await supabase
+        .from('support_agents')
+        .select('agent_type, rulebook, is_enabled')
+        .eq('store_id', conn.store_id);
 
-        if (policies && policies.length > 0) {
-            const policyText = policies
-                .filter((p: any) => p.policy_content)
-                .map((p: any) => `[${p.policy_type.replace(/_/g, ' ').toUpperCase()}]:\n${p.policy_content.substring(0, 3000)}`)
-                .join('\n\n');
-            if (policyText) fullRulebook += '\n\nSTORE POLICIES:\n' + policyText;
-        }
+    const { data: policies } = await supabase
+        .from('store_policies')
+        .select('policy_type, policy_content')
+        .eq('store_id', conn.store_id);
 
-        // STEP 4: Fetch and process only the new batch
-        const messages: any = client.fetch(batch, { source: true, uid: true }, { uid: true });
+    let fullRulebook = store.rulebook || '';
+    
+    if (agents && agents.length > 0) {
+        const agentRules = agents
+            .filter((a: any) => a.is_enabled && a.rulebook)
+            .map((a: any) => `[${a.agent_type.toUpperCase()} AGENT RULES]:\n${a.rulebook}`)
+            .join('\n\n');
+        if (agentRules) fullRulebook += '\n\n' + agentRules;
+    }
 
-        for await (const msg of messages) {
-            if (!msg.source) continue;
+    if (policies && policies.length > 0) {
+        const policyText = policies
+            .filter((p: any) => p.policy_content)
+            .map((p: any) => `[${p.policy_type.replace(/_/g, ' ').toUpperCase()}]:\n${p.policy_content.substring(0, 3000)}`)
+            .join('\n\n');
+        if (policyText) fullRulebook += '\n\nSTORE POLICIES:\n' + policyText;
+    }
 
-            const parsed = await simpleParser(msg.source);
-            const fromAddress = parsed.from?.value[0]?.address || "";
-            const fromName = parsed.from?.value[0]?.name || "";
-            const from = fromName ? `"${fromName}" <${fromAddress}>` : fromAddress;
-            const body = parsed.text || "";
-            const subject = parsed.subject || "";
-            const inReplyTo = parsed.inReplyTo || "";
-            const references = (parsed.references || []) as string[];
+    let emailsProcessed = 0;
 
+    for (const email of downloaded) {
+        try {
             // Check for reply to previous ticket
-            let reopenedTicketId: string | null = null;
             let previousCategory: string | null = null;
             let previousStatus: string | null = null;
+            let reopenedTicketId: string | null = null;
 
-            if (inReplyTo || references.length > 0) {
-                const refIds = [inReplyTo, ...references].filter(Boolean);
-                for (const refId of refIds) {
-                    const { data: prevMsg } = await supabase.from('messages')
-                        .select('id, status, category, sender')
-                        .or(`message_id.eq.${refId}`)
-                        .limit(1)
-                        .single();
-
-                    if (prevMsg && ['done', 'closed', 'automated'].includes(prevMsg.status)) {
-                        reopenedTicketId = prevMsg.id;
-                        previousCategory = prevMsg.category;
-                        previousStatus = prevMsg.status;
-                        break;
-                    }
-                }
-
-                if (!reopenedTicketId && fromAddress) {
+            if (email.inReplyTo || email.references.length > 0) {
+                if (email.fromAddress) {
                     const { data: prevByEmail } = await supabase.from('messages')
                         .select('id, status, subject, category')
-                        .ilike('sender', `%${fromAddress}%`)
+                        .ilike('sender', `%${email.fromAddress}%`)
                         .in('status', ['done', 'closed', 'automated'])
                         .order('received_at', { ascending: false })
                         .limit(5);
 
                     if (prevByEmail) {
-                        const cleanSubject = subject.replace(/^(Re:|Fwd:|Fw:)\s*/gi, '').trim().toLowerCase();
+                        const cleanSubject = email.subject.replace(/^(Re:|Fwd:|Fw:)\s*/gi, '').trim().toLowerCase();
                         const match = prevByEmail.find(m => {
                             const prev = (m.subject || '').replace(/^(Re:|Fwd:|Fw:)\s*/gi, '').trim().toLowerCase();
                             return prev === cleanSubject;
@@ -199,15 +228,15 @@ async function fetchAndDraft(conn: any) {
             }
 
             // Shopify Context
-            const orderNum = extractOrderNumber(body) || extractOrderNumber(subject);
+            const orderNum = extractOrderNumber(email.body) || extractOrderNumber(email.subject);
             const shopifyData = await getShopifyContext(
                 store.shop_url, store.shopify_access_token,
-                fromAddress, orderNum, fromName
+                email.fromAddress, orderNum, email.fromName
             );
 
             // AI Classification
             const triage = await classifyAndDraft(
-                subject, body, fullRulebook,
+                email.subject, email.body, fullRulebook,
                 store.store_name || 'Our Store',
                 shopifyData, store.signature,
                 previousCategory, previousStatus
@@ -238,17 +267,17 @@ async function fetchAndDraft(conn: any) {
             const { data: upserted } = await (supabase.from('messages') as any).upsert({
                 connection_id: conn.id,
                 store_id: conn.store_id,
-                sender: from,
-                subject: subject,
-                body_text: body,
+                sender: email.from,
+                subject: email.subject,
+                body_text: email.body,
                 category: triage.category || 'general',
                 priority: triage.priority || 'Medium',
                 status: finalStatus,
                 ai_draft: triage.draft || '',
                 ai_reasoning: triage.reason || 'Processed.',
                 shopify_data: shopifyData && shopifyData.length > 0 ? shopifyData : null,
-                external_id: msg.uid.toString(),
-                received_at: parsed.date?.toISOString() || new Date().toISOString()
+                external_id: email.uid.toString(),
+                received_at: email.date
             }, { onConflict: 'external_id' }).select('id');
 
             // Auto-send if AUTOMATE
@@ -259,7 +288,7 @@ async function fetchAndDraft(conn: any) {
                     const sendRes = await fetch(`${appUrl}/api/messages/${msgId}/send`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ text: triage.draft, customerEmail: fromAddress })
+                        body: JSON.stringify({ text: triage.draft, customerEmail: email.fromAddress })
                     });
 
                     if (sendRes.ok) {
@@ -268,7 +297,7 @@ async function fetchAndDraft(conn: any) {
                             sent_reply: triage.draft,
                             sent_at: new Date().toISOString()
                         }).eq('id', msgId);
-                        console.log(`✅ Auto-sent to ${fromAddress}: ${subject}`);
+                        console.log(`✅ Auto-sent to ${email.fromAddress}: ${email.subject}`);
                     } else {
                         await supabase.from('messages').update({ status: 'needs_review' }).eq('id', msgId);
                     }
@@ -277,14 +306,13 @@ async function fetchAndDraft(conn: any) {
                 }
             }
 
-            // Mark as read on IMAP
-            try { await client.messageFlagsAdd(msg.uid, ['\\Seen'], { uid: true }); } catch(e) {}
-
             emailsProcessed++;
+            console.log(`✅ Processed ${emailsProcessed}/${downloaded.length}: ${email.subject} → ${triage.category} (${finalStatus})`);
+
+        } catch (procErr: any) {
+            console.error(`❌ Processing error for ${email.subject}: ${procErr.message}`);
         }
-    } finally {
-        lock.release();
-        await client.logout();
     }
+
     return emailsProcessed;
 }
