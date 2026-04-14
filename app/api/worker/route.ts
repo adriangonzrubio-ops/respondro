@@ -40,11 +40,10 @@ export async function GET(request: Request) {
 async function fetchAndDraft(conn: any) {
     let emailsProcessed = 0;
 
-    // 1. Load Store Settings
     const { data: store } = await supabase.from('settings').select('*').eq('store_id', conn.store_id).single();
     if (!store) return 0;
 
-    // 2. Get all external_ids we already have in DB to skip them fast
+    // Get all external_ids already in DB
     const { data: existingMsgs } = await supabase
         .from('messages')
         .select('external_id')
@@ -58,15 +57,16 @@ async function fetchAndDraft(conn: any) {
         port: conn.imap_port || 993,
         secure: true,
         auth: { user: conn.imap_user, pass: conn.imap_pass },
-        connectionTimeout: 15000,
+        connectionTimeout: 30000,
+        socketTimeout: 120000,
+        greetingTimeout: 15000,
         logger: false
-    });
+    } as any);
 
     await client.connect();
     let lock = await client.getMailboxLock('INBOX');
 
     try {
-        // Fetch ALL unseen emails
         const unseenUids = await client.search({ seen: false }, { uid: true });
         
         if (!unseenUids || unseenUids.length === 0) {
@@ -75,27 +75,41 @@ async function fetchAndDraft(conn: any) {
             return 0;
         }
 
-        // Filter out emails we already processed (fast DB check, no AI needed)
-        const newUids = unseenUids.filter(uid => !processedUids.has(uid.toString()));
-        
-        if (newUids.length === 0) {
-            // All unseen emails are already in our DB — just mark them as read
-            console.log(`📬 ${unseenUids.length} unseen but all already in DB for ${conn.imap_user}`);
-            try {
-                for (const uid of unseenUids.slice(0, 50)) {
-                    await client.messageFlagsAdd(uid, ['\\Seen'], { uid: true });
-                }
-            } catch(e) {}
+        // STEP 1: Separate already-processed from truly new
+        const alreadyInDb: number[] = [];
+        const trulyNew: number[] = [];
+
+        for (const uid of unseenUids) {
+            if (processedUids.has(uid.toString())) {
+                alreadyInDb.push(uid);
+            } else {
+                trulyNew.push(uid);
+            }
+        }
+
+        // STEP 2: Mark already-processed emails as READ on IMAP (no download needed)
+        if (alreadyInDb.length > 0) {
+            console.log(`📭 Marking ${alreadyInDb.length} already-processed emails as read...`);
+            for (let i = 0; i < alreadyInDb.length; i += 50) {
+                const chunk = alreadyInDb.slice(i, i + 50);
+                try {
+                    await client.messageFlagsAdd(chunk, ['\\Seen'], { uid: true });
+                } catch (e) {}
+            }
+        }
+
+        if (trulyNew.length === 0) {
+            console.log(`📬 ${unseenUids.length} unseen, all already in DB. Cleaned up.`);
             lock.release();
             await client.logout();
             return 0;
         }
 
-        // Process max 8 NEW emails per run (each needs an AI call ~3-5s = ~40s max)
-        const batch = newUids.slice(0, 8);
-        console.log(`📬 Found ${unseenUids.length} unseen (${newUids.length} new) for ${conn.imap_user}, processing batch of ${batch.length}`);
+        // STEP 3: Only fetch truly new emails (max 8 per run)
+        const batch = trulyNew.slice(0, 8);
+        console.log(`📬 ${unseenUids.length} unseen, ${trulyNew.length} new, processing ${batch.length}`);
 
-        // Pre-load agent rulebooks and policies ONCE (not per email)
+        // Pre-load rulebooks and policies ONCE
         const { data: agents } = await supabase
             .from('support_agents')
             .select('agent_type, rulebook, is_enabled')
@@ -124,7 +138,8 @@ async function fetchAndDraft(conn: any) {
             if (policyText) fullRulebook += '\n\nSTORE POLICIES:\n' + policyText;
         }
 
-        const messages: any = client.fetch(batch, { source: true, uid: true, flags: true }, { uid: true });
+        // STEP 4: Fetch and process only the new batch
+        const messages: any = client.fetch(batch, { source: true, uid: true }, { uid: true });
 
         for await (const msg of messages) {
             if (!msg.source) continue;
@@ -138,13 +153,7 @@ async function fetchAndDraft(conn: any) {
             const inReplyTo = parsed.inReplyTo || "";
             const references = (parsed.references || []) as string[];
 
-            // Double-check this specific UID isn't already in DB
-            if (processedUids.has(msg.uid.toString())) {
-                try { await client.messageFlagsAdd(msg.uid, ['\\Seen'], { uid: true }); } catch(e) {}
-                continue;
-            }
-
-            // Check for reply to previous ticket (re-labeling)
+            // Check for reply to previous ticket
             let reopenedTicketId: string | null = null;
             let previousCategory: string | null = null;
             let previousStatus: string | null = null;
@@ -158,7 +167,7 @@ async function fetchAndDraft(conn: any) {
                         .limit(1)
                         .single();
 
-                    if (prevMsg && (prevMsg.status === 'done' || prevMsg.status === 'closed' || prevMsg.status === 'automated')) {
+                    if (prevMsg && ['done', 'closed', 'automated'].includes(prevMsg.status)) {
                         reopenedTicketId = prevMsg.id;
                         previousCategory = prevMsg.category;
                         previousStatus = prevMsg.status;
@@ -166,7 +175,6 @@ async function fetchAndDraft(conn: any) {
                     }
                 }
 
-                // Fallback: sender + similar subject
                 if (!reopenedTicketId && fromAddress) {
                     const { data: prevByEmail } = await supabase.from('messages')
                         .select('id, status, subject, category')
@@ -197,7 +205,7 @@ async function fetchAndDraft(conn: any) {
                 fromAddress, orderNum, fromName
             );
 
-            // AI Classification (with previous context for re-labeling)
+            // AI Classification
             const triage = await classifyAndDraft(
                 subject, body, fullRulebook,
                 store.store_name || 'Our Store',
@@ -205,7 +213,7 @@ async function fetchAndDraft(conn: any) {
                 previousCategory, previousStatus
             );
 
-            // Determine final status
+            // Determine status
             let finalStatus: string;
             if (triage.path === 'SPAM') {
                 finalStatus = 'spam';
@@ -215,7 +223,6 @@ async function fetchAndDraft(conn: any) {
                 finalStatus = 'needs_review';
             }
 
-            // Reopened tickets always go to review (unless spam)
             if (reopenedTicketId && finalStatus !== 'spam') {
                 finalStatus = 'needs_review';
                 triage.reason = (triage.reason || '') + ' [Reopened from previous thread]';
@@ -227,7 +234,7 @@ async function fetchAndDraft(conn: any) {
                 }
             }
 
-            // Upsert message
+            // Upsert
             const { data: upserted } = await (supabase.from('messages') as any).upsert({
                 connection_id: conn.id,
                 store_id: conn.store_id,
@@ -244,7 +251,7 @@ async function fetchAndDraft(conn: any) {
                 received_at: parsed.date?.toISOString() || new Date().toISOString()
             }, { onConflict: 'external_id' }).select('id');
 
-            // AUTO-SEND if AUTOMATE
+            // Auto-send if AUTOMATE
             if (finalStatus === 'automated' && triage.draft && upserted?.[0]?.id) {
                 try {
                     const msgId = upserted[0].id;
@@ -264,7 +271,6 @@ async function fetchAndDraft(conn: any) {
                         console.log(`✅ Auto-sent to ${fromAddress}: ${subject}`);
                     } else {
                         await supabase.from('messages').update({ status: 'needs_review' }).eq('id', msgId);
-                        console.warn(`⚠️ Auto-send failed for ${fromAddress}, moved to review`);
                     }
                 } catch (sendErr: any) {
                     console.error(`❌ Auto-send error: ${sendErr.message}`);
