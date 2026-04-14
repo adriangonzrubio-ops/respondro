@@ -3876,22 +3876,35 @@ async function showResolvedSummary(msgId) {
   const { data: msg } = await sb.from('messages').select('subject, sender, ai_reasoning, sent_reply, category, sent_at, shopify_data').eq('id', msgId).single();
   if (!msg) return;
   
-  const cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
-  const sentDate = msg.sent_at ? new Date(msg.sent_at).toLocaleString() : 'N/A';
+  var cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
+  var sentDate = msg.sent_at ? new Date(msg.sent_at).toLocaleString() : 'N/A';
+  var isLight = document.body.classList.contains('light');
   
-  const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  var bg = isLight ? '#FFFFFF' : '#16191f';
+  var border = isLight ? '#E5E7EB' : 'rgba(255,255,255,0.05)';
+  var textPrimary = isLight ? '#1A1D26' : 'white';
+  var textSecondary = isLight ? '#6B7280' : '#5A6785';
+  var textBody = isLight ? '#374151' : '#C8D0E0';
+  var cardBg = isLight ? '#F3F4F6' : 'rgba(0,0,0,0.2)';
+  var replyBg = isLight ? '#F0FDF4' : 'rgba(0,200,150,0.04)';
+  var replyBorder = isLight ? '#BBF7D0' : 'rgba(0,200,150,0.1)';
+  var btnBg = isLight ? '#F3F4F6' : 'rgba(0,200,150,0.1)';
+  var btnColor = isLight ? '#059669' : '#00C896';
+  var btnBorder = isLight ? '#D1D5DB' : 'rgba(0,200,150,0.2)';
+  
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
   overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
   
-  overlay.innerHTML = '<div style="background:#16191f;border:1px solid rgba(255,255,255,0.05);border-radius:16px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><h3 style="color:white;font-weight:700;font-size:14px;">Resolution Summary</h3><button onclick="this.closest(\'div[style*=fixed]\').remove()" style="background:none;border:none;color:#5A6785;cursor:pointer;font-size:18px;">✕</button></div>'
-    + '<div style="margin-bottom:12px;"><span style="color:#5A6785;font-size:10px;">CUSTOMER</span><p style="color:white;font-size:13px;margin:2px 0;">' + cleanName + '</p></div>'
-    + '<div style="margin-bottom:12px;"><span style="color:#5A6785;font-size:10px;">SUBJECT</span><p style="color:white;font-size:13px;margin:2px 0;">' + (msg.subject || 'No subject') + '</p></div>'
-    + '<div style="margin-bottom:12px;"><span style="color:#5A6785;font-size:10px;">CATEGORY</span><p style="color:#00C896;font-size:12px;margin:2px 0;">' + (msg.category || 'General') + '</p></div>'
-    + '<div style="margin-bottom:12px;"><span style="color:#5A6785;font-size:10px;">AI REASONING</span><p style="color:#C8D0E0;font-size:12px;margin:2px 0;white-space:pre-wrap;">' + (msg.ai_reasoning || 'No reasoning available') + '</p></div>'
-    + '<div style="margin-bottom:12px;"><span style="color:#5A6785;font-size:10px;">RESOLVED AT</span><p style="color:#8B96B0;font-size:12px;margin:2px 0;">' + sentDate + '</p></div>'
-    + (msg.sent_reply ? '<div style="margin-bottom:12px;"><span style="color:#5A6785;font-size:10px;">REPLY SENT</span><div style="background:rgba(0,200,150,0.04);border:1px solid rgba(0,200,150,0.1);border-radius:8px;padding:12px;margin-top:4px;"><p style="color:#C8D0E0;font-size:11px;white-space:pre-wrap;max-height:200px;overflow-y:auto;">' + msg.sent_reply.substring(0, 500) + '</p></div></div>' : '')
-    + '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="width:100%;padding:10px;background:rgba(0,200,150,0.1);color:#00C896;border:1px solid rgba(0,200,150,0.2);border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;margin-top:8px;">Close</button>'
+  overlay.innerHTML = '<div style="background:' + bg + ';border:1px solid ' + border + ';border-radius:16px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><h3 style="color:' + textPrimary + ';font-weight:700;font-size:14px;">Resolution Summary</h3><button onclick="this.closest(\'div[style*=fixed]\').remove()" style="background:none;border:none;color:' + textSecondary + ';cursor:pointer;font-size:18px;">✕</button></div>'
+    + '<div style="margin-bottom:12px;"><span style="color:' + textSecondary + ';font-size:10px;">CUSTOMER</span><p style="color:' + textPrimary + ';font-size:13px;margin:2px 0;">' + cleanName + '</p></div>'
+    + '<div style="margin-bottom:12px;"><span style="color:' + textSecondary + ';font-size:10px;">SUBJECT</span><p style="color:' + textPrimary + ';font-size:13px;margin:2px 0;">' + (msg.subject || 'No subject') + '</p></div>'
+    + '<div style="margin-bottom:12px;"><span style="color:' + textSecondary + ';font-size:10px;">CATEGORY</span><p style="color:#00C896;font-size:12px;margin:2px 0;">' + (msg.category || 'General') + '</p></div>'
+    + '<div style="margin-bottom:12px;"><span style="color:' + textSecondary + ';font-size:10px;">AI REASONING</span><p style="color:' + textBody + ';font-size:12px;margin:2px 0;white-space:pre-wrap;">' + (msg.ai_reasoning || 'No reasoning available') + '</p></div>'
+    + '<div style="margin-bottom:12px;"><span style="color:' + textSecondary + ';font-size:10px;">RESOLVED AT</span><p style="color:' + textSecondary + ';font-size:12px;margin:2px 0;">' + sentDate + '</p></div>'
+    + (msg.sent_reply ? '<div style="margin-bottom:12px;"><span style="color:' + textSecondary + ';font-size:10px;">REPLY SENT</span><div style="background:' + replyBg + ';border:1px solid ' + replyBorder + ';border-radius:8px;padding:12px;margin-top:4px;"><p style="color:' + textBody + ';font-size:11px;white-space:pre-wrap;max-height:200px;overflow-y:auto;">' + msg.sent_reply.substring(0, 500) + '</p></div></div>' : '')
+    + '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="width:100%;padding:10px;background:' + btnBg + ';color:' + btnColor + ';border:1px solid ' + btnBorder + ';border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;margin-top:8px;">Close</button>'
     + '</div>';
   
   document.body.appendChild(overlay);
@@ -3949,6 +3962,7 @@ async function loadDashboardView() {
           + '<div class="text-[11px] mb-2" style="color:#F0A500">' + (msg.ai_reasoning || 'Needs manual review') + '</div>'
           + '<div class="flex gap-2">'
           + '<button onclick="dashOpenTicket(\'' + msg.id + '\')" class="text-[10px] px-3 py-1.5 rounded-lg font-600" style="background:rgba(0,200,150,0.1);color:#00C896;border:1px solid rgba(0,200,150,0.2)">View ticket</button>'
+          + '<button onclick="showActionSummary(\'' + msg.id + '\')" class="text-[10px] px-3 py-1.5 rounded-lg font-600" style="background:rgba(255,255,255,0.05);color:#8B96B0;border:1px solid rgba(255,255,255,0.1)">Details</button>'
           + '<button onclick="dashResolveAndNotify(\'' + msg.id + '\', this)" class="text-[10px] px-3 py-1.5 rounded-lg font-600" style="background:rgba(0,200,150,0.06);color:#00C896;border:1px solid rgba(0,200,150,0.15)">✓ Resolve &amp; Notify</button>'
           + '</div></div></div>';
       }).join('');
@@ -4001,6 +4015,48 @@ async function loadDashboardView() {
       }).join('');
   }
 }
+
+async function showActionSummary(msgId) {
+  const { data: msg } = await sb.from('messages').select('subject, sender, body_text, ai_reasoning, ai_draft, category, priority, shopify_data, received_at').eq('id', msgId).single();
+  if (!msg) return;
+  
+  var cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
+  var receivedDate = msg.received_at ? new Date(msg.received_at).toLocaleString() : 'N/A';
+  var isLight = document.body.classList.contains('light');
+  
+  var bg = isLight ? '#FFFFFF' : '#16191f';
+  var border = isLight ? '#E5E7EB' : 'rgba(255,255,255,0.05)';
+  var textPrimary = isLight ? '#1A1D26' : 'white';
+  var textSecondary = isLight ? '#6B7280' : '#5A6785';
+  var textBody = isLight ? '#374151' : '#C8D0E0';
+  var cardBg = isLight ? '#F3F4F6' : 'rgba(0,0,0,0.2)';
+  var draftBg = isLight ? '#F0FDF4' : 'rgba(0,200,150,0.04)';
+  var draftBorder = isLight ? '#BBF7D0' : 'rgba(0,200,150,0.15)';
+  var priorityColors = {'Urgent':'#F87171','High':'#F87171','Medium':'#F0A500','Low':'#5A6785'};
+  var pColor = priorityColors[msg.priority] || '#5A6785';
+  
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  
+  overlay.innerHTML = '<div style="background:' + bg + ';border:1px solid ' + border + ';border-radius:16px;padding:24px;max-width:560px;width:90%;max-height:85vh;overflow-y:auto;">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><h3 style="color:' + textPrimary + ';font-weight:700;font-size:14px;">Action Details</h3><button onclick="this.closest(\'div[style*=fixed]\').remove()" style="background:none;border:none;color:' + textSecondary + ';cursor:pointer;font-size:18px;">✕</button></div>'
+    + '<div style="display:flex;gap:8px;margin-bottom:16px;"><span style="font-size:10px;padding:2px 8px;border-radius:12px;background:' + pColor + '20;color:' + pColor + ';font-weight:700;">' + (msg.priority || 'Medium') + '</span><span style="font-size:10px;padding:2px 8px;border-radius:12px;background:rgba(0,200,150,0.1);color:#00C896;font-weight:700;">' + (msg.category || 'general').replace(/_/g,' ') + '</span></div>'
+    + '<div style="margin-bottom:12px;"><span style="color:' + textSecondary + ';font-size:10px;">CUSTOMER</span><p style="color:' + textPrimary + ';font-size:13px;margin:2px 0;">' + cleanName + '</p></div>'
+    + '<div style="margin-bottom:12px;"><span style="color:' + textSecondary + ';font-size:10px;">SUBJECT</span><p style="color:' + textPrimary + ';font-size:13px;margin:2px 0;">' + (msg.subject || 'No subject') + '</p></div>'
+    + '<div style="margin-bottom:12px;"><span style="color:' + textSecondary + ';font-size:10px;">RECEIVED</span><p style="color:' + textSecondary + ';font-size:12px;margin:2px 0;">' + receivedDate + '</p></div>'
+    + '<div style="margin-bottom:12px;"><span style="color:' + textSecondary + ';font-size:10px;">CUSTOMER EMAIL</span><div style="background:' + cardBg + ';border:1px solid ' + border + ';border-radius:8px;padding:12px;margin-top:4px;"><p style="color:' + textBody + ';font-size:11px;white-space:pre-wrap;max-height:150px;overflow-y:auto;">' + (msg.body_text || '').substring(0, 600) + '</p></div></div>'
+    + '<div style="margin-bottom:12px;"><span style="color:' + textSecondary + ';font-size:10px;">AI REASONING</span><p style="color:' + textBody + ';font-size:12px;margin:2px 0;white-space:pre-wrap;">' + (msg.ai_reasoning || 'No reasoning') + '</p></div>'
+    + (msg.ai_draft ? '<div style="margin-bottom:12px;"><span style="color:' + textSecondary + ';font-size:10px;">AI DRAFT REPLY</span><div style="background:' + draftBg + ';border:1px solid ' + draftBorder + ';border-radius:8px;padding:12px;margin-top:4px;"><p style="color:' + textBody + ';font-size:11px;white-space:pre-wrap;max-height:200px;overflow-y:auto;">' + msg.ai_draft.substring(0, 500) + '</p></div></div>' : '')
+    + '<div style="display:flex;gap:8px;margin-top:16px;">'
+    + '<button onclick="this.closest(\'div[style*=fixed]\').remove();dashOpenTicket(\'' + msgId + '\')" style="flex:1;padding:10px;background:rgba(0,200,150,0.1);color:#00C896;border:1px solid rgba(0,200,150,0.2);border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;">Open in Review Board</button>'
+    + '<button onclick="this.closest(\'div[style*=fixed]\').remove();dashResolveAndNotify(\'' + msgId + '\',null)" style="flex:1;padding:10px;background:rgba(0,200,150,0.06);color:#00C896;border:1px solid rgba(0,200,150,0.15);border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;">✓ Resolve & Notify</button>'
+    + '</div>'
+    + '</div>';
+  
+  document.body.appendChild(overlay);
+}
+
 async function dashResolveAndNotify(msgId, btn) {
   if (btn) { btn.textContent = 'Generating reply...'; btn.disabled = true; }
   try {
