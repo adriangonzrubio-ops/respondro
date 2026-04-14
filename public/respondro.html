@@ -3912,45 +3912,63 @@ async function showResolvedSummary(msgId) {
 
 // ── DASHBOARD ──
 async function loadDashboardView() {
-  const { data: msgs } = await sb.from('messages').select('status, ai_reasoning, subject, sender, id, received_at, category, priority');
-  if (!msgs) return;
-
-  const review = msgs.filter(m => m.status === 'needs_review' || m.status === 'pending').length;
-  const auto = msgs.filter(m => m.status === 'automated').length;
-  const done = msgs.filter(m => m.status === 'done' || m.status === 'closed').length;
-  const actionKeywords = ['refund', 'cancel', 'replacement', 'escalat', 'manual', 'process', 'issue', 'partial', 'damage', 'wrong', 'missing'];
-
-  const actionItems = msgs.filter(m =>
-    m.status === 'needs_review' &&
-    actionKeywords.some(k => (m.ai_reasoning || '').toLowerCase().includes(k) || (m.category || '').toLowerCase().includes(k))
-  );
-
-  const currentFilter = window.dashFilterRange || 'today';
-  const filterDate = currentFilter === 'today' ? new Date(new Date().setHours(0,0,0,0))
-    : currentFilter === 'week' ? new Date(Date.now() - 7*24*60*60*1000)
-    : currentFilter === 'month' ? new Date(Date.now() - 30*24*60*60*1000)
+  var currentFilter = window.dashFilterRange || 'today';
+  var now = new Date();
+  var filterDate = currentFilter === 'today' ? new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    : currentFilter === 'week' ? new Date(now.getTime() - 7*24*60*60*1000)
+    : currentFilter === 'month' ? new Date(now.getTime() - 30*24*60*60*1000)
     : new Date(0);
 
-  const resolvedItems = msgs.filter(m =>
-    (m.status === 'done' || m.status === 'closed') &&
-    actionKeywords.some(k => (m.ai_reasoning || '').toLowerCase().includes(k) || (m.category || '').toLowerCase().includes(k)) &&
-    new Date(m.received_at) >= filterDate
-  ).slice(0, 30);
+  var { data: msgs } = await sb.from('messages').select('status, ai_reasoning, subject, sender, id, received_at, category, priority, sent_at, updated_at');
+  if (!msgs) return;
 
-  const el = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = val; };
+  // Filter messages by time range
+  var timeFiltered = msgs.filter(function(m) {
+    var d = new Date(m.received_at || m.updated_at || 0);
+    return d >= filterDate;
+  });
+
+  // Stats from time-filtered messages
+  var review = timeFiltered.filter(function(m) { return (m.status === 'needs_review' || m.status === 'pending') && m.category !== 'spam'; }).length;
+  var auto = timeFiltered.filter(function(m) { return m.status === 'automated' && m.category !== 'spam'; }).length;
+  var done = timeFiltered.filter(function(m) { return m.status === 'done' || m.status === 'closed'; }).length;
+  var actionKeywords = ['refund', 'cancel', 'replacement', 'escalat', 'manual', 'process', 'issue', 'partial', 'damage', 'wrong', 'missing'];
+  var actionItems = timeFiltered.filter(function(m) {
+    return m.status === 'needs_review' && actionKeywords.some(function(k) { return (m.ai_reasoning || '').toLowerCase().includes(k) || (m.category || '').toLowerCase().includes(k); });
+  });
+  var actions = actionItems.length;
+
+  var el = function(id, val) { var e = document.getElementById(id); if(e) e.textContent = val; };
   el('dash-stat-review', review);
   el('dash-stat-auto', auto);
-  el('dash-stat-actions', actionItems.length);
+  el('dash-stat-actions', actions);
   el('dash-stat-resolved', done);
 
-  const queue = document.getElementById('dash-action-queue');
+  // Time filter buttons HTML
+  var timeFilterHtml = '<div class="flex gap-1">' + ['today','week','month','all'].map(function(r) {
+    var active = r === currentFilter;
+    return '<button onclick="setDashFilter(\'' + r + '\')" class="text-[10px] px-3 py-1.5 rounded-lg font-600" style="background:' + (active ? 'rgba(0,200,150,0.1)' : 'transparent') + ';color:' + (active ? '#00C896' : '#5A6785') + ';border:1px solid ' + (active ? 'rgba(0,200,150,0.2)' : 'transparent') + '">' + r.charAt(0).toUpperCase() + r.slice(1) + '</button>';
+  }).join('') + '</div>';
+
+  // Resolved items (always use the selected time filter)
+  var resolvedItems = msgs.filter(function(m) {
+    var isDone = m.status === 'done' || m.status === 'closed';
+    if (!isDone) return false;
+    var resolveDate = new Date(m.sent_at || m.updated_at || m.received_at || 0);
+    return resolveDate >= filterDate;
+  }).sort(function(a, b) {
+    return new Date(b.sent_at || b.updated_at || 0).getTime() - new Date(a.sent_at || a.updated_at || 0).getTime();
+  }).slice(0, 30);
+
+  var queue = document.getElementById('dash-action-queue');
   if (queue) {
-    const needsActionHTML = actionItems.length === 0
+    // Needs Action cards
+    var needsActionHTML = actionItems.length === 0
       ? '<div class="text-xs text-center py-6" style="color:#5A6785">No pending actions</div>'
-      : actionItems.map(msg => {
-        const cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
-        const date = new Date(msg.received_at).toLocaleDateString('en-GB', {day:'numeric', month:'short'});
-        const priorityColor = msg.priority === 'High' ? '#F87171' : msg.priority === 'Medium' ? '#F0A500' : '#5A6785';
+      : actionItems.map(function(msg) {
+        var cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
+        var date = new Date(msg.received_at).toLocaleDateString('en-GB', {day:'numeric', month:'short'});
+        var priorityColor = msg.priority === 'High' || msg.priority === 'Urgent' ? '#F87171' : msg.priority === 'Medium' ? '#F0A500' : '#5A6785';
         return '<div class="flex items-start gap-3 p-4 rounded-xl mb-2" style="background:rgba(240,165,0,0.06);border:1px solid rgba(240,165,0,0.15)">'
           + '<span style="font-size:18px;flex-shrink:0">⚠️</span>'
           + '<div class="flex-1 min-w-0">'
@@ -3959,54 +3977,58 @@ async function loadDashboardView() {
           + '<div class="flex items-center gap-2"><span class="text-[9px] font-mono" style="color:' + priorityColor + '">' + (msg.priority || '') + '</span><span class="text-[9px] font-mono" style="color:#5A6785">' + date + '</span></div>'
           + '</div>'
           + '<div class="text-[11px] mb-1" style="color:#8B96B0">' + cleanName + '</div>'
-          + '<div class="text-[11px] mb-2" style="color:#F0A500">' + (msg.ai_reasoning || 'Needs manual review') + '</div>'
+          + '<div class="text-[11px] mb-2" style="color:#F0A500">' + (msg.ai_reasoning || 'Needs manual review').substring(0, 200) + '</div>'
           + '<div class="flex gap-2">'
           + '<button onclick="dashOpenTicket(\'' + msg.id + '\')" class="text-[10px] px-3 py-1.5 rounded-lg font-600" style="background:rgba(0,200,150,0.1);color:#00C896;border:1px solid rgba(0,200,150,0.2)">View ticket</button>'
-          + '<button onclick="showActionSummary(\'' + msg.id + '\')" class="text-[10px] px-3 py-1.5 rounded-lg font-600" style="background:rgba(255,255,255,0.05);color:#8B96B0;border:1px solid rgba(255,255,255,0.1)">Details</button>'
+          + '<button onclick="showActionSummary(\'' + msg.id + '\')" class="text-[10px] px-3 py-1.5 rounded-lg font-600" style="background:rgba(0,200,150,0.1);color:#00C896;border:1px solid rgba(0,200,150,0.2)">Details</button>'
           + '<button onclick="dashResolveAndNotify(\'' + msg.id + '\', this)" class="text-[10px] px-3 py-1.5 rounded-lg font-600" style="background:rgba(0,200,150,0.06);color:#00C896;border:1px solid rgba(0,200,150,0.15)">✓ Resolve &amp; Notify</button>'
           + '</div></div></div>';
       }).join('');
 
-    const resolvedHTML = resolvedItems.length === 0
-      ? '<div class="text-xs text-center py-6" style="color:#5A6785">No resolved actions yet</div>'
-      : resolvedItems.map(msg => {
-        const cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
-        const date = new Date(msg.received_at).toLocaleDateString('en-GB', {day:'numeric', month:'short'});
+    // Resolved cards
+    var resolvedHTML = resolvedItems.length === 0
+      ? '<div class="text-xs text-center py-6" style="color:#5A6785">No resolved actions in this period</div>'
+      : resolvedItems.map(function(msg) {
+        var cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
+        var date = new Date(msg.sent_at || msg.received_at).toLocaleDateString('en-GB', {day:'numeric', month:'short'});
         return '<div class="flex items-center gap-3 p-3 rounded-xl mb-2 cursor-pointer hover:opacity-80 transition-all" onclick="showResolvedSummary(\'' + msg.id + '\')" style="background:rgba(0,200,150,0.04);border:1px solid rgba(0,200,150,0.1)">'
           + '<span style="font-size:14px;flex-shrink:0">✅</span>'
           + '<div class="flex-1 min-w-0">'
           + '<span class="text-xs font-600 text-white truncate block">' + (msg.subject || 'No Subject') + '</span>'
           + '<span class="text-[10px]" style="color:#5A6785">' + cleanName + ' · ' + date + '</span>'
           + '</div>'
-          + '<button onclick="showResolvedSummary(&quot;' + msg.id + '&quot;)" class="text-[9px] px-2 py-0.5 rounded-full font-mono cursor-pointer hover:opacity-80" style="background:rgba(0,200,150,0.1);color:#00C896;border:none">resolved</button>'
+          + '<span class="text-[9px] px-2 py-0.5 rounded-full font-mono" style="background:rgba(0,200,150,0.1);color:#00C896">resolved</span>'
           + '</div>';
       }).join('');
 
     queue.innerHTML = ''
+      + '<div class="flex items-center justify-between mb-4">'
+      + '<h3 class="font-display font-600 text-sm">🔔 Human Action Queue</h3>'
+      + timeFilterHtml
+      + '</div>'
       + '<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">'
       + '<div>'
       + '<div class="flex items-center justify-between mb-3"><h4 class="text-xs font-display font-700" style="color:#F0A500">⚠️ Needs Action (' + actionItems.length + ')</h4></div>'
       + '<div style="max-height:500px;overflow-y:auto">' + needsActionHTML + '</div>'
       + '</div>'
       + '<div>'
-      + '<div class="flex items-center justify-between mb-3"><h4 class="text-xs font-display font-700" style="color:#00C896">✅ Resolved (' + resolvedItems.length + ')</h4>'
-      + '<div class="flex gap-1">' + ['today','week','month','all'].map(function(r) { var active = r === currentFilter; return '<button onclick="setDashFilter(\'' + r + '\')" class="text-[9px] px-2 py-1 rounded" style="background:' + (active ? 'rgba(0,200,150,0.1)' : 'transparent') + ';color:' + (active ? '#00C896' : '#5A6785') + '" id="df-' + r + '">' + r.charAt(0).toUpperCase() + r.slice(1) + '</button>'; }).join('') + '</div>'
-      + '</div>'
+      + '<div class="flex items-center justify-between mb-3"><h4 class="text-xs font-display font-700" style="color:#00C896">✅ Resolved (' + resolvedItems.length + ')</h4></div>'
       + '<div style="max-height:500px;overflow-y:auto">' + resolvedHTML + '</div>'
       + '</div>'
       + '</div>';
   }
 
-  const recent = msgs.filter(m => m.status === 'done' || m.status === 'automated').slice(0, 8);
-  const recentEl = document.getElementById('dash-recent');
+  // Recent activity
+  var recent = msgs.filter(function(m) { return m.status === 'done' || m.status === 'automated'; }).slice(0, 8);
+  var recentEl = document.getElementById('dash-recent');
   if (recentEl) {
     recentEl.innerHTML = recent.length === 0
       ? '<div class="text-xs" style="color:#5A6785">No recent activity yet.</div>'
-      : recent.map(msg => {
-        const cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
-        const icon = msg.status === 'automated' ? '⚡' : '✅';
-        const label = msg.status === 'automated' ? 'Auto-sent' : 'Resolved';
-        const color = msg.status === 'automated' ? '#00C896' : '#5A6785';
+      : recent.map(function(msg) {
+        var cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
+        var icon = msg.status === 'automated' ? '⚡' : '✅';
+        var label = msg.status === 'automated' ? 'Auto-sent' : 'Resolved';
+        var color = msg.status === 'automated' ? '#00C896' : '#5A6785';
         return '<div class="flex items-center gap-3 py-2 text-xs" style="border-bottom:1px solid rgba(255,255,255,0.04)">'
           + '<span>' + icon + '</span>'
           + '<span class="flex-1 truncate">' + cleanName + ' — ' + (msg.subject || 'No Subject') + '</span>'
@@ -4048,9 +4070,10 @@ async function showActionSummary(msgId) {
     + '<div style="margin-bottom:12px;"><span style="color:' + textSecondary + ';font-size:10px;">CUSTOMER EMAIL</span><div style="background:' + cardBg + ';border:1px solid ' + border + ';border-radius:8px;padding:12px;margin-top:4px;"><p style="color:' + textBody + ';font-size:11px;white-space:pre-wrap;max-height:150px;overflow-y:auto;">' + (msg.body_text || '').substring(0, 600) + '</p></div></div>'
     + '<div style="margin-bottom:12px;"><span style="color:' + textSecondary + ';font-size:10px;">AI REASONING</span><p style="color:' + textBody + ';font-size:12px;margin:2px 0;white-space:pre-wrap;">' + (msg.ai_reasoning || 'No reasoning') + '</p></div>'
     + (msg.ai_draft ? '<div style="margin-bottom:12px;"><span style="color:' + textSecondary + ';font-size:10px;">AI DRAFT REPLY</span><div style="background:' + draftBg + ';border:1px solid ' + draftBorder + ';border-radius:8px;padding:12px;margin-top:4px;"><p style="color:' + textBody + ';font-size:11px;white-space:pre-wrap;max-height:200px;overflow-y:auto;">' + msg.ai_draft.substring(0, 500) + '</p></div></div>' : '')
-    + '<div style="display:flex;gap:8px;margin-top:16px;">'
-    + '<button onclick="this.closest(\'div[style*=fixed]\').remove();dashOpenTicket(\'' + msgId + '\')" style="flex:1;padding:10px;background:rgba(0,200,150,0.1);color:#00C896;border:1px solid rgba(0,200,150,0.2);border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;">Open in Review Board</button>'
-    + '<button onclick="this.closest(\'div[style*=fixed]\').remove();dashResolveAndNotify(\'' + msgId + '\',null)" style="flex:1;padding:10px;background:rgba(0,200,150,0.06);color:#00C896;border:1px solid rgba(0,200,150,0.15);border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;">✓ Resolve & Notify</button>'
+    + '<div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">'
+    + '<button onclick="this.closest(\'div[style*=fixed]\').remove();dashOpenTicket(\'' + msgId + '\')" style="flex:1;min-width:120px;padding:10px;background:rgba(0,200,150,0.1);color:#00C896;border:1px solid rgba(0,200,150,0.2);border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;">Open in Review Board</button>'
+    + ((['refund_request','cancellation','damaged_item','missing_item','exchange'].indexOf(msg.category) > -1) ? '<button onclick="this.closest(\'div[style*=fixed]\').remove();dashOpenTicketAndRefund(\'' + msgId + '\')" style="padding:10px 16px;background:rgba(248,113,113,0.1);color:#F87171;border:1px solid rgba(248,113,113,0.2);border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;">💰 Refund</button>' : '')
+    + '<button onclick="this.closest(\'div[style*=fixed]\').remove();dashResolveAndNotify(\'' + msgId + '\',null)" style="flex:1;min-width:120px;padding:10px;background:rgba(0,200,150,0.06);color:#00C896;border:1px solid rgba(0,200,150,0.15);border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;">✓ Resolve & Notify</button>'
     + '</div>'
     + '</div>';
   
@@ -4101,6 +4124,15 @@ async function dashResolveAndNotify(msgId, btn) {
     if (btn) { btn.textContent = 'Failed'; btn.disabled = false; }
     showToast('Error: ' + (err.message || 'Could not resolve ticket'));
   }
+}
+
+async function dashOpenTicketAndRefund(msgId) {
+  switchView('review-board', document.getElementById('link-review-board'));
+  await fetchMessages();
+  setTimeout(function() {
+    rbOpenTicket(msgId);
+    setTimeout(function() { openRefundModal(); }, 1500);
+  }, 1000);
 }
 
 async function dashOpenTicket(msgId) {
