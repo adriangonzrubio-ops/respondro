@@ -3126,7 +3126,7 @@ async function fetchMessages() {
   const syncIcon = document.getElementById('rb-sync-icon');
   if (syncIcon) syncIcon.style.animation = 'spin 0.7s linear infinite';
   try {
-    try { await fetch('/api/worker'); } catch(e) {}
+    // Load existing emails from DB INSTANTLY (no waiting)
     const { data: messages, error } = await sb.from('messages').select('*').in('status', ['needs_review','automated','pending','done','closed','spam']).order('received_at', { ascending: false }).limit(100);
     if (error) throw error;
     rbAllMessages = messages || [];
@@ -3139,6 +3139,14 @@ async function fetchMessages() {
   } finally {
     if (syncIcon) syncIcon.style.animation = '';
   }
+  // Fire worker in background to fetch NEW emails (don't wait for it)
+  fetch('/api/worker').then(() => {
+    console.log('📬 Background sync complete, refreshing...');
+    // Auto-refresh the list after worker finishes
+    sb.from('messages').select('*').in('status', ['needs_review','automated','pending','done','closed','spam']).order('received_at', { ascending: false }).limit(100).then(({ data }) => {
+      if (data) { rbAllMessages = data; renderRbTicketList(data); updateRbPendingCount(); }
+    });
+  }).catch(() => {});
 }
 
 function renderRbTicketList(messages) {
