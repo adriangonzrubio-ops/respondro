@@ -399,7 +399,7 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
 <!-- ═══════ DASHBOARD ═══════ -->
 <div id="dashboard">
   <div class="dash-nav">
-    <div class="mr-auto"><img id="nav-logo-dark" src="https://kommodo.ai/i/pe3j0LUYKe7hi5nEUQc3" style="height:28px" alt="Respondro"><img id="nav-logo-light" src="https://kommodo.ai/i/d1uKxSX5i9ekXJSt324h" style="height:28px;display:none" alt="Respondro"></div>
+    <div class="mr-auto"><img id="nav-logo-dark" src="https://kommodo.ai/i/pe3j0LUYKe7hi5nEUQc3" style="height:28px;display:none" alt="Respondro"><img id="nav-logo-light" src="https://kommodo.ai/i/d1uKxSX5i9ekXJSt324h" style="height:28px" alt="Respondro"></div>
     <div class="flex items-center gap-2 text-xs font-mono hidden md:flex" id="api-status-container" style="display:none"><div class="api-dot" id="api-dot" style="background:#3A4760"></div><span id="api-status-txt" style="color:#5A6785"></span></div>
     <div class="flex items-center gap-3 ml-4">
       <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-display font-700" style="background:#1D4E3A;color:#00C896" id="user-avatar">?</div>
@@ -411,8 +411,8 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
   <div class="flex" style="height:calc(100vh - 56px);overflow:hidden">
 <div class="sidebar w-64 bg-[#0f1115] border-r border-white/5 flex flex-col">
     <div class="p-6" id="sidebar-logo-area">
-        <img id="sidebar-logo-dark" src="https://kommodo.ai/i/pe3j0LUYKe7hi5nEUQc3" style="height:26px" alt="Respondro">
-        <img id="sidebar-logo-light" src="https://kommodo.ai/i/d1uKxSX5i9ekXJSt324h" style="height:26px;display:none" alt="Respondro">
+        <img id="respondro-logo-dark" src="https://kommodo.ai/i/pe3j0LUYKe7hi5nEUQc3" style="height:26px" alt="Respondro">
+        <img id="respondro-logo-light" src="https://kommodo.ai/i/d1uKxSX5i9ekXJSt324h" style="height:26px;display:none" alt="Respondro">
         <img id="sidebar-store-logo" src="" style="height:30px;display:none;margin-top:12px" alt="Store Logo">
     </div>
 
@@ -2358,27 +2358,25 @@ function handleSidebarLogoUpload(event, mode) {
 }
 
 async function saveSidebarLogo() {
-    var darkUrl = document.getElementById('sidebar-logo-dark-input')?.value?.trim() || document.getElementById('sidebar-logo-dark')?.value?.trim() || '';
-    var lightUrl = document.getElementById('sidebar-logo-light-input')?.value?.trim() || document.getElementById('sidebar-logo-light')?.value?.trim() || '';
+    var darkUrl = document.getElementById('sidebar-logo-dark')?.value?.trim() || '';
+    var lightUrl = document.getElementById('sidebar-logo-light')?.value?.trim() || '';
     
-    // Try the input fields with id pattern sidebar-logo-dark / sidebar-logo-light
-    var darkInput = document.querySelector('#sidebar-logo-dark[type="text"], input[id="sidebar-logo-dark"]');
-    var lightInput = document.querySelector('#sidebar-logo-light[type="text"], input[id="sidebar-logo-light"]');
-    if (darkInput && darkInput.value) darkUrl = darkInput.value.trim();
-    if (lightInput && lightInput.value) lightUrl = lightInput.value.trim();
+    if (!darkUrl && !lightUrl) { showToast('Please enter at least one logo URL'); return; }
 
+    // Save to localStorage
+    localStorage.setItem('store_logo_dark', darkUrl);
+    localStorage.setItem('store_logo_light', lightUrl);
+    
     // Save to Supabase
-    if (ST.settings?.store_id) {
-        await sb.from('settings').update({
-            sidebar_logo_dark: darkUrl || null,
-            sidebar_logo_light: lightUrl || null
-        }).eq('store_id', ST.settings.store_id);
-    }
+    try {
+        await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sidebar_logo_dark: darkUrl, sidebar_logo_light: lightUrl })
+        });
+    } catch(e) {}
     
-    localStorage.setItem('sidebar_logo_dark', darkUrl);
-    localStorage.setItem('sidebar_logo_light', lightUrl);
-    
-    // Update sidebar store logo
+    // Update sidebar
     var storeLogo = document.getElementById('sidebar-store-logo');
     var isLight = document.body.classList.contains('light');
     var activeUrl = isLight ? (lightUrl || darkUrl) : (darkUrl || lightUrl);
@@ -2390,10 +2388,12 @@ async function saveSidebarLogo() {
     // Update previews
     var previewDark = document.getElementById('preview-logo-dark');
     var previewLight = document.getElementById('preview-logo-light');
-    if (darkUrl && previewDark) { previewDark.src = darkUrl; previewDark.style.display = 'block'; }
-    if (lightUrl && previewLight) { previewLight.src = lightUrl; previewLight.style.display = 'block'; }
+    var placeholderDark = document.getElementById('preview-logo-dark-placeholder');
+    var placeholderLight = document.getElementById('preview-logo-light-placeholder');
+    if (darkUrl && previewDark) { previewDark.src = darkUrl; previewDark.style.display = 'block'; if (placeholderDark) placeholderDark.style.display = 'none'; }
+    if (lightUrl && previewLight) { previewLight.src = lightUrl; previewLight.style.display = 'block'; if (placeholderLight) placeholderLight.style.display = 'none'; }
     
-    showToast('Sidebar logo saved! ✨');
+    showToast('Sidebar logo saved!');
 }
 
 function updateSidebarLogo() {
@@ -3102,8 +3102,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Load store sidebar logo
-            var savedDarkLogo = localStorage.getItem('sidebar_logo_dark') || settings?.sidebar_logo_dark;
-            var savedLightLogo = localStorage.getItem('sidebar_logo_light') || settings?.sidebar_logo_light;
+            var savedDarkLogo = localStorage.getItem('store_logo_dark') || settings?.sidebar_logo_dark;
+            var savedLightLogo = localStorage.getItem('store_logo_light') || settings?.sidebar_logo_light;
             var storeLogo = document.getElementById('sidebar-store-logo');
             if (storeLogo && (savedDarkLogo || savedLightLogo)) {
                 var isLight = document.body.classList.contains('light');
@@ -4216,7 +4216,7 @@ function toggleTheme() {
     if (track) track.style.background = isLight ? 'rgba(0,200,150,0.4)' : 'rgba(255,255,255,0.15)';
   });
   // Swap Respondro logos
-  ['nav-logo', 'sidebar-logo'].forEach(function(prefix) {
+  ['nav-logo', 'respondro-logo'].forEach(function(prefix) {
       var dark = document.getElementById(prefix + '-dark');
       var light = document.getElementById(prefix + '-light');
       if (dark) dark.style.display = 'none';

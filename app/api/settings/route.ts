@@ -61,6 +61,8 @@ export async function POST(request: Request) {
     if (body.auto_address_change_enabled !== undefined) updateData.auto_address_change_enabled = body.auto_address_change_enabled;
     if (body.auto_reply_delay_minutes !== undefined) updateData.auto_reply_delay_minutes = body.auto_reply_delay_minutes;
     if (body.max_auto_refund_amount !== undefined) updateData.max_auto_refund_amount = body.max_auto_refund_amount;
+    if (body.sidebar_logo_dark !== undefined) updateData.sidebar_logo_dark = body.sidebar_logo_dark;
+    if (body.sidebar_logo_light !== undefined) updateData.sidebar_logo_light = body.sidebar_logo_light;
 
     const { data, error } = await supabase
       .from('settings')
