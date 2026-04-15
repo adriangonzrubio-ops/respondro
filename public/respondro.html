@@ -3348,8 +3348,6 @@ function renderRbTicketList(messages) {
   setCount('rbf-all-count', countAll);
   setCount('rbf-review-count', countReview);
   setCount('rbf-auto-count', countAuto);
- if(rbCurrentFilter === 'answered') return m.status === 'done' || m.status === 'automated';
-    if(rbCurrentFilter === 'closed') return m.status === 'closed';
   setCount('rbf-spam-count', countSpam);
 
   // Group by sender email
