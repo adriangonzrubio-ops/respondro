@@ -525,9 +525,9 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
         <div style="position:relative;display:inline-flex;align-items:center" id="answered-dropdown-wrap">
           <button onclick="setRbFilter('answered')" id="rbf-answered" class="rb-filter-btn text-[10px] font-mono py-1.5 px-2 rounded-md transition-all" style="background:transparent;color:#5A6785">Answered</button>
           <button onclick="toggleAnsweredDropdown()" class="text-[10px] py-1 px-0.5 rounded" style="background:transparent;color:#5A6785;cursor:pointer;border:none;line-height:1">▾</button>
-          <div id="answered-dropdown-menu" class="hidden" style="position:absolute;top:100%;left:0;z-index:20;background:#0F1623;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:4px;min-width:100px;margin-top:4px;box-shadow:0 4px 12px rgba(0,0,0,0.3)">
-            <button onclick="setRbFilter('answered');toggleAnsweredDropdown()" class="w-full text-left text-[10px] font-mono py-1.5 px-3 rounded" style="color:#00C896;background:none;border:none;cursor:pointer;display:block">Answered</button>
-            <button onclick="setRbFilter('closed');toggleAnsweredDropdown()" class="w-full text-left text-[10px] font-mono py-1.5 px-3 rounded" style="color:#5A6785;background:none;border:none;cursor:pointer;display:block">Closed</button>
+          <div id="answered-dropdown-menu" class="hidden" style="position:absolute;top:100%;left:0;z-index:999;background:#0F1623;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:4px;min-width:110px;margin-top:4px;box-shadow:0 4px 12px rgba(0,0,0,0.4)">
+            <div onclick="setRbFilter('answered');document.getElementById('answered-dropdown-menu').classList.add('hidden')" style="color:#00C896;cursor:pointer;padding:6px 12px;font-size:11px;font-family:'JetBrains Mono',monospace;border-radius:6px">Answered</div>
+            <div onclick="setRbFilter('closed');document.getElementById('answered-dropdown-menu').classList.add('hidden')" style="color:#5A6785;cursor:pointer;padding:6px 12px;font-size:11px;font-family:'JetBrains Mono',monospace;border-radius:6px">Closed</div>
           </div>
         </div>
         <button onclick="setRbFilter('spam')" id="rbf-spam" class="rb-filter-btn text-[10px] font-mono py-1.5 px-2 rounded-md transition-all" style="background:transparent;color:#5A6785"><span id="rbf-spam-count"></span> Spam</button>
@@ -4144,7 +4144,13 @@ document.addEventListener('click', function(e) {
 
 function toggleAnsweredDropdown() {
   var menu = document.getElementById('answered-dropdown-menu');
-  if (menu) menu.classList.toggle('hidden');
+  if (!menu) return;
+  menu.classList.toggle('hidden');
+  // Add hover effects to dropdown items
+  menu.querySelectorAll('button').forEach(function(btn) {
+    btn.onmouseenter = function() { this.style.background = 'rgba(255,255,255,0.05)'; };
+    btn.onmouseleave = function() { this.style.background = 'none'; };
+  });
 }
 document.addEventListener('click', function(e) {
   var wrap = document.getElementById('answered-dropdown-wrap');
