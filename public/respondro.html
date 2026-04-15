@@ -484,14 +484,11 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
     <div class="settings-card text-center" style="margin:0"><div class="text-xs mb-1" style="color:#888">Actions Needed</div><div class="text-2xl font-bold" id="dash-stat-actions" style="color:#F0A500">—</div></div>
     <div class="settings-card text-center" style="margin:0"><div class="text-xs mb-1" style="color:#888">Resolved</div><div class="text-2xl font-bold" id="dash-stat-resolved">—</div></div>
   </div>
-  <div id="dash-time-filter" class="flex justify-end mb-4"></div>
+  <div id="dash-time-filter" class="flex justify-end mb-3"></div>
   <div id="dash-action-queue" class="space-y-3">
     <div class="text-xs text-center py-6" style="color:#5A6785">Loading action queue...</div>
   </div>
-  <div class="settings-card" style="margin:0">
-    <h3 class="font-display font-600 text-sm mb-4">Recent Activity</h3>
-    <div id="dash-recent" class="space-y-2"></div>
-  </div>
+  <div id="dash-recent" class="hidden"></div>
 </div>
 
 <div id="view-review-board" class="hidden h-full flex flex-col overflow-hidden">
@@ -521,12 +518,12 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
       <div class="p-3 border-b border-white/5">
         <input type="text" id="rb-search" placeholder="Search tickets..." oninput="filterTickets(this.value)" class="w-full text-xs px-3 py-2 rounded-lg outline-none" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#E8EBF2">
       </div>
-      <div class="flex gap-1 p-2 border-b border-white/5" style="overflow-x:auto;flex-wrap:wrap">
-        <button onclick="setRbFilter('all')" id="rbf-all" class="rb-filter-btn text-[10px] font-mono py-1.5 px-3 rounded-md transition-all whitespace-nowrap" style="background:rgba(0,200,150,0.1);color:#00C896"><span id="rbf-all-count"></span> All</button>
-        <button onclick="setRbFilter('needs_review')" id="rbf-needs_review" class="rb-filter-btn text-[10px] font-mono py-1.5 px-3 rounded-md transition-all whitespace-nowrap" style="background:transparent;color:#5A6785"><span id="rbf-review-count"></span> Review</button>
-        <button onclick="setRbFilter('automated')" id="rbf-automated" class="rb-filter-btn text-[10px] font-mono py-1.5 px-3 rounded-md transition-all whitespace-nowrap" style="background:transparent;color:#5A6785"><span id="rbf-auto-count"></span> Auto</button>
-        <button onclick="setRbFilter('archived')" id="rbf-archived" class="rb-filter-btn text-[10px] font-mono py-1.5 px-3 rounded-md transition-all whitespace-nowrap" style="background:transparent;color:#5A6785"><span id="rbf-archived-count"></span> Archived</button>
-        <button onclick="setRbFilter('spam')" id="rbf-spam" class="rb-filter-btn text-[10px] font-mono py-1.5 px-3 rounded-md transition-all whitespace-nowrap" style="background:transparent;color:#5A6785"><span id="rbf-spam-count"></span> Spam</button>
+      <div class="flex gap-1 p-2 border-b border-white/5">
+        <button onclick="setRbFilter('all')" id="rbf-all" class="rb-filter-btn text-[10px] font-mono py-1.5 px-2 rounded-md transition-all" style="background:rgba(0,200,150,0.1);color:#00C896"><span id="rbf-all-count"></span> All</button>
+        <button onclick="setRbFilter('needs_review')" id="rbf-needs_review" class="rb-filter-btn text-[10px] font-mono py-1.5 px-2 rounded-md transition-all" style="background:transparent;color:#5A6785"><span id="rbf-review-count"></span> Review</button>
+        <button onclick="setRbFilter('automated')" id="rbf-automated" class="rb-filter-btn text-[10px] font-mono py-1.5 px-2 rounded-md transition-all" style="background:transparent;color:#5A6785"><span id="rbf-auto-count"></span> Auto</button>
+        <button onclick="setRbFilter('archived')" id="rbf-archived" class="rb-filter-btn text-[10px] font-mono py-1.5 px-2 rounded-md transition-all" style="background:transparent;color:#5A6785">Archived</button>
+        <button onclick="setRbFilter('spam')" id="rbf-spam" class="rb-filter-btn text-[10px] font-mono py-1.5 px-2 rounded-md transition-all" style="background:transparent;color:#5A6785"><span id="rbf-spam-count"></span> Spam</button>
       </div>
       <div id="rb-ticket-list" class="flex-1 overflow-y-auto p-2 space-y-1">
         <div class="text-center text-[10px] uppercase tracking-widest text-gray-600 mt-10">Loading tickets...</div>
@@ -4255,11 +4252,7 @@ async function loadDashboardView() {
     return new Date(m.sent_at || m.updated_at || m.received_at || 0) >= filterDate;
   }).sort(function(a, b) { return new Date(b.sent_at || b.updated_at || 0).getTime() - new Date(a.sent_at || a.updated_at || 0).getTime(); }).slice(0, 30);
 
-  // Resolved time filter
-  var resolvedFilterHtml = '<div class="flex gap-1">' + ['today','week','month','all'].map(function(r) {
-    var active = r === currentFilter;
-    return '<button onclick="setDashFilter(\'' + r + '\')" class="text-[9px] px-2 py-1 rounded" style="background:' + (active ? 'rgba(0,200,150,0.1)' : 'transparent') + ';color:' + (active ? '#00C896' : '#5A6785') + '">' + r.charAt(0).toUpperCase() + r.slice(1) + '</button>';
-  }).join('') + '</div>';
+  var resolvedFilterHtml = '';
 
   var queue = document.getElementById('dash-action-queue');
   if (queue) {
@@ -4317,38 +4310,6 @@ async function loadDashboardView() {
       + '</div>'
       + '</div></div>';
   }
-
-  var recent = msgs.filter(function(m) { return m.status === 'done' || m.status === 'automated'; }).slice(0, 8);
-  var recentEl = document.getElementById('dash-recent');
-  if (recentEl) {
-    recentEl.innerHTML = recent.length === 0 ? '<div class="text-xs" style="color:#5A6785">No recent activity yet.</div>'
-      : recent.map(function(msg) {
-        var cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
-        var icon = msg.status === 'automated' ? '⚡' : '✅';
-        var label = msg.status === 'automated' ? 'Auto-sent' : 'Resolved';
-        var color = msg.status === 'automated' ? '#00C896' : '#5A6785';
-        return '<div class="flex items-center gap-3 py-2 text-xs" style="border-bottom:1px solid rgba(255,255,255,0.04)"><span>' + icon + '</span><span class="flex-1 truncate">' + cleanName + ' — ' + (msg.subject || 'No Subject') + '</span><span class="text-[10px] px-2 py-0.5 rounded-full font-mono" style="background:' + color + '18;color:' + color + '">' + label + '</span></div>';
-      }).join('');
-  }
-}
-
-  // Recent activity
-  var recent = msgs.filter(function(m) { return m.status === 'done' || m.status === 'automated'; }).slice(0, 8);
-  var recentEl = document.getElementById('dash-recent');
-  if (recentEl) {
-    recentEl.innerHTML = recent.length === 0
-      ? '<div class="text-xs" style="color:#5A6785">No recent activity yet.</div>'
-      : recent.map(function(msg) {
-        var cleanName = (msg.sender || 'Customer').split('<')[0].replace(/"/g,'').trim();
-        var icon = msg.status === 'automated' ? '⚡' : '✅';
-        var label = msg.status === 'automated' ? 'Auto-sent' : 'Resolved';
-        var color = msg.status === 'automated' ? '#00C896' : '#5A6785';
-        return '<div class="flex items-center gap-3 py-2 text-xs" style="border-bottom:1px solid rgba(255,255,255,0.04)">'
-          + '<span>' + icon + '</span>'
-          + '<span class="flex-1 truncate">' + cleanName + ' — ' + (msg.subject || 'No Subject') + '</span>'
-          + '<span class="text-[10px] px-2 py-0.5 rounded-full font-mono" style="background:' + color + '18;color:' + color + '">' + label + '</span>'
-          + '</div>';
-      }).join('');
   }
 
 async function showActionSummary(msgId) {
