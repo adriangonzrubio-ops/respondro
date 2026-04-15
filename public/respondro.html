@@ -399,7 +399,7 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
 <!-- ═══════ DASHBOARD ═══════ -->
 <div id="dashboard">
   <div class="dash-nav">
-    <div class="mr-auto"><img id="nav-logo-dark" src="https://kommodo.ai/i/pe3j0LUYKe7hi5nEUQc3" style="height:28px;display:none" alt="Respondro"><img id="nav-logo-light" src="https://kommodo.ai/i/d1uKxSX5i9ekXJSt324h" style="height:28px" alt="Respondro"></div>
+    <div class="mr-auto"><img id="nav-logo-dark" src="https://i.ibb.co/5xf5tGBY/dark-mode-logo.png" style="height:28px;display:none" alt="Respondro"><img id="nav-logo-light" src="https://i.ibb.co/JjBmc7bK/light-mode-logo.png" style="height:28px" alt="Respondro"></div>
     <div class="flex items-center gap-2 text-xs font-mono hidden md:flex" id="api-status-container" style="display:none"><div class="api-dot" id="api-dot" style="background:#3A4760"></div><span id="api-status-txt" style="color:#5A6785"></span></div>
     <div class="flex items-center gap-3 ml-4">
       <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-display font-700" style="background:#1D4E3A;color:#00C896" id="user-avatar">?</div>
@@ -411,8 +411,8 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
   <div class="flex" style="height:calc(100vh - 56px);overflow:hidden">
 <div class="sidebar w-64 bg-[#0f1115] border-r border-white/5 flex flex-col">
     <div class="p-6" id="sidebar-logo-area">
-        <img id="respondro-logo-dark" src="https://kommodo.ai/i/pe3j0LUYKe7hi5nEUQc3" style="height:26px" alt="Respondro">
-        <img id="respondro-logo-light" src="https://kommodo.ai/i/d1uKxSX5i9ekXJSt324h" style="height:26px;display:none" alt="Respondro">
+        <img id="respondro-logo-dark" src="https://i.ibb.co/5xf5tGBY/dark-mode-logo.png" style="height:26px;display:none" alt="Respondro">
+        <img id="respondro-logo-light" src="https://i.ibb.co/JjBmc7bK/light-mode-logo.png" style="height:26px" alt="Respondro">
         <img id="sidebar-store-logo" src="" style="height:30px;display:none;margin-top:12px" alt="Store Logo">
     </div>
 
@@ -831,7 +831,7 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- SECTION 1: Email Branding & Signature -->
         <div class="bg-[#16191f] border border-white/5 rounded-2xl p-6">
-            <h3 class="text-white font-bold text-sm mb-4 flex items-center gap-2"><span>✉️</span> Email Branding & Signature</h3>
+            <h3 class="text-white font-bold text-sm mb-4 flex items-center gap-2"><span>✉️</span> Email Branding & Signature <button onclick="showLogoHelp()" class="text-[10px] px-1.5 py-0.5 rounded-full" style="background:rgba(0,200,150,0.1);color:#00C896;border:1px solid rgba(0,200,150,0.2);cursor:pointer">?</button></h3>
             <div class="space-y-4">
                 <div class="flex flex-col gap-1">
                     <label class="text-xs text-gray-400">Store Logo</label>
@@ -864,7 +864,7 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
 
         <!-- SECTION 2: Sidebar Logo -->
         <div class="bg-[#16191f] border border-white/5 rounded-2xl p-6">
-            <h3 class="text-white font-bold text-sm mb-1 flex items-center gap-2"><span>🖼️</span> Sidebar Logo</h3>
+            <h3 class="text-white font-bold text-sm mb-1 flex items-center gap-2"><span>🖼️</span> Sidebar Logo <button onclick="showLogoHelp()" class="text-[10px] px-1.5 py-0.5 rounded-full" style="background:rgba(0,200,150,0.1);color:#00C896;border:1px solid rgba(0,200,150,0.2);cursor:pointer">?</button></h3>
             <p class="text-gray-500 text-xs mb-4">Add your store logo to the sidebar. Upload both versions for dark/light mode.</p>
             <div class="grid grid-cols-2 gap-4">
                 <div class="flex flex-col gap-2">
@@ -1764,8 +1764,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         showToast('Shopify connected ✓');
         setTimeout(() => window.history.replaceState({}, '', '/respondro.html?tab=settings'), 1000);
     } else {
-        const activeTab = params.get('tab') || 'overview';
-        showView(activeTab);
+        const activeTab = params.get('tab') || 'dashboard';
+    if (activeTab === 'overview') {
+      switchView('dashboard', document.getElementById('link-dashboard'));
+    } else if (activeTab === 'review-board') {
+      switchView('review-board', document.getElementById('link-review-board'));
+    } else if (activeTab === 'agents') {
+      switchView('agents', document.getElementById('link-agents'));
+    } else if (activeTab === 'integrations') {
+      switchView('integrations', document.getElementById('link-integrations'));
+    } else if (activeTab === 'mailboxes') {
+      switchView('mailboxes', document.getElementById('link-mailboxes'));
+    } else if (activeTab === 'settings') {
+      switchView('settings', document.getElementById('link-settings'));
+    } else {
+      switchView('dashboard', document.getElementById('link-dashboard'));
+    }
     }
 
     initTickets(); 
@@ -3134,6 +3148,39 @@ async function loadAutonomySettings() {
     if (el('refund-currency-label') && s.currency) el('refund-currency-label').textContent = s.currency || 'USD';
 }
 
+function showLogoHelp() {
+  var isLight = document.body.classList.contains('light');
+  var bg = isLight ? '#FFFFFF' : '#16191f';
+  var border = isLight ? '#E5E7EB' : 'rgba(255,255,255,0.05)';
+  var textPrimary = isLight ? '#1A1D26' : 'white';
+  var textBody = isLight ? '#374151' : '#C8D0E0';
+  var textMuted = isLight ? '#6B7280' : '#5A6785';
+  
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  
+  overlay.innerHTML = '<div style="background:' + bg + ';border:1px solid ' + border + ';border-radius:16px;padding:24px;max-width:480px;width:90%;">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><h3 style="color:' + textPrimary + ';font-weight:700;font-size:14px;">How to get your logo URL</h3><button onclick="this.closest(\'div[style*=fixed]\').remove()" style="background:none;border:none;color:' + textMuted + ';cursor:pointer;font-size:18px;">✕</button></div>'
+    + '<div style="color:' + textBody + ';font-size:12px;line-height:1.8;">'
+    + '<p style="margin-bottom:12px;">The easiest way to get your logo URL is from your Shopify admin:</p>'
+    + '<div style="padding:12px;background:' + (isLight ? '#F3F4F6' : 'rgba(0,0,0,0.2)') + ';border-radius:10px;margin-bottom:12px;">'
+    + '<p><strong style="color:#00C896">1.</strong> Go to your Shopify Admin</p>'
+    + '<p><strong style="color:#00C896">2.</strong> Click <strong>Content</strong> in the sidebar</p>'
+    + '<p><strong style="color:#00C896">3.</strong> Click <strong>Files</strong></p>'
+    + '<p><strong style="color:#00C896">4.</strong> Search for "logo"</p>'
+    + '<p><strong style="color:#00C896">5.</strong> Hover over your logo file</p>'
+    + '<p><strong style="color:#00C896">6.</strong> Click the <strong>link icon</strong> on the right to copy the URL</p>'
+    + '<p><strong style="color:#00C896">7.</strong> Paste it into the URL field in Settings</p>'
+    + '</div>'
+    + '<p style="color:' + textMuted + ';font-size:11px;">The URL should look like: https://cdn.shopify.com/s/files/1/...</p>'
+    + '</div>'
+    + '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="width:100%;padding:10px;background:rgba(0,200,150,0.1);color:#00C896;border:1px solid rgba(0,200,150,0.2);border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;margin-top:12px;">Got it</button>'
+    + '</div>';
+  
+  document.body.appendChild(overlay);
+}
+
 async function saveAutonomySettings() {
     var settings = {
         auto_reply_enabled: document.getElementById('toggle-auto-reply')?.checked || false,
@@ -4217,11 +4264,19 @@ function toggleTheme() {
   });
   // Swap Respondro logos
   ['nav-logo', 'respondro-logo'].forEach(function(prefix) {
-      var dark = document.getElementById(prefix + '-dark');
-      var light = document.getElementById(prefix + '-light');
-      if (dark) dark.style.display = 'none';
-      if (light) light.style.display = 'block';
-    });
+    var dark = document.getElementById(prefix + '-dark');
+    var light = document.getElementById(prefix + '-light');
+    if (dark) dark.style.display = isLight ? 'none' : 'block';
+    if (light) light.style.display = isLight ? 'block' : 'none';
+  });
+  // Swap store sidebar logo
+  var storeLogo = document.getElementById('sidebar-store-logo');
+  if (storeLogo) {
+    var darkUrl = localStorage.getItem('store_logo_dark');
+    var lightUrl = localStorage.getItem('store_logo_light');
+    var activeUrl = isLight ? (lightUrl || darkUrl) : (darkUrl || lightUrl);
+    if (activeUrl) storeLogo.src = activeUrl;
+  }
 }
 (function() {
   if (localStorage.getItem('respondro_theme') !== 'dark') {
