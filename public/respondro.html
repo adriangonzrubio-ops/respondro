@@ -3292,7 +3292,7 @@ async function fetchMessages() {
   if (syncIcon) syncIcon.style.animation = 'spin 0.7s linear infinite';
   try {
     // Load existing emails from DB INSTANTLY (no waiting)
-    const { data: messages, error } = await sb.from('messages').select('*').in('status', ['needs_review','automated','pending','done','closed','spam','queued']).order('received_at', { ascending: false }).limit(100);
+    const { data: messages, error } = await sb.from('messages').select('*').in('status', ['needs_review','automated','pending','done','closed','spam','queued']).order('received_at', { ascending: false }).limit(500);
     if (error) throw error;
     rbAllMessages = messages || [];
     renderRbTicketList(rbAllMessages);
@@ -3308,7 +3308,7 @@ async function fetchMessages() {
   fetch('/api/worker').then(() => {
     console.log('📬 Background sync complete, refreshing...');
     // Auto-refresh the list after worker finishes
-    sb.from('messages').select('*').in('status', ['needs_review','automated','pending','done','closed','spam','queued']).order('received_at', { ascending: false }).limit(100).then(({ data }) => {
+    sb.from('messages').select('*').in('status', ['needs_review','automated','pending','done','closed','spam','queued']).order('received_at', { ascending: false }).limit(500).then(({ data }) => {
       if (data) { rbAllMessages = data; renderRbTicketList(data); updateRbPendingCount(); }
     });
   }).catch(() => {});
@@ -3998,7 +3998,9 @@ async function sendMarkedDrafts() {
         body: JSON.stringify({ text: msg.ai_draft, customerEmail: msg.sender })
       });
       if (res.ok) {
-        await sb.from('messages').update({ status: 'done', sent_reply: msg.ai_draft, sent_at: new Date().toISOString() }).eq('id', msg.id);
+        var actionCats = ['refund_request','cancellation','damaged_item','missing_item','exchange'];
+        var sendStatus = actionCats.indexOf(msg.category) > -1 ? 'needs_review' : 'done';
+        await sb.from('messages').update({ status: sendStatus, sent_reply: msg.ai_draft, sent_at: new Date().toISOString() }).eq('id', msg.id);
         sent++;
         window.rbMarkedIds.delete(msg.id);
       }
@@ -4035,7 +4037,9 @@ async function sendAllDrafts() {
       });
 
       if (res.ok) {
-        await sb.from('messages').update({ status: 'done', sent_reply: msg.ai_draft, sent_at: new Date().toISOString() }).eq('id', msg.id);
+        var actionCats2 = ['refund_request','cancellation','damaged_item','missing_item','exchange'];
+        var sendStatus2 = actionCats2.indexOf(msg.category) > -1 ? 'needs_review' : 'done';
+        await sb.from('messages').update({ status: sendStatus2, sent_reply: msg.ai_draft, sent_at: new Date().toISOString() }).eq('id', msg.id);
         sent++;
       } else {
         failed++;
@@ -4061,7 +4065,10 @@ async function rbApproveSend() {
   try {
     const res = await fetch('/api/messages/' + rbActiveMessage.id + '/send', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:draft,customerEmail:rbActiveMessage.sender})});
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    await sb.from('messages').update({status:'done', sent_reply:draft, sent_at:new Date().toISOString()}).eq('id',rbActiveMessage.id);
+    // Action categories stay as needs_review until manually resolved (refund/cancel still pending)
+    var actionCategories = ['refund_request','cancellation','damaged_item','missing_item','exchange'];
+    var newStatus = actionCategories.indexOf(rbActiveMessage.category) > -1 ? 'needs_review' : 'done';
+    await sb.from('messages').update({status:newStatus, sent_reply:draft, sent_at:new Date().toISOString()}).eq('id',rbActiveMessage.id);
     var draftEl = document.getElementById('rb-draft-textarea'); if (draftEl) draftEl.innerHTML = '';
     rbAllMessages = rbAllMessages.filter(function(m) { return m.id !== rbActiveMessage.id; });
     var draftEl = document.getElementById('rb-draft-textarea'); if (draftEl) draftEl.innerHTML = '';
@@ -4345,9 +4352,10 @@ async function showActionSummary(msgId) {
     + '<div style="margin-bottom:12px;"><span style="color:' + textSecondary + ';font-size:10px;">AI REASONING</span><p style="color:' + textBody + ';font-size:12px;margin:2px 0;white-space:pre-wrap;">' + (msg.ai_reasoning || 'No reasoning') + '</p></div>'
     + (msg.ai_draft ? '<div style="margin-bottom:12px;"><span style="color:' + textSecondary + ';font-size:10px;">AI DRAFT REPLY</span><div style="background:' + draftBg + ';border:1px solid ' + draftBorder + ';border-radius:8px;padding:12px;margin-top:4px;"><p style="color:' + textBody + ';font-size:11px;white-space:pre-wrap;max-height:200px;overflow-y:auto;">' + msg.ai_draft.substring(0, 500) + '</p></div></div>' : '')
     + '<div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">'
-    + '<button onclick="this.closest(\'div[style*=fixed]\').remove();dashOpenTicket(\'' + msgId + '\')" style="flex:1;min-width:120px;padding:10px;background:rgba(0,200,150,0.1);color:#00C896;border:1px solid rgba(0,200,150,0.2);border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;">Open in Review Board</button>'
+    + '<button onclick="this.closest(\'div[style*=fixed]\').remove();dashOpenTicket(\'' + msgId + '\')" style="flex:1;min-width:100px;padding:10px;background:rgba(0,200,150,0.1);color:#00C896;border:1px solid rgba(0,200,150,0.2);border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;">Open in Review Board</button>'
     + ((['refund_request','cancellation','damaged_item','missing_item','exchange'].indexOf(msg.category) > -1) ? '<button onclick="this.closest(\'div[style*=fixed]\').remove();dashOpenTicketAndRefund(\'' + msgId + '\')" style="padding:10px 16px;background:rgba(248,113,113,0.1);color:#F87171;border:1px solid rgba(248,113,113,0.2);border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;">💰 Refund</button>' : '')
-    + '<button onclick="this.closest(\'div[style*=fixed]\').remove();dashResolveAndNotify(\'' + msgId + '\',null)" style="flex:1;min-width:120px;padding:10px;background:rgba(0,200,150,0.06);color:#00C896;border:1px solid rgba(0,200,150,0.15);border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;">✓ Resolve & Notify</button>'
+    + '<button onclick="this.closest(\'div[style*=fixed]\').remove();dashResolveAndNotify(\'' + msgId + '\',null)" style="flex:1;min-width:100px;padding:10px;background:rgba(0,200,150,0.06);color:#00C896;border:1px solid rgba(0,200,150,0.15);border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;">✓ Resolve & Notify</button>'
+    + '<button onclick="this.closest(\'div[style*=fixed]\').remove();dashMarkResolved(\'' + msgId + '\')" style="flex:1;min-width:100px;padding:10px;background:rgba(255,255,255,0.05);color:#8B96B0;border:1px solid rgba(255,255,255,0.1);border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;">Mark Resolved</button>'
     + '</div>'
     + '</div>';
   
@@ -4398,6 +4406,12 @@ async function dashResolveAndNotify(msgId, btn) {
     if (btn) { btn.textContent = 'Failed'; btn.disabled = false; }
     showToast('Error: ' + (err.message || 'Could not resolve ticket'));
   }
+}
+
+async function dashMarkResolved(msgId) {
+  await sb.from('messages').update({ status: 'done' }).eq('id', msgId);
+  showToast('Marked as resolved ✓');
+  setTimeout(function() { loadDashboardView(); }, 500);
 }
 
 async function dashOpenTicketAndRefund(msgId) {
