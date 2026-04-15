@@ -578,6 +578,7 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
           <button onclick="rbApproveSend()" class="btn-primary flex-1 justify-center" style="padding:11px;font-size:13px">✓ Approve &amp; Send</button>
           <button onclick="openRefundModal()" id="rb-refund-btn" class="hidden" style="padding:11px;font-size:11px;background:rgba(248,113,113,0.1);color:#F87171;border:1px solid rgba(248,113,113,0.2);border-radius:10px;cursor:pointer;font-weight:700">💰 Refund</button>
           <button onclick="rbMarkResolved()" class="btn-ghost" style="padding:11px;font-size:12px;color:#00C896;border-color:rgba(0,200,150,0.2)">Mark Resolved</button>
+          <button onclick="rbMarkSpam()" class="btn-ghost" style="padding:11px;font-size:12px;color:#5A6785;border-color:rgba(255,255,255,0.1)">Spam</button>
           <button onclick="rbMarkClosed()" class="btn-ghost" style="padding:11px;font-size:12px;color:#F87171;border-color:rgba(248,113,113,0.15)">Close</button>
         </div>
       </div>
@@ -3320,10 +3321,11 @@ function renderRbTicketList(messages) {
   var reviewCategories = ['refund_request','cancellation','complaint','damaged_item','missing_item','billing','exchange','return'];
   const filtered = messages.filter(function(m) {
     var isSpam = m.status === 'spam' || m.category === 'spam';
-    if(rbCurrentFilter === 'all') return (m.status === 'needs_review' || m.status === 'automated' || m.status === 'pending' || m.status === 'queued') && !isSpam;
+    if(rbCurrentFilter === 'all') return (m.status === 'needs_review' || m.status === 'pending' || m.status === 'queued') && !isSpam;
     if(rbCurrentFilter === 'needs_review') return (m.status === 'needs_review' || m.status === 'pending') && !isSpam && reviewCategories.indexOf(m.category) > -1;
     if(rbCurrentFilter === 'automated') return (m.status === 'automated' || m.status === 'queued') && !isSpam;
-    if(rbCurrentFilter === 'archived') return m.status === 'done' || m.status === 'closed';
+    if(rbCurrentFilter === 'answered') return m.status === 'done' || m.status === 'automated';
+    if(rbCurrentFilter === 'closed') return m.status === 'closed';
     if(rbCurrentFilter === 'spam') return isSpam;
     return m.status === rbCurrentFilter;
   });
@@ -4090,6 +4092,19 @@ async function rbMarkClosed() {
   renderRbTicketList(rbAllMessages); rbCloseTicket(); updateRbPendingCount(); showToast('Ticket closed');
 }
 
+async function rbMarkSpam() {
+  if (!rbActiveMessage) return;
+  // Mark this message as spam
+  await sb.from('messages').update({ status: 'spam', category: 'spam' }).eq('id', rbActiveMessage.id);
+  // Also mark all messages from this sender as spam so future emails auto-spam
+  var senderEmail = rbActiveMessage.sender && rbActiveMessage.sender.includes('<') ? rbActiveMessage.sender.split('<')[1].replace('>','').trim() : rbActiveMessage.sender;
+  if (senderEmail) {
+    await sb.from('messages').update({ status: 'spam', category: 'spam' }).ilike('sender', '%' + senderEmail + '%');
+  }
+  rbAllMessages = rbAllMessages.filter(function(m) { return m.id !== rbActiveMessage.id; });
+  renderRbTicketList(rbAllMessages); rbCloseTicket(); updateRbPendingCount(); showToast('Marked as spam');
+}
+
 function rbCloseTicket() {
   rbActiveMessage = null;
   const emptyState = document.getElementById('rb-empty-state');
@@ -4106,10 +4121,24 @@ function rbCloseTicket() {
   var agentChat = document.getElementById('rb-agent-chat'); if (agentChat) { agentChat.classList.add('hidden'); var instr = document.getElementById('rb-agent-instructions'); if (instr) instr.value = ''; }
 }
 
+function toggleAnsweredDropdown(forceState) {
+  var menu = document.getElementById('answered-dropdown-menu');
+  if (!menu) return;
+  if (typeof forceState === 'boolean') { menu.classList.toggle('hidden', !forceState ? true : false); if (!forceState) menu.classList.add('hidden'); return; }
+  menu.classList.toggle('hidden');
+}
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  var wrap = document.getElementById('answered-dropdown-wrap');
+  var menu = document.getElementById('answered-dropdown-menu');
+  if (wrap && menu && !wrap.contains(e.target)) menu.classList.add('hidden');
+});
+
 function setRbFilter(filter) {
   rbCurrentFilter = filter;
   document.querySelectorAll('.rb-filter-btn').forEach(function(btn) { btn.style.background = 'transparent'; btn.style.color = '#5A6785'; });
-  const a = document.getElementById('rbf-' + filter);
+  var btnId = filter === 'answered' || filter === 'closed' ? 'rbf-answered' : 'rbf-' + filter;
+  var a = document.getElementById(btnId);
   if (a) { a.style.background = 'rgba(0,200,150,0.1)'; a.style.color = '#00C896'; }
   renderRbTicketList(rbAllMessages);
 }
