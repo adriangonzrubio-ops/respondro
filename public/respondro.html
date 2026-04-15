@@ -518,11 +518,18 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
       <div class="p-3 border-b border-white/5">
         <input type="text" id="rb-search" placeholder="Search tickets..." oninput="filterTickets(this.value)" class="w-full text-xs px-3 py-2 rounded-lg outline-none" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#E8EBF2">
       </div>
-      <div class="flex gap-1 p-2 border-b border-white/5">
+      <div class="flex items-center gap-1 p-2 border-b border-white/5">
         <button onclick="setRbFilter('all')" id="rbf-all" class="rb-filter-btn text-[10px] font-mono py-1.5 px-2 rounded-md transition-all" style="background:rgba(0,200,150,0.1);color:#00C896"><span id="rbf-all-count"></span> All</button>
         <button onclick="setRbFilter('needs_review')" id="rbf-needs_review" class="rb-filter-btn text-[10px] font-mono py-1.5 px-2 rounded-md transition-all" style="background:transparent;color:#5A6785"><span id="rbf-review-count"></span> Review</button>
         <button onclick="setRbFilter('automated')" id="rbf-automated" class="rb-filter-btn text-[10px] font-mono py-1.5 px-2 rounded-md transition-all" style="background:transparent;color:#5A6785"><span id="rbf-auto-count"></span> Auto</button>
-        <button onclick="setRbFilter('archived')" id="rbf-archived" class="rb-filter-btn text-[10px] font-mono py-1.5 px-2 rounded-md transition-all" style="background:transparent;color:#5A6785">Archived</button>
+        <div style="position:relative;display:inline-flex;align-items:center" id="answered-dropdown-wrap">
+          <button onclick="setRbFilter('answered')" id="rbf-answered" class="rb-filter-btn text-[10px] font-mono py-1.5 px-2 rounded-md transition-all" style="background:transparent;color:#5A6785">Answered</button>
+          <button onclick="toggleAnsweredDropdown()" class="text-[10px] py-1 px-0.5 rounded" style="background:transparent;color:#5A6785;cursor:pointer;border:none;line-height:1">▾</button>
+          <div id="answered-dropdown-menu" class="hidden" style="position:absolute;top:100%;left:0;z-index:20;background:#0F1623;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:4px;min-width:100px;margin-top:4px;box-shadow:0 4px 12px rgba(0,0,0,0.3)">
+            <button onclick="setRbFilter('answered');toggleAnsweredDropdown()" class="w-full text-left text-[10px] font-mono py-1.5 px-3 rounded" style="color:#00C896;background:none;border:none;cursor:pointer;display:block">Answered</button>
+            <button onclick="setRbFilter('closed');toggleAnsweredDropdown()" class="w-full text-left text-[10px] font-mono py-1.5 px-3 rounded" style="color:#5A6785;background:none;border:none;cursor:pointer;display:block">Closed</button>
+          </div>
+        </div>
         <button onclick="setRbFilter('spam')" id="rbf-spam" class="rb-filter-btn text-[10px] font-mono py-1.5 px-2 rounded-md transition-all" style="background:transparent;color:#5A6785"><span id="rbf-spam-count"></span> Spam</button>
       </div>
       <div id="rb-ticket-list" class="flex-1 overflow-y-auto p-2 space-y-1">
@@ -3341,7 +3348,8 @@ function renderRbTicketList(messages) {
   setCount('rbf-all-count', countAll);
   setCount('rbf-review-count', countReview);
   setCount('rbf-auto-count', countAuto);
-  setCount('rbf-archived-count', countArchived);
+ if(rbCurrentFilter === 'answered') return m.status === 'done' || m.status === 'automated';
+    if(rbCurrentFilter === 'closed') return m.status === 'closed';
   setCount('rbf-spam-count', countSpam);
 
   // Group by sender email
@@ -4134,6 +4142,16 @@ document.addEventListener('click', function(e) {
   if (wrap && menu && !wrap.contains(e.target)) menu.classList.add('hidden');
 });
 
+function toggleAnsweredDropdown() {
+  var menu = document.getElementById('answered-dropdown-menu');
+  if (menu) menu.classList.toggle('hidden');
+}
+document.addEventListener('click', function(e) {
+  var wrap = document.getElementById('answered-dropdown-wrap');
+  var menu = document.getElementById('answered-dropdown-menu');
+  if (wrap && menu && !wrap.contains(e.target)) menu.classList.add('hidden');
+});
+
 function setRbFilter(filter) {
   rbCurrentFilter = filter;
   document.querySelectorAll('.rb-filter-btn').forEach(function(btn) { btn.style.background = 'transparent'; btn.style.color = '#5A6785'; });
@@ -4449,6 +4467,7 @@ async function dashOpenTicketAndRefund(msgId) {
   if (!msg) return showToast('Message not found');
 
   rbActiveMessage = msg;
+  rbRegenCount = 0; rbInstructRegenCount = 0;
 
   // Load Shopify data
   var shopifyData = msg.shopify_data;
