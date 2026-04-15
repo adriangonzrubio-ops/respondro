@@ -411,9 +411,8 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
   <div class="flex" style="height:calc(100vh - 56px);overflow:hidden">
 <div class="sidebar w-64 bg-[#0f1115] border-r border-white/5 flex flex-col">
     <div class="p-6" id="sidebar-logo-area">
-        <img id="respondro-logo-dark" src="https://i.ibb.co/5xf5tGBY/dark-mode-logo.png" style="height:26px;display:none" alt="Respondro">
-        <img id="respondro-logo-light" src="https://i.ibb.co/JjBmc7bK/light-mode-logo.png" style="height:26px" alt="Respondro">
-        <img id="sidebar-store-logo" src="" style="height:30px;display:none;margin-top:12px" alt="Store Logo">
+        <img id="sidebar-store-logo" src="" style="height:30px;display:none" alt="Store Logo">
+        <div id="sidebar-store-fallback" class="text-sm font-bold" style="color:#1A1D26">My Store</div>
     </div>
 
     <nav class="flex-1 px-4 space-y-1">
@@ -2372,16 +2371,16 @@ function handleSidebarLogoUpload(event, mode) {
 }
 
 async function saveSidebarLogo() {
-    var darkUrl = document.getElementById('sidebar-logo-dark')?.value?.trim() || '';
-    var lightUrl = document.getElementById('sidebar-logo-light')?.value?.trim() || '';
+    var darkInput = document.getElementById('sidebar-logo-dark');
+    var lightInput = document.getElementById('sidebar-logo-light');
+    var darkUrl = darkInput && darkInput.value ? darkInput.value.trim() : '';
+    var lightUrl = lightInput && lightInput.value ? lightInput.value.trim() : '';
     
     if (!darkUrl && !lightUrl) { showToast('Please enter at least one logo URL'); return; }
 
-    // Save to localStorage
     localStorage.setItem('store_logo_dark', darkUrl);
     localStorage.setItem('store_logo_light', lightUrl);
     
-    // Save to Supabase
     try {
         await fetch('/api/settings', {
             method: 'POST',
@@ -2390,14 +2389,29 @@ async function saveSidebarLogo() {
         });
     } catch(e) {}
     
-    // Update sidebar
-    var storeLogo = document.getElementById('sidebar-store-logo');
+    // Update sidebar immediately
+    updateStoreLogo();
+    showToast('Sidebar logo saved!');
+}
+
+function updateStoreLogo() {
+    var darkUrl = localStorage.getItem('store_logo_dark');
+    var lightUrl = localStorage.getItem('store_logo_light');
     var isLight = document.body.classList.contains('light');
     var activeUrl = isLight ? (lightUrl || darkUrl) : (darkUrl || lightUrl);
+    
+    var storeLogo = document.getElementById('sidebar-store-logo');
+    var fallback = document.getElementById('sidebar-store-fallback');
+    
     if (storeLogo && activeUrl) {
         storeLogo.src = activeUrl;
         storeLogo.style.display = 'block';
+        if (fallback) fallback.style.display = 'none';
+    } else {
+        if (storeLogo) storeLogo.style.display = 'none';
+        if (fallback) fallback.style.display = 'block';
     }
+}
     
     // Update previews
     var previewDark = document.getElementById('preview-logo-dark');
@@ -2408,7 +2422,7 @@ async function saveSidebarLogo() {
     if (lightUrl && previewLight) { previewLight.src = lightUrl; previewLight.style.display = 'block'; if (placeholderLight) placeholderLight.style.display = 'none'; }
     
     showToast('Sidebar logo saved!');
-}
+
 
 function updateSidebarLogo() {
     const darkUrl = localStorage.getItem('sidebar_logo_dark');
@@ -3116,14 +3130,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Load store sidebar logo
-            var savedDarkLogo = localStorage.getItem('store_logo_dark') || settings?.sidebar_logo_dark;
-            var savedLightLogo = localStorage.getItem('store_logo_light') || settings?.sidebar_logo_light;
-            var storeLogo = document.getElementById('sidebar-store-logo');
-            if (storeLogo && (savedDarkLogo || savedLightLogo)) {
-                var isLight = document.body.classList.contains('light');
-                storeLogo.src = isLight ? (savedLightLogo || savedDarkLogo) : (savedDarkLogo || savedLightLogo);
-                storeLogo.style.display = 'block';
-            }
+            if (settings?.sidebar_logo_dark) localStorage.setItem('store_logo_dark', settings.sidebar_logo_dark);
+            if (settings?.sidebar_logo_light) localStorage.setItem('store_logo_light', settings.sidebar_logo_light);
+            if (typeof updateStoreLogo === 'function') updateStoreLogo();
+            // Update store name fallback
+            var fallback = document.getElementById('sidebar-store-fallback');
+            if (fallback && settings?.store_name) fallback.textContent = settings.store_name;
+            
 
         // Trigger the email sync now that we have settings
         if (typeof syncDashboardData === 'function') {
@@ -4263,20 +4276,14 @@ function toggleTheme() {
     if (track) track.style.background = isLight ? 'rgba(0,200,150,0.4)' : 'rgba(255,255,255,0.15)';
   });
   // Swap Respondro logos
-  ['nav-logo', 'respondro-logo'].forEach(function(prefix) {
+  ['nav-logo'].forEach(function(prefix) {
     var dark = document.getElementById(prefix + '-dark');
     var light = document.getElementById(prefix + '-light');
     if (dark) dark.style.display = isLight ? 'none' : 'block';
     if (light) light.style.display = isLight ? 'block' : 'none';
   });
   // Swap store sidebar logo
-  var storeLogo = document.getElementById('sidebar-store-logo');
-  if (storeLogo) {
-    var darkUrl = localStorage.getItem('store_logo_dark');
-    var lightUrl = localStorage.getItem('store_logo_light');
-    var activeUrl = isLight ? (lightUrl || darkUrl) : (darkUrl || lightUrl);
-    if (activeUrl) storeLogo.src = activeUrl;
-  }
+  updateStoreLogo();
 }
 (function() {
   if (localStorage.getItem('respondro_theme') !== 'dark') {
