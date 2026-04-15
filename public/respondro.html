@@ -3119,25 +3119,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (settings) {
             console.log("Settings loaded successfully!");
             
-            // Fill the Branding fields
             if (settings.logo_url) { document.getElementById('sig-logo-url').value = settings.logo_url; }
             if (settings.logo_width) { document.getElementById('sig-logo-width').value = settings.logo_width; }
             if (settings.signature) document.getElementById('sig-text').value = settings.signature;
-            // Trigger logo preview after values are set
             if (typeof updateEmailLogoPreview === 'function') updateEmailLogoPreview();
             
-            // Fill the Rulebook field (if it exists on the page)
             var rulebookEl = document.getElementById('rulebook-text');
             if (settings.rulebook && rulebookEl) rulebookEl.value = settings.rulebook;
             
-            // Sync with global state
             if (typeof ST !== 'undefined') ST.settings = settings;
-            // Load autonomy toggles
             if (typeof loadAutonomySettings === 'function') loadAutonomySettings();
+
+            // Load store sidebar logo
+            if (settings.sidebar_logo_dark) localStorage.setItem('store_logo_dark', settings.sidebar_logo_dark);
+            if (settings.sidebar_logo_light) localStorage.setItem('store_logo_light', settings.sidebar_logo_light);
+            if (typeof updateStoreLogo === 'function') updateStoreLogo();
+            var fallback = document.getElementById('sidebar-store-fallback');
+            if (fallback && settings.store_name) fallback.textContent = settings.store_name;
         }
 
-        // Load store sidebar logo
-            if (settings?.sidebar_logo_dark) localStorage.setItem('store_logo_dark', settings.sidebar_logo_dark);
+        // Trigger the email sync now that we have settings
             if (settings?.sidebar_logo_light) localStorage.setItem('store_logo_light', settings.sidebar_logo_light);
             if (typeof updateStoreLogo === 'function') updateStoreLogo();
             // Update store name fallback
