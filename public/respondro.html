@@ -3328,10 +3328,11 @@ function renderRbTicketList(messages) {
   var reviewCategories = ['refund_request','cancellation','complaint','damaged_item','missing_item','billing','exchange','return'];
   const filtered = messages.filter(function(m) {
     var isSpam = m.status === 'spam' || m.category === 'spam';
-    if(rbCurrentFilter === 'all') return (m.status === 'needs_review' || m.status === 'pending' || m.status === 'queued') && !isSpam;
-    if(rbCurrentFilter === 'needs_review') return (m.status === 'needs_review' || m.status === 'pending') && !isSpam && reviewCategories.indexOf(m.category) > -1;
+    var hasBeenAnswered = !!m.sent_reply && !!m.sent_at;
+    if(rbCurrentFilter === 'all') return (m.status === 'needs_review' || m.status === 'pending' || m.status === 'queued') && !isSpam && !hasBeenAnswered;
+    if(rbCurrentFilter === 'needs_review') return (m.status === 'needs_review' || m.status === 'pending') && !isSpam && !hasBeenAnswered && reviewCategories.indexOf(m.category) > -1;
     if(rbCurrentFilter === 'automated') return (m.status === 'automated' || m.status === 'queued') && !isSpam;
-    if(rbCurrentFilter === 'answered') return m.status === 'done' || m.status === 'automated';
+    if(rbCurrentFilter === 'answered') return hasBeenAnswered || m.status === 'done' || m.status === 'automated';
     if(rbCurrentFilter === 'closed') return m.status === 'closed';
     if(rbCurrentFilter === 'spam') return isSpam;
     return m.status === rbCurrentFilter;
@@ -3339,8 +3340,8 @@ function renderRbTicketList(messages) {
 
   // Update tab counts
   var allMsgs = messages;
-  var countAll = allMsgs.filter(function(m) { var s = m.status === 'spam' || m.category === 'spam'; return (m.status === 'needs_review' || m.status === 'automated' || m.status === 'pending' || m.status === 'queued') && !s; }).length;
-  var countReview = allMsgs.filter(function(m) { return (m.status === 'needs_review' || m.status === 'pending') && m.category !== 'spam' && m.status !== 'spam' && reviewCategories.indexOf(m.category) > -1; }).length;
+  var countAll = allMsgs.filter(function(m) { var s = m.status === 'spam' || m.category === 'spam'; var ans = !!m.sent_reply && !!m.sent_at; return (m.status === 'needs_review' || m.status === 'pending' || m.status === 'queued') && !s && !ans; }).length;
+  var countReview = allMsgs.filter(function(m) { var ans = !!m.sent_reply && !!m.sent_at; return (m.status === 'needs_review' || m.status === 'pending') && m.category !== 'spam' && m.status !== 'spam' && !ans && reviewCategories.indexOf(m.category) > -1; }).length;
   var countAuto = allMsgs.filter(function(m) { return (m.status === 'automated' || m.status === 'queued') && m.category !== 'spam' && m.status !== 'spam'; }).length;
   var countArchived = allMsgs.filter(function(m) { return m.status === 'done' || m.status === 'closed'; }).length;
   var countSpam = allMsgs.filter(function(m) { return m.status === 'spam' || m.category === 'spam'; }).length;
