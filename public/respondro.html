@@ -1308,6 +1308,13 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
   </div>
 </div>
 <script>
+
+var rbAllMessages = [];
+var rbCurrentFilter = 'all';
+var rbActiveMessage = null;
+var rbRegenCount = 0;
+var rbInstructRegenCount = 0;
+
   // Global helper: set draft content with bold rendering
 function setDraft(el, text) {
     if (!el) return;
@@ -3373,10 +3380,6 @@ try {
         btn.disabled = false;
     }
 }
-// ── REVIEW BOARD STATE ──
-let rbAllMessages = [];
-let rbActiveMessage = null;
-let rbCurrentFilter = 'all';
 
 async function fetchMessages() {
   const syncIcon = document.getElementById('rb-sync-icon');
@@ -4286,7 +4289,7 @@ function toggleTheme() {
   updateStoreLogo();
 }
 (function() {
-  if (localStorage.getItem('respondro_theme') !== 'dark') {
+    if (localStorage.getItem('respondro_theme') !== 'dark') {
     document.body.classList.add('light');
     ['theme-toggle', 'settings-theme'].forEach(function(prefix) {
       var dot = document.getElementById(prefix + '-dot');
@@ -4294,8 +4297,13 @@ function toggleTheme() {
       if (dot) { dot.style.left = '22px'; dot.innerHTML = '☀️'; }
       if (track) track.style.background = 'rgba(0,200,150,0.4)';
     });
-  }
-})();
+    ['nav-logo'].forEach(function(prefix) {
+      var dark = document.getElementById(prefix + '-dark');
+      var light = document.getElementById(prefix + '-light');
+      if (dark) dark.style.display = 'none';
+      if (light) light.style.display = 'block';
+    });
+}})();
 
 window.dashFilterRange = window.dashFilterRange || 'today';
 function setDashFilter(range) {
