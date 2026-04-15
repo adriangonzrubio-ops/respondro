@@ -421,9 +421,44 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
       <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-display font-700" style="background:#1D4E3A;color:#00C896" id="user-avatar">?</div>
       <span class="text-sm font-500 hidden md:block" id="user-name-nav">User</span>
       <div onclick="toggleTheme()" style="width:36px;height:20px;border-radius:10px;background:rgba(255,255,255,0.15);position:relative;cursor:pointer;flex-shrink:0;transition:background 0.3s" id="theme-toggle-track"><div id="theme-toggle-dot" style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left 0.3s;display:flex;align-items:center;justify-content:center;font-size:9px">🌙</div></div>
-      <button onclick="logout()" class="btn-ghost" style="padding:5px 12px;font-size:12px">Log out</button>
+      <button onclick="authLogout()" class="btn-ghost" style="padding:5px 12px;font-size:12px">Log out</button>
     </div>
   </div>
+  <!-- AUTH GATE -->
+  <div id="auth-gate" style="display:none">
+    <div style="max-width:400px;width:90%;padding:32px">
+      <div style="text-align:center;margin-bottom:32px">
+        <img src="https://i.ibb.co/JjBmc7bK/light-mode-logo.png" style="height:36px;margin:0 auto 16px" alt="Respondro">
+        <p style="font-size:14px;color:var(--color-text-secondary)">AI-powered customer service for Shopify stores</p>
+      </div>
+      <div id="auth-tabs" style="display:flex;gap:4px;margin-bottom:24px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:4px">
+        <button onclick="switchAuthTab('login')" id="auth-tab-login" style="flex:1;padding:8px;font-size:13px;font-weight:600;border-radius:6px;border:none;cursor:pointer;background:#00C896;color:white">Log in</button>
+        <button onclick="switchAuthTab('signup')" id="auth-tab-signup" style="flex:1;padding:8px;font-size:13px;font-weight:600;border-radius:6px;border:none;cursor:pointer;background:transparent;color:var(--color-text-secondary)">Sign up</button>
+      </div>
+      <div id="auth-login-form">
+        <input type="email" id="auth-email" placeholder="Email" style="width:100%;padding:10px 14px;margin-bottom:10px;border-radius:8px;border:1px solid var(--color-border-tertiary);background:var(--color-background-primary);color:var(--color-text-primary);font-size:14px;box-sizing:border-box">
+        <input type="password" id="auth-password" placeholder="Password" style="width:100%;padding:10px 14px;margin-bottom:16px;border-radius:8px;border:1px solid var(--color-border-tertiary);background:var(--color-background-primary);color:var(--color-text-primary);font-size:14px;box-sizing:border-box">
+        <button onclick="authLogin()" id="auth-login-btn" style="width:100%;padding:12px;background:#00C896;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Log in</button>
+        <p id="auth-error" style="color:#F87171;font-size:12px;margin-top:8px;text-align:center;display:none"></p>
+        <p style="text-align:center;margin-top:16px;font-size:12px;color:var(--color-text-secondary)"><a href="#" onclick="showForgotPassword();return false" style="color:#00C896;text-decoration:none">Forgot password?</a></p>
+      </div>
+      <div id="auth-signup-form" style="display:none">
+        <input type="text" id="auth-signup-name" placeholder="Store name" style="width:100%;padding:10px 14px;margin-bottom:10px;border-radius:8px;border:1px solid var(--color-border-tertiary);background:var(--color-background-primary);color:var(--color-text-primary);font-size:14px;box-sizing:border-box">
+        <input type="email" id="auth-signup-email" placeholder="Email" style="width:100%;padding:10px 14px;margin-bottom:10px;border-radius:8px;border:1px solid var(--color-border-tertiary);background:var(--color-background-primary);color:var(--color-text-primary);font-size:14px;box-sizing:border-box">
+        <input type="password" id="auth-signup-password" placeholder="Password (min 6 characters)" style="width:100%;padding:10px 14px;margin-bottom:16px;border-radius:8px;border:1px solid var(--color-border-tertiary);background:var(--color-background-primary);color:var(--color-text-primary);font-size:14px;box-sizing:border-box">
+        <button onclick="authSignup()" id="auth-signup-btn" style="width:100%;padding:12px;background:#00C896;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Create account</button>
+        <p id="auth-signup-error" style="color:#F87171;font-size:12px;margin-top:8px;text-align:center;display:none"></p>
+      </div>
+      <div id="auth-forgot-form" style="display:none">
+        <input type="email" id="auth-forgot-email" placeholder="Email" style="width:100%;padding:10px 14px;margin-bottom:16px;border-radius:8px;border:1px solid var(--color-border-tertiary);background:var(--color-background-primary);color:var(--color-text-primary);font-size:14px;box-sizing:border-box">
+        <button onclick="authForgotPassword()" style="width:100%;padding:12px;background:#00C896;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Send reset link</button>
+        <p style="text-align:center;margin-top:12px;font-size:12px"><a href="#" onclick="switchAuthTab('login');return false" style="color:#00C896;text-decoration:none">Back to login</a></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- APP (hidden until authenticated) -->
+  <div id="app-container" style="display:none">
   <div class="flex" style="height:calc(100vh - 56px);overflow:hidden">
 <div class="sidebar w-64 bg-[#0f1115] border-r border-white/5 flex flex-col">
     <div class="p-6" id="sidebar-logo-area">
@@ -1316,6 +1351,93 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
   </div>
 </div>
 <script>
+
+// ═══ AUTHENTICATION ═══
+async function checkAuth() {
+  var { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    document.getElementById('auth-gate').style.display = 'none';
+    document.getElementById('app-container').style.display = 'block';
+    // Update user avatar
+    var avatar = document.getElementById('user-avatar');
+    if (avatar && session.user.email) {
+      avatar.textContent = session.user.email.charAt(0).toUpperCase();
+    }
+    var userLabel = document.getElementById('user-label');
+    if (userLabel) userLabel.textContent = session.user.email.split('@')[0];
+    return true;
+  } else {
+    document.getElementById('auth-gate').style.display = 'flex';
+    document.getElementById('app-container').style.display = 'none';
+    return false;
+  }
+}
+
+function switchAuthTab(tab) {
+  document.getElementById('auth-login-form').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('auth-signup-form').style.display = tab === 'signup' ? 'block' : 'none';
+  document.getElementById('auth-forgot-form').style.display = 'none';
+  document.getElementById('auth-tab-login').style.background = tab === 'login' ? '#00C896' : 'transparent';
+  document.getElementById('auth-tab-login').style.color = tab === 'login' ? 'white' : 'var(--color-text-secondary)';
+  document.getElementById('auth-tab-signup').style.background = tab === 'signup' ? '#00C896' : 'transparent';
+  document.getElementById('auth-tab-signup').style.color = tab === 'signup' ? 'white' : 'var(--color-text-secondary)';
+}
+
+function showForgotPassword() {
+  document.getElementById('auth-login-form').style.display = 'none';
+  document.getElementById('auth-signup-form').style.display = 'none';
+  document.getElementById('auth-forgot-form').style.display = 'block';
+}
+
+async function authLogin() {
+  var email = document.getElementById('auth-email').value.trim();
+  var password = document.getElementById('auth-password').value;
+  var errEl = document.getElementById('auth-error');
+  var btn = document.getElementById('auth-login-btn');
+  if (!email || !password) { errEl.textContent = 'Please fill in all fields'; errEl.style.display = 'block'; return; }
+  btn.textContent = 'Logging in...'; btn.disabled = true;
+  var { error } = await sb.auth.signInWithPassword({ email: email, password: password });
+  if (error) {
+    errEl.textContent = error.message; errEl.style.display = 'block';
+    btn.textContent = 'Log in'; btn.disabled = false;
+  } else {
+    window.location.reload();
+  }
+}
+
+async function authSignup() {
+  var name = document.getElementById('auth-signup-name').value.trim();
+  var email = document.getElementById('auth-signup-email').value.trim();
+  var password = document.getElementById('auth-signup-password').value;
+  var errEl = document.getElementById('auth-signup-error');
+  var btn = document.getElementById('auth-signup-btn');
+  if (!email || !password) { errEl.textContent = 'Please fill in all fields'; errEl.style.display = 'block'; return; }
+  if (password.length < 6) { errEl.textContent = 'Password must be at least 6 characters'; errEl.style.display = 'block'; return; }
+  btn.textContent = 'Creating account...'; btn.disabled = true;
+  var { error } = await sb.auth.signUp({ email: email, password: password, options: { data: { store_name: name } } });
+  if (error) {
+    errEl.textContent = error.message; errEl.style.display = 'block';
+    btn.textContent = 'Create account'; btn.disabled = false;
+  } else {
+    errEl.style.display = 'none';
+    document.getElementById('auth-signup-form').innerHTML = '<div style="text-align:center;padding:20px"><p style="color:#00C896;font-weight:600;margin-bottom:8px">Account created!</p><p style="font-size:13px;color:var(--color-text-secondary)">Check your email to confirm your account, then log in.</p></div>';
+  }
+}
+
+async function authForgotPassword() {
+  var email = document.getElementById('auth-forgot-email').value.trim();
+  if (!email) return;
+  await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/respondro.html' });
+  document.getElementById('auth-forgot-form').innerHTML = '<div style="text-align:center;padding:20px"><p style="color:#00C896;font-weight:600;margin-bottom:8px">Reset link sent!</p><p style="font-size:13px;color:var(--color-text-secondary)">Check your email for a password reset link.</p></div>';
+}
+
+async function authLogout() {
+  await sb.auth.signOut();
+  window.location.reload();
+}
+
+// Check auth immediately
+checkAuth();
 
 var rbAllMessages = [];
 var rbCurrentFilter = 'all';
@@ -3136,15 +3258,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (fallback && settings.store_name) fallback.textContent = settings.store_name;
         }
 
-        // Trigger the email sync now that we have settings
-            if (settings?.sidebar_logo_light) localStorage.setItem('store_logo_light', settings.sidebar_logo_light);
-            if (typeof updateStoreLogo === 'function') updateStoreLogo();
-            // Update store name fallback
-            var fallback = document.getElementById('sidebar-store-fallback');
-            if (fallback && settings?.store_name) fallback.textContent = settings.store_name;
-            
-
-        // Trigger the email sync now that we have settings
         if (typeof syncDashboardData === 'function') {
             await syncDashboardData();
         }
@@ -4767,5 +4880,6 @@ async function dashMarkActionDone(msgId, btn) {
         </div>
     </div>
 </div>
+</div><!-- close app-container -->
 </body>
 </html>
