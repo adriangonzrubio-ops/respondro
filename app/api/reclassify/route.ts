@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     const { searchParams } = new URL(request.url);
     const key = searchParams.get('key');
     const origin = request.headers.get('origin') || request.headers.get('referer') || '';
-    const isSameOrigin = origin.includes('respondro.vercel.app') || origin.includes('localhost');
+    const isSameOrigin = origin.includes('respondro.vercel.app') || origin.includes('respondro.ai') || origin.includes('localhost');
     
     if (!isSameOrigin && key !== process.env.WORKER_SECRET) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
