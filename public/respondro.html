@@ -402,6 +402,22 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
     <div class="mr-auto"><img id="nav-logo-dark" src="https://i.ibb.co/5xf5tGBY/dark-mode-logo.png" style="height:28px;display:none" alt="Respondro"><img id="nav-logo-light" src="https://i.ibb.co/JjBmc7bK/light-mode-logo.png" style="height:28px" alt="Respondro"></div>
     <div class="flex items-center gap-2 text-xs font-mono hidden md:flex" id="api-status-container" style="display:none"><div class="api-dot" id="api-dot" style="background:#3A4760"></div><span id="api-status-txt" style="color:#5A6785"></span></div>
     <div class="flex items-center gap-3 ml-4">
+      <div style="position:relative;cursor:pointer" onclick="toggleNotifications()">
+        <svg class="w-5 h-5" style="color:#8B96B0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span id="notif-badge" class="hidden" style="position:absolute;top:-2px;right:-2px;width:8px;height:8px;background:#F87171;border-radius:50%"></span>
+      </div>
+      <div id="notif-panel" class="hidden" style="position:absolute;top:50px;right:80px;width:340px;max-height:400px;overflow-y:auto;border:1px solid rgba(255,255,255,0.1);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:999;padding:0">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.05)">
+          <span style="font-weight:700;font-size:13px">AI Activity</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button onclick="toggleNotifMute()" id="notif-mute-btn" style="background:none;border:none;cursor:pointer;font-size:11px;color:#5A6785">🔔 Mute</button>
+            <button onclick="clearNotifications()" style="background:none;border:none;cursor:pointer;font-size:11px;color:#5A6785">Clear</button>
+          </div>
+        </div>
+        <div id="notif-list" style="padding:8px">
+          <div style="text-align:center;padding:20px;color:#5A6785;font-size:11px">No AI activity yet</div>
+        </div>
+      </div>
       <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-display font-700" style="background:#1D4E3A;color:#00C896" id="user-avatar">?</div>
       <span class="text-sm font-500 hidden md:block" id="user-name-nav">User</span>
       <div onclick="toggleTheme()" style="width:36px;height:20px;border-radius:10px;background:rgba(255,255,255,0.15);position:relative;cursor:pointer;flex-shrink:0;transition:background 0.3s" id="theme-toggle-track"><div id="theme-toggle-dot" style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left 0.3s;display:flex;align-items:center;justify-content:center;font-size:9px">🌙</div></div>
@@ -868,19 +884,11 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
             <div class="grid grid-cols-2 gap-4">
                 <div class="flex flex-col gap-2">
                     <label class="text-xs text-gray-400">Logo (Dark Mode)</label>
-                    <label class="flex items-center justify-center gap-2 px-3 py-3 bg-black/20 border border-dashed border-white/10 rounded-xl cursor-pointer hover:border-emerald-500/50 transition-all">
-                        <span id="sidebar-dark-upload-label" class="text-xs text-gray-400">📎 Upload PNG</span>
-                        <input type="file" accept=".png,.jpg,.jpeg,.svg,.webp" class="hidden" onchange="handleSidebarLogoUpload(event, 'dark')">
-                    </label>
                     <input type="text" id="sidebar-logo-dark" class="w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-[10px] text-gray-500 outline-none focus:border-emerald-500/50" placeholder="or paste URL here">
                     <p class="text-[10px] text-gray-600">Light/white logo for the dark sidebar</p>
                 </div>
                 <div class="flex flex-col gap-2">
                     <label class="text-xs text-gray-400">Logo (Light Mode)</label>
-                    <label class="flex items-center justify-center gap-2 px-3 py-3 bg-black/20 border border-dashed border-white/10 rounded-xl cursor-pointer hover:border-emerald-500/50 transition-all">
-                        <span id="sidebar-light-upload-label" class="text-xs text-gray-400">📎 Upload PNG</span>
-                        <input type="file" accept=".png,.jpg,.jpeg,.svg,.webp" class="hidden" onchange="handleSidebarLogoUpload(event, 'light')">
-                    </label>
                     <input type="text" id="sidebar-logo-light" class="w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-[10px] text-gray-500 outline-none focus:border-emerald-500/50" placeholder="or paste URL here">
                     <p class="text-[10px] text-gray-600">Dark logo for the light sidebar</p>
                 </div>
@@ -3159,6 +3167,103 @@ async function loadAutonomySettings() {
     if (el('refund-currency-label') && s.currency) el('refund-currency-label').textContent = s.currency || 'USD';
 }
 
+// ═══ NOTIFICATIONS ═══
+window.notifMuted = localStorage.getItem('notif_muted') === 'true';
+window.notifItems = JSON.parse(localStorage.getItem('notif_items') || '[]');
+
+function toggleNotifications() {
+  var panel = document.getElementById('notif-panel');
+  if (panel) {
+    panel.classList.toggle('hidden');
+    // Mark as read
+    var badge = document.getElementById('notif-badge');
+    if (badge) badge.classList.add('hidden');
+  }
+  renderNotifications();
+}
+
+function toggleNotifMute() {
+  window.notifMuted = !window.notifMuted;
+  localStorage.setItem('notif_muted', window.notifMuted);
+  var btn = document.getElementById('notif-mute-btn');
+  if (btn) btn.textContent = window.notifMuted ? '🔕 Unmute' : '🔔 Mute';
+  showToast(window.notifMuted ? 'Notifications muted' : 'Notifications unmuted');
+}
+
+function clearNotifications() {
+  window.notifItems = [];
+  localStorage.setItem('notif_items', '[]');
+  renderNotifications();
+}
+
+function addNotification(type, message, details) {
+  if (window.notifMuted) return;
+  var item = { type: type, message: message, details: details || '', time: new Date().toISOString() };
+  window.notifItems.unshift(item);
+  if (window.notifItems.length > 50) window.notifItems = window.notifItems.slice(0, 50);
+  localStorage.setItem('notif_items', JSON.stringify(window.notifItems));
+  var badge = document.getElementById('notif-badge');
+  if (badge) badge.classList.remove('hidden');
+  renderNotifications();
+}
+
+function renderNotifications() {
+  var container = document.getElementById('notif-list');
+  if (!container) return;
+  var isLight = document.body.classList.contains('light');
+  var textColor = isLight ? '#374151' : '#C8D0E0';
+  var mutedColor = isLight ? '#6B7280' : '#5A6785';
+  var cardBg = isLight ? '#F3F4F6' : 'rgba(255,255,255,0.03)';
+  
+  if (window.notifItems.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:' + mutedColor + ';font-size:11px">No AI activity yet</div>';
+    return;
+  }
+  
+  var icons = { 'auto_reply': '📤', 'refund': '💰', 'cancel': '🚫', 'address_change': '📍', 'spam': '🗑️', 'classified': '🏷️' };
+  container.innerHTML = window.notifItems.map(function(n) {
+    var icon = icons[n.type] || '🤖';
+    var ago = getTimeAgo(n.time);
+    return '<div style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.03);display:flex;gap:10px;align-items:flex-start">'
+      + '<span style="font-size:14px;flex-shrink:0;margin-top:2px">' + icon + '</span>'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="font-size:11px;color:' + textColor + ';line-height:1.4">' + n.message + '</div>'
+      + (n.details ? '<div style="font-size:10px;color:' + mutedColor + ';margin-top:2px">' + n.details + '</div>' : '')
+      + '<div style="font-size:9px;color:' + mutedColor + ';margin-top:3px">' + ago + '</div>'
+      + '</div></div>';
+  }).join('');
+}
+
+function getTimeAgo(isoString) {
+  var diff = Date.now() - new Date(isoString).getTime();
+  var mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return mins + 'm ago';
+  var hours = Math.floor(mins / 60);
+  if (hours < 24) return hours + 'h ago';
+  return Math.floor(hours / 24) + 'd ago';
+}
+
+// Close notification panel when clicking outside
+document.addEventListener('click', function(e) {
+  var panel = document.getElementById('notif-panel');
+  if (panel && !panel.classList.contains('hidden')) {
+    if (!e.target.closest('#notif-panel') && !e.target.closest('[onclick*=toggleNotifications]')) {
+      panel.classList.add('hidden');
+    }
+  }
+});
+
+// Load notifications on page load
+(function() {
+  var btn = document.getElementById('notif-mute-btn');
+  if (btn && window.notifMuted) btn.textContent = '🔕 Unmute';
+  if (window.notifItems.length > 0) {
+    var badge = document.getElementById('notif-badge');
+    if (badge) badge.classList.remove('hidden');
+  }
+})();
+
 function showLogoHelp() {
   var isLight = document.body.classList.contains('light');
   var bg = isLight ? '#FFFFFF' : '#16191f';
@@ -3392,6 +3497,21 @@ async function fetchMessages() {
   // Fire worker in background to fetch NEW emails (don't wait for it)
   fetch('/api/worker').then(() => {
     console.log('📬 Background sync complete, refreshing...');
+    // Check for new AI actions and add notifications
+        if (data && data.length > 0) {
+          data.forEach(function(msg) {
+            if (msg.ai_action && msg.status === 'automated' && !msg._notified) {
+              var actionLabels = {'refund':'Refund processed','cancel':'Order cancelled','address_change':'Address updated'};
+              var label = actionLabels[msg.ai_action] || 'Action taken';
+              var cleanName = (msg.sender || '').split('<')[0].replace(/"/g,'').trim();
+              addNotification(msg.ai_action, label + ' for ' + cleanName, msg.subject);
+            }
+            if (msg.status === 'automated' && !msg.ai_action && !msg._notified) {
+              var cleanName2 = (msg.sender || '').split('<')[0].replace(/"/g,'').trim();
+              addNotification('auto_reply', 'Auto-replied to ' + cleanName2, msg.subject);
+            }
+          });
+        }
     // Auto-refresh the list after worker finishes
     sb.from('messages').select('*').in('status', ['needs_review','automated','pending','done','closed','spam','queued']).order('received_at', { ascending: false }).limit(500).then(({ data }) => {
       if (data) { rbAllMessages = data; renderRbTicketList(data); updateRbPendingCount(); }
