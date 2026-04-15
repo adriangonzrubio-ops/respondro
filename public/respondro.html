@@ -2419,16 +2419,6 @@ function updateStoreLogo() {
         if (fallback) fallback.style.display = 'block';
     }
 }
-    
-    // Update previews
-    var previewDark = document.getElementById('preview-logo-dark');
-    var previewLight = document.getElementById('preview-logo-light');
-    var placeholderDark = document.getElementById('preview-logo-dark-placeholder');
-    var placeholderLight = document.getElementById('preview-logo-light-placeholder');
-    if (darkUrl && previewDark) { previewDark.src = darkUrl; previewDark.style.display = 'block'; if (placeholderDark) placeholderDark.style.display = 'none'; }
-    if (lightUrl && previewLight) { previewLight.src = lightUrl; previewLight.style.display = 'block'; if (placeholderLight) placeholderLight.style.display = 'none'; }
-    
-    showToast('Sidebar logo saved!');
 
 
 function updateSidebarLogo() {
