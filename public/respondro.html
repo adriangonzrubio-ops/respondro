@@ -399,7 +399,7 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
 <!-- ═══════ DASHBOARD ═══════ -->
 <div id="dashboard">
   <div class="dash-nav">
-    <div class="flex items-center gap-2 font-display font-700 text-base mr-auto"><span style="color:#00C896">▸</span> Respondro</div>
+    <div class="mr-auto"><img id="nav-logo-dark" src="https://kommodo.ai/i/pe3j0LUYKe7hi5nEUQc3" style="height:28px" alt="Respondro"><img id="nav-logo-light" src="https://kommodo.ai/i/d1uKxSX5i9ekXJSt324h" style="height:28px;display:none" alt="Respondro"></div>
     <div class="flex items-center gap-2 text-xs font-mono hidden md:flex" id="api-status-container" style="display:none"><div class="api-dot" id="api-dot" style="background:#3A4760"></div><span id="api-status-txt" style="color:#5A6785"></span></div>
     <div class="flex items-center gap-3 ml-4">
       <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-display font-700" style="background:#1D4E3A;color:#00C896" id="user-avatar">?</div>
@@ -410,8 +410,10 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
   </div>
   <div class="flex" style="height:calc(100vh - 56px);overflow:hidden">
 <div class="sidebar w-64 bg-[#0f1115] border-r border-white/5 flex flex-col">
-    <div class="p-6">
-        <h1 class="text-xl font-bold text-white tracking-tight">Respondro</h1>
+    <div class="p-6" id="sidebar-logo-area">
+        <img id="sidebar-logo-dark" src="https://kommodo.ai/i/pe3j0LUYKe7hi5nEUQc3" style="height:26px" alt="Respondro">
+        <img id="sidebar-logo-light" src="https://kommodo.ai/i/d1uKxSX5i9ekXJSt324h" style="height:26px;display:none" alt="Respondro">
+        <img id="sidebar-store-logo" src="" style="height:30px;display:none;margin-top:12px" alt="Store Logo">
     </div>
 
     <nav class="flex-1 px-4 space-y-1">
@@ -894,6 +896,7 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
                     <span id="preview-logo-light-placeholder" class="text-xs text-gray-400">Light mode preview</span>
                 </div>
             </div>
+            <button onclick="saveSidebarLogo()" class="w-full mt-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-all">Save Sidebar Logo</button>
         </div>
         <!-- SECTION 3: Appearance -->
         <div class="bg-[#16191f] border border-white/5 rounded-2xl p-6">
@@ -2354,22 +2357,19 @@ function handleSidebarLogoUpload(event, mode) {
     reader.readAsDataURL(file);
 }
 
-function saveSidebarLogo() {
-    const darkUrl = document.getElementById('sidebar-logo-dark')?.value.trim();
-    const lightUrl = document.getElementById('sidebar-logo-light')?.value.trim();
+async function saveSidebarLogo() {
+    var darkUrl = document.getElementById('sidebar-logo-dark-input')?.value?.trim() || document.getElementById('sidebar-logo-dark')?.value?.trim() || '';
+    var lightUrl = document.getElementById('sidebar-logo-light-input')?.value?.trim() || document.getElementById('sidebar-logo-light')?.value?.trim() || '';
     
-    // Update previews
-    const previewDark = document.getElementById('preview-logo-dark');
-    const previewLight = document.getElementById('preview-logo-light');
-    const placeholderDark = document.getElementById('preview-logo-dark-placeholder');
-    const placeholderLight = document.getElementById('preview-logo-light-placeholder');
-    
-    if (darkUrl && previewDark) { previewDark.src = darkUrl; previewDark.style.display = 'block'; if (placeholderDark) placeholderDark.style.display = 'none'; }
-    if (lightUrl && previewLight) { previewLight.src = lightUrl; previewLight.style.display = 'block'; if (placeholderLight) placeholderLight.style.display = 'none'; }
-    
-    // Save to settings
+    // Try the input fields with id pattern sidebar-logo-dark / sidebar-logo-light
+    var darkInput = document.querySelector('#sidebar-logo-dark[type="text"], input[id="sidebar-logo-dark"]');
+    var lightInput = document.querySelector('#sidebar-logo-light[type="text"], input[id="sidebar-logo-light"]');
+    if (darkInput && darkInput.value) darkUrl = darkInput.value.trim();
+    if (lightInput && lightInput.value) lightUrl = lightInput.value.trim();
+
+    // Save to Supabase
     if (ST.settings?.store_id) {
-        sb.from('settings').update({
+        await sb.from('settings').update({
             sidebar_logo_dark: darkUrl || null,
             sidebar_logo_light: lightUrl || null
         }).eq('store_id', ST.settings.store_id);
@@ -2378,8 +2378,21 @@ function saveSidebarLogo() {
     localStorage.setItem('sidebar_logo_dark', darkUrl);
     localStorage.setItem('sidebar_logo_light', lightUrl);
     
-    // Update sidebar
-    updateSidebarLogo();
+    // Update sidebar store logo
+    var storeLogo = document.getElementById('sidebar-store-logo');
+    var isLight = document.body.classList.contains('light');
+    var activeUrl = isLight ? (lightUrl || darkUrl) : (darkUrl || lightUrl);
+    if (storeLogo && activeUrl) {
+        storeLogo.src = activeUrl;
+        storeLogo.style.display = 'block';
+    }
+    
+    // Update previews
+    var previewDark = document.getElementById('preview-logo-dark');
+    var previewLight = document.getElementById('preview-logo-light');
+    if (darkUrl && previewDark) { previewDark.src = darkUrl; previewDark.style.display = 'block'; }
+    if (lightUrl && previewLight) { previewLight.src = lightUrl; previewLight.style.display = 'block'; }
+    
     showToast('Sidebar logo saved! ✨');
 }
 
@@ -3087,6 +3100,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Load autonomy toggles
             if (typeof loadAutonomySettings === 'function') loadAutonomySettings();
         }
+
+        // Load store sidebar logo
+            var savedDarkLogo = localStorage.getItem('sidebar_logo_dark') || settings?.sidebar_logo_dark;
+            var savedLightLogo = localStorage.getItem('sidebar_logo_light') || settings?.sidebar_logo_light;
+            var storeLogo = document.getElementById('sidebar-store-logo');
+            if (storeLogo && (savedDarkLogo || savedLightLogo)) {
+                var isLight = document.body.classList.contains('light');
+                storeLogo.src = isLight ? (savedLightLogo || savedDarkLogo) : (savedDarkLogo || savedLightLogo);
+                storeLogo.style.display = 'block';
+            }
 
         // Trigger the email sync now that we have settings
         if (typeof syncDashboardData === 'function') {
@@ -4180,7 +4203,7 @@ function updateRbPendingCount() {
 
 // Theme persistence
 const savedTheme = localStorage.getItem('respondro_theme');
-if (savedTheme === 'light') document.body.classList.add('light');
+if (savedTheme === 'dark') { document.body.classList.remove('light'); } else { document.body.classList.add('light'); }
 function toggleTheme() {
   document.body.classList.toggle('light');
   var isLight = document.body.classList.contains('light');
@@ -4192,14 +4215,16 @@ function toggleTheme() {
     if (dot) { dot.style.left = isLight ? '22px' : '3px'; dot.innerHTML = isLight ? '☀️' : '🌙'; }
     if (track) track.style.background = isLight ? 'rgba(0,200,150,0.4)' : 'rgba(255,255,255,0.15)';
   });
-  // Swap sidebar logo
-  var darkLogo = document.getElementById('sidebar-store-logo-dark');
-  var lightLogo = document.getElementById('sidebar-store-logo-light');
-  if (darkLogo) darkLogo.style.display = isLight ? 'none' : 'block';
-  if (lightLogo) lightLogo.style.display = isLight ? 'block' : 'none';
+  // Swap Respondro logos
+  ['nav-logo', 'sidebar-logo'].forEach(function(prefix) {
+      var dark = document.getElementById(prefix + '-dark');
+      var light = document.getElementById(prefix + '-light');
+      if (dark) dark.style.display = 'none';
+      if (light) light.style.display = 'block';
+    });
 }
 (function() {
-  if (localStorage.getItem('respondro_theme') === 'light') {
+  if (localStorage.getItem('respondro_theme') !== 'dark') {
     document.body.classList.add('light');
     ['theme-toggle', 'settings-theme'].forEach(function(prefix) {
       var dot = document.getElementById(prefix + '-dot');
