@@ -1885,9 +1885,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const params = new URLSearchParams(window.location.search);
     const isShopifyReturn = params.get('connected') === 'true';
 
-    // 2. Fetch the "Truth" from the Database
+    // 2. Fetch the "Truth" from the Database (with auth)
     try {
-        const res = await fetch('/api/settings');
+        const { data: { session } } = await sb.auth.getSession();
+        const authHeader = session?.access_token ? { 'Authorization': 'Bearer ' + session.access_token } : {};
+        const res = await fetch('/api/settings', { headers: authHeader });
         const data = await res.json();
         console.log("✅ Unified Sync Data:", data);
         // Load billing/subscription state
@@ -2576,9 +2578,13 @@ async function saveSidebarLogo() {
     localStorage.setItem('store_logo_light', lightUrl);
     
     try {
+        const { data: { session } } = await sb.auth.getSession();
+        const headers = { 'Content-Type': 'application/json' };
+        if (session?.access_token) headers['Authorization'] = 'Bearer ' + session.access_token;
+
         await fetch('/api/settings', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: headers,
             body: JSON.stringify({ sidebar_logo_dark: darkUrl, sidebar_logo_light: lightUrl })
         });
     } catch(e) {}
@@ -3698,9 +3704,13 @@ async function saveAutonomySettings() {
     };
 
     try {
+        const { data: { session } } = await sb.auth.getSession();
+        const headers = { 'Content-Type': 'application/json' };
+        if (session?.access_token) headers['Authorization'] = 'Bearer ' + session.access_token;
+
         var res = await fetch('/api/settings', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: headers,
             body: JSON.stringify(settings)
         });
         if (res.ok) {
@@ -3739,15 +3749,19 @@ async function saveRulebook() {
     await sendSettings(settings);
 }
 
-// Helper function to talk to your new API
+/// Helper function to talk to your new API (with auth)
 async function sendSettings(settings) {
     try {
+        const { data: { session } } = await sb.auth.getSession();
+        const headers = { 'Content-Type': 'application/json' };
+        if (session?.access_token) headers['Authorization'] = 'Bearer ' + session.access_token;
+
         const res = await fetch('/api/settings', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: headers,
             body: JSON.stringify(settings)
         });
-        
+
         if (res.ok) {
             // Success handled by showToast in saveSignature
         } else {
