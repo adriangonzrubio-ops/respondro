@@ -135,6 +135,7 @@ ALWAYS ESCALATE: Refunds over ${shopData.shop?.currency || 'USD'} 100, legal thr
 async function registerMandatoryWebhooks(shop: string, token: string) {
     const webhooks = [
         { topic: 'app/uninstalled', address: `${SHOPIFY_APP_URL}/api/webhooks/app-uninstalled` },
+        { topic: 'app_subscriptions/update', address: `${SHOPIFY_APP_URL}/api/webhooks/app-subscriptions-update` },
         { topic: 'customers/data_request', address: `${SHOPIFY_APP_URL}/api/webhooks/gdpr/customers-data-request` },
         { topic: 'customers/redact', address: `${SHOPIFY_APP_URL}/api/webhooks/gdpr/customers-redact` },
         { topic: 'shop/redact', address: `${SHOPIFY_APP_URL}/api/webhooks/gdpr/shop-redact` },
