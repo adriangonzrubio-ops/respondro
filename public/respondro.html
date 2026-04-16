@@ -458,7 +458,7 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
   </div>
 
   <!-- APP (hidden until authenticated) -->
-  <div id="app-container" style="display:none">
+  <div id="app-container" style="display:none;flex:1;overflow:hidden;flex-direction:column">
   <div class="flex" style="height:calc(100vh - 56px);overflow:hidden">
 <div class="sidebar w-64 bg-[#0f1115] border-r border-white/5 flex flex-col">
     <div class="p-6" id="sidebar-logo-area">
@@ -1357,7 +1357,10 @@ async function checkAuth() {
   var { data: { session } } = await sb.auth.getSession();
   if (session) {
     document.getElementById('auth-gate').style.display = 'none';
-    document.getElementById('app-container').style.display = 'block';
+    document.getElementById('app-container').style.display = 'flex';
+    document.getElementById('app-container').style.flexDirection = 'column';
+    document.getElementById('app-container').style.flex = '1';
+    document.getElementById('app-container').style.overflow = 'hidden';
     // Update user avatar
     var avatar = document.getElementById('user-avatar');
     if (avatar && session.user.email) {
