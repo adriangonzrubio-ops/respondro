@@ -437,7 +437,7 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
       </div>
       <div id="auth-login-form">
         <input type="email" id="auth-email" placeholder="Email" style="width:100%;padding:10px 14px;margin-bottom:10px;border-radius:8px;border:1px solid var(--color-border-tertiary);background:var(--color-background-primary);color:var(--color-text-primary);font-size:14px;box-sizing:border-box">
-        <input type="password" id="auth-password" placeholder="Password" style="width:100%;padding:10px 14px;margin-bottom:16px;border-radius:8px;border:1px solid var(--color-border-tertiary);background:var(--color-background-primary);color:var(--color-text-primary);font-size:14px;box-sizing:border-box">
+        <input type="password" id="auth-password" placeholder="Password" onkeydown="if(event.key==='Enter')authLogin()" style="width:100%;padding:10px 14px;margin-bottom:16px;border-radius:8px;border:1px solid var(--color-border-tertiary);background:var(--color-background-primary);color:var(--color-text-primary);font-size:14px;box-sizing:border-box">
         <button onclick="authLogin()" id="auth-login-btn" style="width:100%;padding:12px;background:#00C896;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Log in</button>
         <p id="auth-error" style="color:#F87171;font-size:12px;margin-top:8px;text-align:center;display:none"></p>
         <p style="text-align:center;margin-top:16px;font-size:12px;color:var(--color-text-secondary)"><a href="#" onclick="showForgotPassword();return false" style="color:#00C896;text-decoration:none">Forgot password?</a></p>
