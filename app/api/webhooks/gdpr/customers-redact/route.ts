@@ -7,17 +7,54 @@ export async function POST(req: Request) {
     if (!isValid) return new Response('Unauthorized', { status: 401 });
 
     const payload = await req.json();
-    const customerEmail = payload.customer.email;
+    const shopDomain = payload.shop_domain;
+    const customerEmail = payload.customer?.email;
 
-    console.log('🗑️ GDPR: Redacting customer data for', customerEmail);
+    console.log(`🗑️ GDPR: Redacting customer data for ${customerEmail} from ${shopDomain}`);
 
-    // Delete messages associated with this customer
-    const { error } = await supabaseAdmin
-        .from('messages')
-        .delete()
-        .eq('sender', customerEmail);
+    try {
+        // Log the request
+        await supabaseAdmin.from('gdpr_requests').insert({
+            shop_domain: shopDomain,
+            request_type: 'customers_redact',
+            customer_email: customerEmail,
+            payload: payload,
+            status: 'received'
+        });
 
-    if (error) console.error('Error redacting customer:', error.message);
+        // Find the store
+        const { data: store } = await supabaseAdmin
+            .from('stores')
+            .select('id')
+            .eq('shopify_url', shopDomain)
+            .single();
 
-    return NextResponse.json({ message: "Redaction complete" }, { status: 200 });
+        if (store && customerEmail) {
+            // Delete all messages from this customer for this specific shop only
+            const { error } = await supabaseAdmin
+                .from('messages')
+                .delete()
+                .eq('store_id', store.id)
+                .ilike('sender', `%${customerEmail}%`);
+
+            if (error) {
+                console.error('Error redacting customer:', error.message);
+            } else {
+                await supabaseAdmin
+                    .from('gdpr_requests')
+                    .update({
+                        status: 'completed',
+                        completed_at: new Date().toISOString()
+                    })
+                    .eq('shop_domain', shopDomain)
+                    .eq('customer_email', customerEmail)
+                    .eq('request_type', 'customers_redact');
+            }
+        }
+
+        return NextResponse.json({ message: 'Redaction complete' }, { status: 200 });
+    } catch (error: any) {
+        console.error('Customer redact error:', error);
+        return NextResponse.json({ message: 'Error processing' }, { status: 200 });
+    }
 }
