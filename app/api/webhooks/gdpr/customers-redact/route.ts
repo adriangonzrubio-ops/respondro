@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyShopifyWebhook } from '@/lib/shopify-security';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(req: Request) {
     const isValid = await verifyShopifyWebhook(req);
@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     console.log('🗑️ GDPR: Redacting customer data for', customerEmail);
 
     // Delete messages associated with this customer
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
         .from('messages')
         .delete()
         .eq('sender', customerEmail);

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyShopifyWebhook } from '@/lib/shopify-security';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(req: Request) {
     const isValid = await verifyShopifyWebhook(req);
@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     console.log('🚨 GDPR: Full Shop Redaction for', shopDomain);
 
     // 1. Find the store ID
-    const { data: store } = await supabase
+    const { data: store } = await supabaseAdmin
         .from('stores')
         .select('id')
         .eq('shopify_url', shopDomain)
@@ -20,9 +20,9 @@ export async function POST(req: Request) {
 
     if (store) {
         // 2. Wipe everything linked to this store
-        await supabase.from('messages').delete().eq('store_id', store.id);
-        await supabase.from('settings').delete().eq('store_id', store.id);
-        await supabase.from('stores').delete().eq('id', store.id);
+        await supabaseAdmin.from('messages').delete().eq('store_id', store.id);
+        await supabaseAdmin.from('settings').delete().eq('store_id', store.id);
+        await supabaseAdmin.from('stores').delete().eq('id', store.id);
     }
 
     return NextResponse.json({ message: "Shop data wiped" }, { status: 200 });
