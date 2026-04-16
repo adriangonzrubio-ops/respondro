@@ -311,7 +311,11 @@ body.light #user-name-nav{color:#1A1D26!important}
 body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!important}
 </style>
 </head>
-<body>
+<body class="font-body">
+  <div id="auth-gate" style="display:none; min-height:100vh; background:#080D1A; align-items:center; justify-content:center; width:100%;">
+    </div>
+
+  <div id="app-container" style="display:none; flex-direction:column; height:100vh; overflow:hidden;">
 
 <!-- ═══════ LANDING (abbreviated) ═══════ -->
 <div id="landing">
@@ -1484,16 +1488,31 @@ function getDraft(el) {
         renderMessageList(messages);
     }
 }
-// Replace Lines 588-596 with this:
+// 🛡️ 1. INITIALIZE SUPABASE
 const sbUrl = 'https://vlwhwkxmjfwzpvspkldc.supabase.co'; 
 const sbKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsd2h3a3htamZ3enB2c3BrbGRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMjA4NDQsImV4cCI6MjA5MDg5Njg0NH0.zKr1JkEa1WI3Bu2_ZkmN9P2RPdcGMn_MUMPZBePX26Y'; 
-
-// We name the connection 'sb' to avoid crashing with the library name
 const sb = window.supabase.createClient(sbUrl, sbKey);
 console.log("Connection 'sb' initialized!");
 
-// NOW check auth (sb is ready)
-checkAuth();
+// 🛡️ 2. THE AUTH CHECK
+async function checkAuth() {
+    const { data: { session } } = await sb.auth.getSession();
+    const app = document.getElementById('app-container');
+    const gate = document.getElementById('auth-gate');
+    
+    if (session) {
+        ST.user = session.user;
+        if(gate) gate.style.display = 'none';
+        if(app) {
+            app.style.display = 'flex';
+            app.style.flexDirection = 'column';
+            if (typeof initApp === 'function') initApp(); 
+        }
+    } else {
+        if(app) app.style.display = 'none';
+        if(gate) gate.style.display = 'flex';
+    }
+}
 // ═══ PROVIDERS ═══
 // --- AGENT MANAGEMENT LOGIC (Wilmo Style) ---
 
@@ -1944,11 +1963,28 @@ document.getElementById('auth-login').classList.toggle('hidden',t!=='login');
   document.getElementById('tab-signup').classList.toggle('active',t==='signup');
   if(t==='signup')sNext(0);
 }
-function doLogin(){
-  const email=document.getElementById('login-email').value.trim();
-  if(!email){alert('Please enter your email');return;}
-  const n=email.split('@')[0];const u={email,name:n.charAt(0).toUpperCase()+n.slice(1)};
-  localStorage.setItem('respondro_user',JSON.stringify(u));ST.user=u;closeAuth();showDashboard();
+async function doLogin() {
+    const email = document.getElementById('login-email').value.trim();
+    const pass = document.getElementById('login-password').value.trim();
+    const btn = event.target;
+
+    if (!email || !pass) return alert("Please enter both email and password.");
+
+    btn.disabled = true;
+    btn.textContent = "Authenticating...";
+
+    const { data, error } = await sb.auth.signInWithPassword({
+        email: email,
+        password: pass,
+    });
+
+    if (error) {
+        alert("Error: " + error.message);
+        btn.disabled = false;
+        btn.textContent = "Log in →";
+    } else {
+        window.location.reload(); 
+    }
 }
 function sNext(n){
   [0,1,2,3,4].forEach(i=>{const el=document.getElementById('s-step-'+i);if(el)el.classList.toggle('hidden',i!==n);});
