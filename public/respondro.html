@@ -1890,6 +1890,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         const res = await fetch('/api/settings');
         const data = await res.json();
         console.log("✅ Unified Sync Data:", data);
+        // Load billing/subscription state
+        if (data) {
+            ST.billing = {
+                plan_tier: data.plan_tier || 'trial',
+                plan_interval: data.plan_interval || 'monthly',
+                subscription_status: data.subscription_status || 'trialing',
+                trial_ends_at: data.trial_ends_at,
+                daily_email_count: data.daily_email_count || 0,
+                monthly_email_count: data.monthly_email_count || 0,
+                shopify_url: data.shop_url
+            };
+            // Load plan limits from the plans table
+            try {
+                const planRes = await fetch('/api/billing/plan-info?tier=' + ST.billing.plan_tier);
+                const planData = await planRes.json();
+                if (planData.plan) ST.billing.plan_details = planData.plan;
+            } catch(e) { console.warn('Could not load plan details', e); }
+            renderBillingUI();
+        }
         
         if (data) {
             // Update Rulebook/Signature
@@ -3148,7 +3167,15 @@ async function startParallelProcessing() {
 }
 
 // ═══ TOAST ═══
-function showToast(msg){const t=document.createElement('div');t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0F1623;border:1px solid rgba(0,200,150,0.3);color:#00C896;padding:9px 20px;border-radius:999px;font-size:13px;z-index:9999;animation:slideUp 0.3s ease;white-space:nowrap';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2400);}
+function showToast(msg, type){
+  var t=document.createElement('div');
+  var color = type === 'error' ? '#F87171' : type === 'success' ? '#00C896' : '#00C896';
+  var borderColor = type === 'error' ? 'rgba(248,113,113,0.3)' : 'rgba(0,200,150,0.3)';
+  t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0F1623;border:1px solid '+borderColor+';color:'+color+';padding:9px 20px;border-radius:999px;font-size:13px;z-index:9999;animation:slideUp 0.3s ease;white-space:nowrap;max-width:90vw';
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(function(){t.remove();},3500);
+}
 
 function updateShopifyIntegrationUI() {
     var statusEl = document.getElementById('shop-int-status');
@@ -3304,6 +3331,218 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error("Could not load settings:", err);
     }
 });
+
+// ═══ BILLING UI ═══
+function renderBillingUI() {
+  if (!ST.billing) return;
+  var b = ST.billing;
+  var plan = b.plan_details || {};
+  var status = b.subscription_status || 'trialing';
+
+  // 1. Update sidebar plan label
+  var sidebarPlanEl = document.querySelector('.sidebar .p-4.border-t .text-\\[10px\\]');
+  if (sidebarPlanEl) {
+    var planName = (plan.display_name || b.plan_tier || 'Trial');
+    var statusLabel = status === 'trialing' ? 'Trial' : status === 'active' ? 'Active' : status === 'cancelled' ? 'Cancelled' : 'Plan';
+    sidebarPlanEl.textContent = planName + ' · ' + statusLabel;
+  }
+
+  // 2. Render trial countdown banner (if trialing)
+  renderTrialBanner(b, plan);
+
+  // 3. Render usage meter in dashboard
+  renderUsageMeter(b, plan);
+
+  // 4. Update subscription card in Settings
+  renderSubscriptionCard(b, plan);
+
+  // 5. Check for billing success/error toasts from URL params
+  checkBillingUrlParams();
+}
+
+function renderTrialBanner(b, plan) {
+  var existingBanner = document.getElementById('trial-banner');
+  if (existingBanner) existingBanner.remove();
+
+  var mainContent = document.getElementById('main-content');
+  if (!mainContent) return;
+
+  var status = b.subscription_status;
+  var shopQuery = b.shopify_url ? '?shop=' + b.shopify_url : '';
+  var banner;
+
+  if (status === 'trialing' && b.trial_ends_at) {
+    var trialEnd = new Date(b.trial_ends_at);
+    var now = new Date();
+    var diffMs = trialEnd.getTime() - now.getTime();
+    var daysLeft = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+    var hoursLeft = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60)));
+
+    if (diffMs <= 0) {
+      // Trial expired — show hard block banner
+      banner = document.createElement('div');
+      banner.id = 'trial-banner';
+      banner.style.cssText = 'background:linear-gradient(90deg,rgba(248,113,113,0.15),rgba(240,165,0,0.1));border-bottom:1px solid rgba(248,113,113,0.25);padding:12px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;';
+      banner.innerHTML = '<div style="display:flex;align-items:center;gap:10px;flex:1;min-width:200px">'
+        + '<span style="font-size:16px">⚠️</span>'
+        + '<div><div style="font-weight:700;font-size:13px;color:#F87171">Your trial has ended</div>'
+        + '<div style="font-size:11px;color:#8B96B0">AI processing is paused. New emails arrive in the Review Board but won\'t be drafted automatically.</div></div>'
+        + '</div>'
+        + '<a href="/pricing.html' + shopQuery + '" style="background:#00C896;color:#080D1A;font-weight:700;padding:8px 18px;border-radius:8px;font-size:12px;text-decoration:none;white-space:nowrap">Pick a plan →</a>';
+    } else {
+      // Active trial — show countdown
+      var label = daysLeft > 1 ? daysLeft + ' days left' : hoursLeft + ' hours left';
+      banner = document.createElement('div');
+      banner.id = 'trial-banner';
+      banner.style.cssText = 'background:linear-gradient(90deg,rgba(0,200,150,0.08),rgba(167,139,250,0.05));border-bottom:1px solid rgba(0,200,150,0.2);padding:10px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;';
+      banner.innerHTML = '<div style="display:flex;align-items:center;gap:10px;flex:1;min-width:200px">'
+        + '<span style="width:8px;height:8px;border-radius:50%;background:#00C896;animation:flash 2s infinite"></span>'
+        + '<span style="font-size:12px;color:#C8D0E0">Free trial: <strong style="color:#00C896">' + label + '</strong> · ' + (b.monthly_email_count || 0) + '/60 emails used</span>'
+        + '</div>'
+        + '<a href="/pricing.html' + shopQuery + '" style="background:rgba(0,200,150,0.12);color:#00C896;font-weight:600;padding:6px 14px;border-radius:6px;font-size:11px;text-decoration:none;border:1px solid rgba(0,200,150,0.3)">Upgrade now</a>';
+    }
+  } else if (status === 'cancelled') {
+    banner = document.createElement('div');
+    banner.id = 'trial-banner';
+    banner.style.cssText = 'background:rgba(248,113,113,0.1);border-bottom:1px solid rgba(248,113,113,0.25);padding:10px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;';
+    banner.innerHTML = '<div style="display:flex;align-items:center;gap:10px;flex:1"><span style="font-size:14px">⚠️</span><span style="font-size:12px;color:#F87171">Your subscription is cancelled. Reactivate to resume AI processing.</span></div>'
+      + '<a href="/pricing.html' + shopQuery + '" style="background:#00C896;color:#080D1A;font-weight:700;padding:6px 14px;border-radius:6px;font-size:11px;text-decoration:none">Reactivate →</a>';
+  } else if (status === 'past_due') {
+    banner = document.createElement('div');
+    banner.id = 'trial-banner';
+    banner.style.cssText = 'background:rgba(240,165,0,0.1);border-bottom:1px solid rgba(240,165,0,0.25);padding:10px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;';
+    banner.innerHTML = '<div style="display:flex;align-items:center;gap:10px;flex:1"><span style="font-size:14px">⚠️</span><span style="font-size:12px;color:#F0A500">Payment issue detected. Please update your billing in Shopify admin.</span></div>';
+  }
+
+  if (banner) {
+    mainContent.insertBefore(banner, mainContent.firstChild);
+  }
+}
+
+function renderUsageMeter(b, plan) {
+  // Add a small usage meter to the dashboard view
+  var dashboard = document.getElementById('view-dashboard');
+  if (!dashboard) return;
+
+  var existing = document.getElementById('usage-meter-card');
+  if (existing) existing.remove();
+
+  var limit = plan.email_limit_monthly || 60;
+  var used = b.monthly_email_count || 0;
+  var percent = Math.min(100, Math.round((used / limit) * 100));
+
+  var barColor = percent >= 90 ? '#F87171' : percent >= 75 ? '#F0A500' : '#00C896';
+  var bgColor = percent >= 90 ? 'rgba(248,113,113,0.08)' : percent >= 75 ? 'rgba(240,165,0,0.06)' : 'rgba(0,200,150,0.04)';
+  var borderColor = percent >= 90 ? 'rgba(248,113,113,0.25)' : percent >= 75 ? 'rgba(240,165,0,0.2)' : 'rgba(0,200,150,0.15)';
+
+  var shopQuery = b.shopify_url ? '?shop=' + b.shopify_url : '';
+  var meter = document.createElement('div');
+  meter.id = 'usage-meter-card';
+  meter.className = 'settings-card';
+  meter.style.cssText = 'margin:0 0 12px 0;background:' + bgColor + ';border-color:' + borderColor;
+  meter.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+    + '<div><div style="font-size:11px;color:#5A6785;text-transform:uppercase;letter-spacing:0.05em;font-weight:600">Email Usage</div>'
+    + '<div style="font-size:16px;font-weight:700;margin-top:2px">' + used.toLocaleString() + ' / ' + limit.toLocaleString() + ' <span style="font-size:11px;color:#5A6785;font-weight:400">emails this cycle</span></div></div>'
+    + '<div style="text-align:right"><div style="font-size:20px;font-weight:800;color:' + barColor + '">' + percent + '%</div>'
+    + (percent >= 90 ? '<a href="/pricing.html' + shopQuery + '" style="font-size:11px;color:#00C896;text-decoration:none">Upgrade →</a>' : '<div style="font-size:10px;color:#5A6785">' + (plan.display_name || b.plan_tier) + '</div>') + '</div></div>'
+    + '<div style="height:6px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden"><div style="height:100%;width:' + percent + '%;background:' + barColor + ';transition:width 0.5s ease;border-radius:3px"></div></div>';
+
+  // Insert after the stats row
+  var statsRow = dashboard.querySelector('.grid.grid-cols-2');
+  if (statsRow && statsRow.nextSibling) {
+    dashboard.insertBefore(meter, statsRow.nextSibling);
+  } else {
+    dashboard.appendChild(meter);
+  }
+}
+
+function renderSubscriptionCard(b, plan) {
+  var card = document.querySelector('#view-settings .bg-\\[\\#16191f\\]:last-child');
+  // Find the subscription card more reliably
+  var subTitle = Array.from(document.querySelectorAll('#view-settings h3')).find(function(h) { return h.textContent.includes('Subscription'); });
+  if (!subTitle) return;
+  var subCard = subTitle.closest('.bg-\\[\\#16191f\\]') || subTitle.parentElement;
+  if (!subCard) return;
+
+  var planName = plan.display_name || (b.plan_tier || 'trial').charAt(0).toUpperCase() + (b.plan_tier || 'trial').slice(1);
+  var status = b.subscription_status || 'trialing';
+  var statusLabel = status === 'trialing' ? 'TRIAL' : status === 'active' ? 'ACTIVE' : status === 'cancelled' ? 'CANCELLED' : status.toUpperCase();
+  var statusColor = status === 'active' ? '#00C896' : status === 'cancelled' ? '#F87171' : status === 'trialing' ? '#F0A500' : '#8B96B0';
+  var shopQuery = b.shopify_url ? '?shop=' + b.shopify_url : '';
+
+  var trialInfo = '';
+  if (status === 'trialing' && b.trial_ends_at) {
+    var trialEnd = new Date(b.trial_ends_at);
+    trialInfo = 'Trial ends ' + trialEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  } else if (status === 'active') {
+    trialInfo = 'Billed via Shopify · ' + (b.plan_interval || 'monthly');
+  } else if (status === 'cancelled') {
+    trialInfo = 'Subscription cancelled';
+  }
+
+  subCard.innerHTML = '<h3 class="text-white font-bold text-sm mb-1 flex items-center gap-2"><span>💳</span> Subscription</h3>'
+    + '<p class="text-gray-500 text-xs mb-4">Manage your current plan and billing.</p>'
+    + '<div class="bg-black/20 border rounded-xl p-4 mb-4" style="border-color:' + statusColor + '33">'
+    + '<div class="flex items-center justify-between mb-2">'
+    + '<span class="text-white font-bold text-sm">' + planName + ' Plan</span>'
+    + '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full" style="background:' + statusColor + '22;color:' + statusColor + '">' + statusLabel + '</span>'
+    + '</div>'
+    + '<p class="text-xs text-gray-400 mb-1">' + trialInfo + '</p>'
+    + '</div>'
+    + '<div class="space-y-2">'
+    + '<a href="/pricing.html' + shopQuery + '" class="block w-full py-2.5 text-center bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-all">' + (status === 'trialing' ? 'Choose a Plan' : status === 'cancelled' ? 'Reactivate' : 'Upgrade or Downgrade') + '</a>'
+    + (status === 'active' ? '<button onclick="cancelSubscription()" class="w-full py-2.5 bg-white/5 hover:bg-red-500/10 text-red-400 text-xs font-bold rounded-lg border border-white/5 hover:border-red-500/20 transition-all flex items-center justify-center gap-2"><span>✕</span> Cancel Subscription</button>' : '')
+    + '</div>';
+}
+
+async function cancelSubscription() {
+  if (!confirm('Are you sure you want to cancel your subscription? Your AI processing will stop at the end of the current billing cycle.')) return;
+
+  if (!ST.billing || !ST.billing.shopify_url) {
+    showToast('Unable to cancel — shop URL not found');
+    return;
+  }
+
+  try {
+    var res = await fetch('/api/shopify/billing/cancel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shop: ST.billing.shopify_url })
+    });
+
+    var data = await res.json();
+    if (res.ok && data.success) {
+      showToast('Subscription cancelled ✓');
+      setTimeout(function() { window.location.reload(); }, 1500);
+    } else {
+      showToast('Error: ' + (data.error || 'Could not cancel subscription'));
+    }
+  } catch(err) {
+    showToast('Network error — please try again');
+  }
+}
+
+function checkBillingUrlParams() {
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('billing_success') === 'true') {
+    var tier = params.get('tier') || 'your plan';
+    showToast('Welcome to ' + tier.charAt(0).toUpperCase() + tier.slice(1) + '! Your subscription is active ✓', 'success');
+    // Clean up URL
+    window.history.replaceState({}, '', '/respondro.html');
+  }
+  if (params.get('billing_error')) {
+    var errorMessages = {
+      'activation_failed': 'Subscription activation failed. Please try again.',
+      'missing_params': 'Checkout flow incomplete. Please try again.',
+      'invalid_shop': 'Invalid shop URL.',
+      'store_not_found': 'Store not found.',
+      'server_error': 'Server error. Please try again.'
+    };
+    showToast(errorMessages[params.get('billing_error')] || 'Billing error occurred');
+    window.history.replaceState({}, '', '/respondro.html');
+  }
+}
+
 // ═══ AUTONOMY SETTINGS ═══
 async function loadAutonomySettings() {
     if (!ST.settings) return;
