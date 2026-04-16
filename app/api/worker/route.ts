@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { classifyAndDraft } from '@/lib/ai-classifier';
 import { getShopifyContext, extractOrderNumber, executeRefund, cancelOrder, updateShippingAddress } from '@/lib/shopify';
 import { checkUsageAllowed, incrementUsage } from '@/lib/usage-gate';
+import { decrypt } from '@/lib/encryption';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,7 +85,7 @@ async function fetchAndProcess(conn: any) {
         host: conn.imap_host,
         port: conn.imap_port || 993,
         secure: true,
-        auth: { user: conn.imap_user, pass: conn.imap_pass },
+        auth: { user: conn.imap_user, pass: decrypt(conn.imap_pass) },
         connectionTimeout: 15000,
         logger: false
     });
