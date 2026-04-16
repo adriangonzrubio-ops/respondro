@@ -312,10 +312,6 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
 </style>
 </head>
 <body class="font-body">
-  <div id="auth-gate" style="display:none; min-height:100vh; background:#080D1A; align-items:center; justify-content:center; width:100%;">
-    </div>
-
-  <div id="app-container" style="display:none; flex-direction:column; height:100vh; overflow:hidden;">
 
 <!-- ═══════ LANDING (abbreviated) ═══════ -->
 <div id="landing">
@@ -1364,25 +1360,42 @@ const sb = window.supabase.createClient(sbUrl, sbKey);
 
 // ═══ AUTHENTICATION ═══
 async function checkAuth() {
-  var { data: { session } } = await sb.auth.getSession();
+  const { data: { session } } = await sb.auth.getSession();
+  const app = document.getElementById('app-container');
+  const gate = document.getElementById('auth-gate');
+  const dashboard = document.getElementById('dashboard');
+  const landing = document.getElementById('landing');
+
   if (session) {
-    document.getElementById('auth-gate').style.display = 'none';
-    document.getElementById('app-container').style.display = 'flex';
-    document.getElementById('app-container').style.flexDirection = 'column';
-    document.getElementById('app-container').style.flex = '1';
-    document.getElementById('app-container').style.overflow = 'hidden';
-    
-    var avatar = document.getElementById('user-avatar');
+    // Logged in — show app, hide landing + auth gate
+    if (landing) landing.classList.add('hidden');
+    if (dashboard) {
+      dashboard.classList.add('active');
+      dashboard.style.display = 'flex';
+    }
+    if (gate) gate.style.display = 'none';
+    if (app) {
+      app.style.display = 'flex';
+      app.style.flexDirection = 'column';
+    }
+
+    const avatar = document.getElementById('user-avatar');
     if (avatar && session.user.email) avatar.textContent = session.user.email.charAt(0).toUpperCase();
-    var userLabel = document.getElementById('user-label');
-    if (userLabel) userLabel.textContent = session.user.email.split('@')[0];
-    
-    // 🚀 TRIGGER THE DASHBOARD DATA LOAD
-    fetchMessages();
+    const nameNav = document.getElementById('user-name-nav');
+    if (nameNav && session.user.email) nameNav.textContent = session.user.email.split('@')[0];
+
     return true;
   } else {
-    document.getElementById('auth-gate').style.display = 'flex';
-    document.getElementById('app-container').style.display = 'none';
+    // Not logged in — show auth gate (it lives inside #dashboard so dashboard must be active)
+    if (landing) landing.classList.add('hidden');
+    if (dashboard) {
+      dashboard.classList.add('active');
+      dashboard.style.display = 'flex';
+      dashboard.style.alignItems = 'center';
+      dashboard.style.justifyContent = 'center';
+    }
+    if (app) app.style.display = 'none';
+    if (gate) gate.style.display = 'flex';
     return false;
   }
 }
@@ -1861,6 +1874,10 @@ const ST = {
 };
 // --- INIT (The Master Sync) ---
 document.addEventListener('DOMContentLoaded', async () => {
+    // 0. Check authentication FIRST — if not logged in, show auth gate and stop here
+    const isAuthed = await checkAuth();
+    if (!isAuthed) return;
+
     // 1. Immediate UI Setup
     showDashboard();
     buildProviderList();
@@ -4901,6 +4918,5 @@ async function dashMarkActionDone(msgId, btn) {
         </div>
     </div>
 </div>
-</div><!-- close app-container -->
 </body>
 </html>
