@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { classifyAndDraft } from '@/lib/ai-classifier';
-import { getShopifyContext, extractOrderNumber, executeRefund, cancelOrder, updateShippingAddress } from "@/lib/shopify";
-import type { ActionResult } from '@/lib/shopify';
+import { getShopifyContext, extractOrderNumber, executeRefund, cancelOrder, updateShippingAddress } from '@/lib/shopify';
+import { checkUsageAllowed, incrementUsage } from '@/lib/usage-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     const key = searchParams.get('key');
     const origin = request.headers.get('origin') || request.headers.get('referer') || '';
     const isSameOrigin = origin.includes('respondro.vercel.app') || origin.includes('respondro.ai') || origin.includes('localhost');
-    
+
     if (!isSameOrigin && key !== process.env.WORKER_SECRET) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -22,12 +22,12 @@ export async function GET(request: Request) {
     let totalSent = 0;
 
     try {
-        const { data: connections } = await supabase.from('user_connections').select('*');
+        const { data: connections } = await supabaseAdmin.from('user_connections').select('*');
         if (!connections || connections.length === 0) {
             return NextResponse.json({ success: true, processed: 0, sent: 0 });
         }
 
-        // PHASE A: Fetch and classify new emails
+        // PHASE A: Fetch and process new emails
         for (const conn of connections) {
             try {
                 totalProcessed += await fetchAndProcess(conn);
@@ -45,9 +45,6 @@ export async function GET(request: Request) {
     }
 }
 
-// ═══════════════════════════════════════════════
-// Holds a downloaded email ready for processing
-// ═══════════════════════════════════════════════
 interface DownloadedEmail {
     uid: number;
     from: string;
@@ -61,21 +58,26 @@ interface DownloadedEmail {
 }
 
 // ═══════════════════════════════════════════════
-// PHASE A: Fetch emails from IMAP, classify, execute actions
+// PHASE A: Fetch + classify + enforce limits + execute actions
 // ═══════════════════════════════════════════════
 async function fetchAndProcess(conn: any) {
-    const { data: store } = await supabase.from('settings').select('*').eq('store_id', conn.store_id).single();
-    if (!store) return 0;
+    // Check usage/plan/subscription before doing anything expensive
+    const decision = await checkUsageAllowed(conn.store_id);
+
+    if (!decision.storeName) {
+        console.log(`⚠️ Skipping connection ${conn.id} — no store found`);
+        return 0;
+    }
 
     // Get already-processed UIDs from DB
-    const { data: existingMsgs } = await supabase
+    const { data: existingMsgs } = await supabaseAdmin
         .from('messages')
         .select('external_id')
         .eq('connection_id', conn.id)
         .not('external_id', 'is', null);
     const processedUids = new Set((existingMsgs || []).map(m => m.external_id));
 
-    // ── IMAP PHASE: Download emails, then disconnect ──
+    // ── IMAP PHASE ──
     const downloaded: DownloadedEmail[] = [];
 
     const client = new ImapFlow({
@@ -100,11 +102,10 @@ async function fetchAndProcess(conn: any) {
                 if (processedUids.has(uid.toString())) { alreadyInDb.push(uid); } else { trulyNew.push(uid); }
             }
 
-            // Mark old ones as read
             if (alreadyInDb.length > 0) {
                 console.log(`📭 Marking ${alreadyInDb.length} as read...`);
                 for (let i = 0; i < alreadyInDb.length; i += 50) {
-                    try { await client.messageFlagsAdd(alreadyInDb.slice(i, i + 50), ['\\Seen'], { uid: true }); } catch(e) {}
+                    try { await client.messageFlagsAdd(alreadyInDb.slice(i, i + 50), ['\\Seen'], { uid: true }); } catch (e) { }
                 }
             }
 
@@ -117,12 +118,10 @@ async function fetchAndProcess(conn: any) {
             for await (const msg of messages) {
                 if (!msg.source) continue;
                 const parsed = await simpleParser(msg.source);
-                const fromAddress = parsed.from?.value[0]?.address || "";
-                const fromName = parsed.from?.value[0]?.name || "";
+                const fromAddress = parsed.from?.value[0]?.address || '';
+                const fromName = parsed.from?.value[0]?.name || '';
 
-                // Use the email's actual Date header, but validate it
                 let emailDate = parsed.date ? parsed.date.toISOString() : new Date().toISOString();
-                // If the parsed date is in the future (more than 1 hour ahead), it's likely wrong — use now
                 if (parsed.date && parsed.date.getTime() > Date.now() + 3600000) {
                     emailDate = new Date().toISOString();
                 }
@@ -131,29 +130,29 @@ async function fetchAndProcess(conn: any) {
                     uid: msg.uid,
                     from: fromName ? `"${fromName}" <${fromAddress}>` : fromAddress,
                     fromAddress, fromName,
-                    subject: parsed.subject || "",
-                    body: parsed.text || "",
+                    subject: parsed.subject || '',
+                    body: parsed.text || '',
                     date: emailDate,
-                    inReplyTo: (parsed.inReplyTo as string) || "",
-                    references: (parsed.references || []) as string[],
+                    inReplyTo: (parsed.inReplyTo as string) || '',
+                    references: (parsed.references || []) as string[]
                 });
-                try { await client.messageFlagsAdd(msg.uid, ['\\Seen'], { uid: true }); } catch(e) {}
+                try { await client.messageFlagsAdd(msg.uid, ['\\Seen'], { uid: true }); } catch (e) { }
             }
         } finally { lock.release(); }
         await client.logout();
     } catch (imapErr: any) {
         console.error(`❌ IMAP error: ${imapErr.message}`);
-        try { await client.logout(); } catch(e) {}
+        try { await client.logout(); } catch (e) { }
         if (downloaded.length === 0) return 0;
     }
 
-    console.log(`📥 Downloaded ${downloaded.length}. IMAP closed. Processing...`);
+    console.log(`📥 Downloaded ${downloaded.length} emails for ${decision.storeName}. Plan: ${decision.plan} (${decision.usagePercent}% used)`);
 
-    // ── Pre-load rulebooks + policies ONCE ──
-    const { data: agents } = await supabase.from('support_agents').select('agent_type, rulebook, is_enabled').eq('store_id', conn.store_id);
-    const { data: policies } = await supabase.from('store_policies').select('policy_type, policy_content').eq('store_id', conn.store_id);
+    // ── Pre-load agents + policies ONCE ──
+    const { data: agents } = await supabaseAdmin.from('support_agents').select('agent_type, rulebook, is_enabled').eq('store_id', conn.store_id);
+    const { data: policies } = await supabaseAdmin.from('store_policies').select('policy_type, policy_content').eq('store_id', conn.store_id);
 
-    let fullRulebook = store.rulebook || '';
+    let fullRulebook = decision.rulebook || '';
     if (agents && agents.length > 0) {
         const agentRules = agents.filter((a: any) => a.is_enabled && a.rulebook).map((a: any) => `[${a.agent_type.toUpperCase()} AGENT]:\n${a.rulebook}`).join('\n\n');
         if (agentRules) fullRulebook += '\n\n' + agentRules;
@@ -163,18 +162,18 @@ async function fetchAndProcess(conn: any) {
         if (policyText) fullRulebook += '\n\nSTORE POLICIES:\n' + policyText;
     }
 
-    // ── AI PROCESSING PHASE ──
+    // ── PROCESS EACH EMAIL ──
     let emailsProcessed = 0;
 
     for (const email of downloaded) {
         try {
-            // Check for merge target (existing open ticket from same sender)
+            // Check for merge target
             let mergeTargetId: string | null = null;
             let previousCategory: string | null = null;
             let previousStatus: string | null = null;
 
             if (email.fromAddress) {
-                const { data: openTicket } = await supabase.from('messages')
+                const { data: openTicket } = await supabaseAdmin.from('messages')
                     .select('id, category, priority, status')
                     .ilike('sender', `%${email.fromAddress}%`)
                     .in('status', ['needs_review', 'pending', 'automated', 'queued'])
@@ -190,9 +189,8 @@ async function fetchAndProcess(conn: any) {
                 }
             }
 
-            // Reply-to detection for closed tickets
             if (!mergeTargetId && (email.inReplyTo || email.references.length > 0) && email.fromAddress) {
-                const { data: prevByEmail } = await supabase.from('messages')
+                const { data: prevByEmail } = await supabaseAdmin.from('messages')
                     .select('id, status, subject, category')
                     .ilike('sender', `%${email.fromAddress}%`)
                     .in('status', ['done', 'closed', 'automated'])
@@ -205,18 +203,50 @@ async function fetchAndProcess(conn: any) {
                 }
             }
 
-            // Shopify Context
-            const orderNum = extractOrderNumber(email.body) || extractOrderNumber(email.subject);
-            const shopifyData = await getShopifyContext(store.shop_url, store.shopify_access_token, email.fromAddress, orderNum, email.fromName);
+            // ═══ USAGE GATE: BLOCK PATH ═══
+            // If plan/subscription blocks AI processing, import as needs_review with no AI work
+            if (!decision.canProcess) {
+                const blockedRecord = {
+                    connection_id: conn.id,
+                    store_id: conn.store_id,
+                    sender: email.from,
+                    subject: email.subject,
+                    body_text: email.body,
+                    category: 'general',
+                    priority: 'Medium',
+                    status: 'needs_review',
+                    ai_draft: '',
+                    ai_reasoning: `[AI PAUSED] ${decision.reason}. Emails are being imported but not processed by AI.`,
+                    external_id: email.uid.toString(),
+                    received_at: email.date
+                };
 
-            // AI Classification + Action Detection
+                if (mergeTargetId) {
+                    await supabaseAdmin.from('messages').update(blockedRecord).eq('id', mergeTargetId);
+                } else {
+                    await (supabaseAdmin.from('messages') as any).upsert(blockedRecord, { onConflict: 'external_id' });
+                }
+
+                emailsProcessed++;
+                console.log(`⏸️ Imported (AI blocked): ${email.subject} — ${decision.reason}`);
+                continue;
+            }
+
+            // ═══ AI PROCESSING (usage gate passed) ═══
+
+            // Shopify context (now uses correct shop_url/token from stores table)
+            const orderNum = extractOrderNumber(email.body) || extractOrderNumber(email.subject);
+            const shopifyData = decision.shopifyUrl && decision.shopifyToken
+                ? await getShopifyContext(decision.shopifyUrl, decision.shopifyToken, email.fromAddress, orderNum, email.fromName)
+                : [];
+
             const triage = await classifyAndDraft(
                 email.subject, email.body, fullRulebook,
-                store.store_name || 'Our Store', shopifyData, store.signature,
+                decision.storeName, shopifyData, decision.signature,
                 previousCategory, previousStatus
             );
 
-            // ── DETERMINE STATUS + EXECUTE ACTIONS ──
+            // ═══ Apply plan gating on top of AI's decision ═══
             let finalStatus: string;
             let aiAction: string | null = null;
             let aiActionResult: any = null;
@@ -226,88 +256,96 @@ async function fetchAndProcess(conn: any) {
                 finalStatus = 'spam';
                 finalDraft = '';
             } else if (triage.path === 'AUTOMATE') {
-                // ── CHECK STORE AUTONOMY SETTINGS ──
-                const autoReplyEnabled = !!store.auto_reply_enabled;
-                const autoRefundEnabled = !!store.auto_refund_enabled;
-                const autoCancelEnabled = !!store.auto_cancel_enabled;
-                const autoAddressEnabled = !!store.auto_address_change_enabled;
-                const maxAutoRefund = parseFloat(store.max_auto_refund_amount) || 50;
-                const delayMinutes = parseInt(store.auto_reply_delay_minutes) || 5;
-                const scheduledAt = new Date(Date.now() + delayMinutes * 60 * 1000).toISOString();
-
-                if (!autoReplyEnabled) {
+                // Plan check 1: does the plan even allow auto-reply?
+                if (!decision.canAutoReply) {
                     finalStatus = 'needs_review';
-                    triage.reason = (triage.reason || '') + ' [Auto-reply disabled in store settings]';
-                } else if (triage.required_action !== 'none' && triage.action_parameters) {
+                    triage.reason = (triage.reason || '') + ` [Plan "${decision.plan}" requires manual send — draft ready for review]`;
+                }
+                // If action needed, check plan permissions per action
+                else if (triage.required_action !== 'none' && triage.action_parameters) {
                     const actionOrderNum = triage.action_parameters.order_number || orderNum;
 
                     if (triage.required_action === 'refund' && actionOrderNum) {
-                        if (!autoRefundEnabled) {
+                        if (!decision.canAutoRefund) {
                             finalStatus = 'needs_review';
-                            triage.reason = (triage.reason || '') + ' [Auto-refund disabled in store settings]';
+                            triage.reason = (triage.reason || '') + ` [Plan "${decision.plan}" does not allow auto-refunds]`;
                         } else {
-                            const orderData = shopifyData?.find((o: any) => String(o.order_number) === String(actionOrderNum).replace('#',''));
+                            // Check refund amount vs plan cap
+                            const orderData = shopifyData?.find((o: any) => String(o.order_number) === String(actionOrderNum).replace('#', ''));
                             const orderTotal = orderData ? parseFloat(orderData.total_price) : 0;
                             const refundAmt = triage.action_parameters.refund_type === 'partial' ? (triage.action_parameters.refund_amount || 0) : orderTotal;
-                            
-                            if (refundAmt > maxAutoRefund) {
+
+                            const planCap = decision.maxAutoRefundUsd; // null = unlimited
+
+                            if (planCap !== null && refundAmt > planCap) {
                                 finalStatus = 'needs_review';
-                                triage.reason = (triage.reason || '') + ` [Refund amount ${refundAmt} exceeds max auto-refund limit of ${maxAutoRefund}]`;
-                            } else {
-                                const result = await executeRefund(store.shop_url, store.shopify_access_token, actionOrderNum, triage.action_parameters.refund_type === 'partial' ? triage.action_parameters.refund_amount : undefined);
+                                triage.reason = (triage.reason || '') + ` [Refund ${refundAmt} exceeds plan cap of ${planCap}]`;
+                            } else if (decision.shopifyUrl && decision.shopifyToken) {
+                                const result = await executeRefund(decision.shopifyUrl, decision.shopifyToken, actionOrderNum, triage.action_parameters.refund_type === 'partial' ? triage.action_parameters.refund_amount : undefined);
                                 aiAction = 'refund';
                                 aiActionResult = result;
                                 if (result.success) { finalStatus = 'queued'; triage.reason = (triage.reason || '') + ` [AI ACTION: ${result.details}]`; }
                                 else { finalStatus = 'needs_review'; triage.reason = (triage.reason || '') + ` [AI ACTION FAILED: ${result.details}]`; }
+                            } else {
+                                finalStatus = 'needs_review';
+                                triage.reason = (triage.reason || '') + ' [No Shopify credentials]';
                             }
                         }
                     } else if (triage.required_action === 'cancel' && actionOrderNum) {
-                        if (!autoCancelEnabled) {
+                        if (!decision.canAutoCancel) {
                             finalStatus = 'needs_review';
-                            triage.reason = (triage.reason || '') + ' [Auto-cancel disabled in store settings]';
-                        } else {
-                            const result = await cancelOrder(store.shop_url, store.shopify_access_token, actionOrderNum);
+                            triage.reason = (triage.reason || '') + ` [Plan "${decision.plan}" does not allow auto-cancel]`;
+                        } else if (decision.shopifyUrl && decision.shopifyToken) {
+                            const result = await cancelOrder(decision.shopifyUrl, decision.shopifyToken, actionOrderNum);
                             aiAction = 'cancel';
                             aiActionResult = result;
                             if (result.success) { finalStatus = 'queued'; triage.reason = (triage.reason || '') + ` [AI ACTION: ${result.details}]`; }
                             else { finalStatus = 'needs_review'; triage.reason = (triage.reason || '') + ` [AI ACTION FAILED: ${result.details}]`; }
+                        } else {
+                            finalStatus = 'needs_review';
+                            triage.reason = (triage.reason || '') + ' [No Shopify credentials]';
                         }
                     } else if (triage.required_action === 'address_change' && actionOrderNum && triage.action_parameters.new_address) {
-                        if (!autoAddressEnabled) {
+                        if (!decision.canAutoAddress) {
                             finalStatus = 'needs_review';
-                            triage.reason = (triage.reason || '') + ' [Auto-address change disabled in store settings]';
-                        } else {
-                            const result = await updateShippingAddress(store.shop_url, store.shopify_access_token, actionOrderNum, triage.action_parameters.new_address);
+                            triage.reason = (triage.reason || '') + ` [Plan "${decision.plan}" does not allow auto-address change]`;
+                        } else if (decision.shopifyUrl && decision.shopifyToken) {
+                            const result = await updateShippingAddress(decision.shopifyUrl, decision.shopifyToken, actionOrderNum, triage.action_parameters.new_address);
                             aiAction = 'address_change';
                             aiActionResult = result;
                             if (result.success) { finalStatus = 'queued'; triage.reason = (triage.reason || '') + ` [AI ACTION: ${result.details}]`; }
                             else { finalStatus = 'needs_review'; triage.reason = (triage.reason || '') + ` [AI ACTION FAILED: ${result.details}]`; }
+                        } else {
+                            finalStatus = 'needs_review';
+                            triage.reason = (triage.reason || '') + ' [No Shopify credentials]';
                         }
                     } else {
                         finalStatus = 'needs_review';
                         triage.reason = (triage.reason || '') + ' [Action requested but missing data]';
                     }
                 } else {
+                    // Simple auto-reply (no action)
                     finalStatus = 'queued';
                 }
             } else {
-                // REVIEW path
                 finalStatus = 'needs_review';
             }
 
-            // Reopened tickets always go to review (unless spam)
-            if (previousStatus && ['done', 'closed', 'automated'].includes(previousStatus) && finalStatus !== 'spam') {
-                if (finalStatus === 'queued') {
-                    // Was about to auto-send, but this is a reopened thread — let human review
-                    finalStatus = 'needs_review';
-                    triage.reason = (triage.reason || '') + ' [Reopened thread — moved to review]';
-                }
+            // Reopened threads always go to review
+            if (previousStatus && ['done', 'closed', 'automated'].includes(previousStatus) && finalStatus === 'queued') {
+                finalStatus = 'needs_review';
+                triage.reason = (triage.reason || '') + ' [Reopened thread — moved to review]';
             }
+
+            // Delay for scheduled send
+            const delayMinutes = 5; // Fixed 5-min delay for all plans (feels human)
+            const scheduledAt = finalStatus === 'queued'
+                ? new Date(Date.now() + delayMinutes * 60 * 1000).toISOString()
+                : null;
 
             // ── SAVE TO DATABASE ──
             if (mergeTargetId) {
-                // Update existing ticket
-                await supabase.from('messages').update({
+                await supabaseAdmin.from('messages').update({
                     subject: email.subject,
                     body_text: email.body,
                     category: triage.category || 'general',
@@ -317,13 +355,11 @@ async function fetchAndProcess(conn: any) {
                     ai_reasoning: triage.reason || '',
                     ai_action: aiAction,
                     ai_action_result: aiActionResult,
-                    scheduled_send_at: finalStatus === 'queued' ? new Date(Date.now() + (parseInt(store.auto_reply_delay_minutes) || 5) * 60 * 1000).toISOString() : null,
+                    scheduled_send_at: scheduledAt,
                     external_id: email.uid.toString()
                 }).eq('id', mergeTargetId);
-                console.log(`🔗 Merged into ${mergeTargetId}: ${email.subject} → ${triage.category} (${finalStatus})`);
             } else {
-                // Create new ticket
-                await (supabase.from('messages') as any).upsert({
+                await (supabaseAdmin.from('messages') as any).upsert({
                     connection_id: conn.id,
                     store_id: conn.store_id,
                     sender: email.from,
@@ -339,8 +375,14 @@ async function fetchAndProcess(conn: any) {
                     shopify_data: shopifyData && shopifyData.length > 0 ? shopifyData : null,
                     external_id: email.uid.toString(),
                     received_at: email.date,
-                    scheduled_send_at: finalStatus === 'queued' ? new Date(Date.now() + (parseInt(store.auto_reply_delay_minutes) || 5) * 60 * 1000).toISOString() : null
+                    scheduled_send_at: scheduledAt
                 }, { onConflict: 'external_id' });
+            }
+
+            // Increment usage (Option B — draft generated = 1 email counted)
+            // Skip counting for spam and skip counting if blocked
+            if (triage.path !== 'SPAM') {
+                await incrementUsage(conn.store_id);
             }
 
             emailsProcessed++;
@@ -361,7 +403,7 @@ async function fetchAndProcess(conn: any) {
 async function sendQueuedEmails(): Promise<number> {
     const now = new Date().toISOString();
 
-    const { data: queued } = await supabase
+    const { data: queued } = await supabaseAdmin
         .from('messages')
         .select('id, sender, subject, ai_draft, store_id, ai_action')
         .eq('status', 'queued')
@@ -372,7 +414,7 @@ async function sendQueuedEmails(): Promise<number> {
     if (!queued || queued.length === 0) return 0;
 
     let sent = 0;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://respondro.vercel.app';
+    const appUrl = process.env.SHOPIFY_APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://www.respondro.ai';
 
     for (const msg of queued) {
         try {
@@ -386,7 +428,7 @@ async function sendQueuedEmails(): Promise<number> {
             });
 
             if (sendRes.ok) {
-                await supabase.from('messages').update({
+                await supabaseAdmin.from('messages').update({
                     status: 'automated',
                     sent_reply: msg.ai_draft,
                     sent_at: new Date().toISOString()
@@ -395,7 +437,7 @@ async function sendQueuedEmails(): Promise<number> {
                 const actionTag = msg.ai_action ? ` [${msg.ai_action}]` : '';
                 console.log(`📤 Auto-sent${actionTag}: ${msg.subject} → ${cleanEmail}`);
             } else {
-                await supabase.from('messages').update({ status: 'needs_review' }).eq('id', msg.id);
+                await supabaseAdmin.from('messages').update({ status: 'needs_review' }).eq('id', msg.id);
                 console.warn(`⚠️ Send failed for ${msg.id}, moved to review`);
             }
         } catch (err: any) {
