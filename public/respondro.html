@@ -1357,6 +1357,12 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
 <script>
 
 // ═══ AUTHENTICATION ═══
+// 🛡️ 1. INITIALIZE SUPABASE
+const sbUrl = 'https://vlwhwkxmjfwzpvspkldc.supabase.co'; 
+const sbKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsd2h3a3htamZ3enB2c3BrbGRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMjA4NDQsImV4cCI6MjA5MDg5Njg0NH0.zKr1JkEa1WI3Bu2_ZkmN9P2RPdcGMn_MUMPZBePX26Y'; 
+const sb = window.supabase.createClient(sbUrl, sbKey);
+
+// ═══ AUTHENTICATION ═══
 async function checkAuth() {
   var { data: { session } } = await sb.auth.getSession();
   if (session) {
@@ -1365,13 +1371,14 @@ async function checkAuth() {
     document.getElementById('app-container').style.flexDirection = 'column';
     document.getElementById('app-container').style.flex = '1';
     document.getElementById('app-container').style.overflow = 'hidden';
-    // Update user avatar
+    
     var avatar = document.getElementById('user-avatar');
-    if (avatar && session.user.email) {
-      avatar.textContent = session.user.email.charAt(0).toUpperCase();
-    }
+    if (avatar && session.user.email) avatar.textContent = session.user.email.charAt(0).toUpperCase();
     var userLabel = document.getElementById('user-label');
     if (userLabel) userLabel.textContent = session.user.email.split('@')[0];
+    
+    // 🚀 TRIGGER THE DASHBOARD DATA LOAD
+    fetchMessages();
     return true;
   } else {
     document.getElementById('auth-gate').style.display = 'flex';
@@ -1486,31 +1493,6 @@ function getDraft(el) {
 
     if (!error) {
         renderMessageList(messages);
-    }
-}
-// 🛡️ 1. INITIALIZE SUPABASE
-const sbUrl = 'https://vlwhwkxmjfwzpvspkldc.supabase.co'; 
-const sbKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsd2h3a3htamZ3enB2c3BrbGRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMjA4NDQsImV4cCI6MjA5MDg5Njg0NH0.zKr1JkEa1WI3Bu2_ZkmN9P2RPdcGMn_MUMPZBePX26Y'; 
-const sb = window.supabase.createClient(sbUrl, sbKey);
-console.log("Connection 'sb' initialized!");
-
-// 🛡️ 2. THE AUTH CHECK
-async function checkAuth() {
-    const { data: { session } } = await sb.auth.getSession();
-    const app = document.getElementById('app-container');
-    const gate = document.getElementById('auth-gate');
-    
-    if (session) {
-        ST.user = session.user;
-        if(gate) gate.style.display = 'none';
-        if(app) {
-            app.style.display = 'flex';
-            app.style.flexDirection = 'column';
-            if (typeof initApp === 'function') initApp(); 
-        }
-    } else {
-        if(app) app.style.display = 'none';
-        if(gate) gate.style.display = 'flex';
     }
 }
 // ═══ PROVIDERS ═══
