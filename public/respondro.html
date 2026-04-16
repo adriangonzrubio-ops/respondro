@@ -1439,9 +1439,6 @@ async function authLogout() {
   window.location.reload();
 }
 
-// Check auth immediately
-checkAuth();
-
 var rbAllMessages = [];
 var rbCurrentFilter = 'all';
 var rbActiveMessage = null;
@@ -1494,6 +1491,9 @@ const sbKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJl
 // We name the connection 'sb' to avoid crashing with the library name
 const sb = window.supabase.createClient(sbUrl, sbKey);
 console.log("Connection 'sb' initialized!");
+
+// NOW check auth (sb is ready)
+checkAuth();
 // ═══ PROVIDERS ═══
 // --- AGENT MANAGEMENT LOGIC (Wilmo Style) ---
 
