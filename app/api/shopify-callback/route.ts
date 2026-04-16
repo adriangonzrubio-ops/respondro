@@ -125,10 +125,8 @@ ALWAYS ESCALATE: Refunds over ${shopData.shop?.currency || 'USD'} 100, legal thr
         console.error('Policies fetch failed (non-critical):', e);
     }
 
-    // 6. Redirect merchant to billing plan picker
-    // (After billing flow is built, this will go to /pricing?shop=xxx)
-    // For now, go to dashboard
-    return NextResponse.redirect(`${SHOPIFY_APP_URL}/respondro.html?shop=${shop}&connected=true`);
+    // 6. Redirect merchant to plan picker with shop pre-filled
+    return NextResponse.redirect(`${SHOPIFY_APP_URL}/pricing.html?shop=${shop}&connected=true`);
 }
 
 // Register the webhooks Shopify REQUIRES for app submission

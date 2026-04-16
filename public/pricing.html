@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pricing — Respondro AI Customer Service</title>
+<meta name="description" content="AI-powered customer service for Shopify stores. Plans from $29/mo with a 4-day free trial.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:#080D1A;color:#E8EBF2;font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
+  .grid-bg{background-image:linear-gradient(rgba(0,200,150,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,150,0.03) 1px,transparent 1px);background-size:60px 60px}
+  .tier-card{background:#0F1623;border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:28px;transition:all 0.25s;display:flex;flex-direction:column}
+  .tier-card:hover{border-color:rgba(255,255,255,0.15);transform:translateY(-2px)}
+  .tier-card.popular{border-color:rgba(0,200,150,0.35);background:linear-gradient(180deg,rgba(0,200,150,0.04),#0F1623)}
+  .tier-badge{position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:#00C896;color:#080D1A;font-size:11px;font-weight:700;padding:3px 12px;border-radius:999px;letter-spacing:0.03em}
+  .btn-primary{background:#00C896;color:#080D1A;font-weight:700;border-radius:10px;padding:12px 18px;transition:all 0.2s;cursor:pointer;border:none;display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:14px;width:100%}
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,200,150,0.3)}
+  .btn-primary:disabled{opacity:0.5;cursor:wait;transform:none}
+  .btn-ghost{background:transparent;color:#E8EBF2;font-weight:600;border-radius:10px;padding:12px 18px;border:1px solid rgba(255,255,255,0.15);transition:all 0.2s;cursor:pointer;font-size:14px;width:100%;display:inline-block;text-align:center;text-decoration:none}
+  .btn-ghost:hover{border-color:rgba(255,255,255,0.3);background:rgba(255,255,255,0.04)}
+  .feature-check{width:16px;height:16px;border-radius:50%;background:rgba(0,200,150,0.15);color:#00C896;font-size:10px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+  .feature-no{width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,0.05);color:#3A4760;font-size:10px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+  .toggle-switch{display:inline-flex;background:#0F1623;border:1px solid rgba(255,255,255,0.07);border-radius:999px;padding:4px;position:relative}
+  .toggle-option{padding:8px 20px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;color:#5A6785;transition:color 0.2s;position:relative;z-index:2;border:none;background:transparent;white-space:nowrap}
+  .toggle-option.active{color:#080D1A}
+  .toggle-slider{position:absolute;top:4px;bottom:4px;background:#00C896;border-radius:999px;transition:all 0.25s ease;z-index:1}
+  .save-pill{background:rgba(0,200,150,0.15);color:#00C896;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;margin-left:6px;vertical-align:middle}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  .fade-up{animation:fadeUp 0.5s ease both}
+  .fade-up:nth-child(1){animation-delay:0.05s}.fade-up:nth-child(2){animation-delay:0.1s}.fade-up:nth-child(3){animation-delay:0.15s}.fade-up:nth-child(4){animation-delay:0.2s}
+  .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-100px);background:#0F1623;border:1px solid rgba(248,113,113,0.4);color:#F87171;padding:12px 20px;border-radius:10px;font-size:14px;z-index:999;transition:transform 0.3s ease;box-shadow:0 8px 24px rgba(0,0,0,0.4)}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  .toast.success{border-color:rgba(0,200,150,0.4);color:#00C896}
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="fixed top-0 left-0 right-0 z-50" style="background:rgba(8,13,26,0.85);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.05)">
+  <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2 font-bold text-xl"><span style="color:#00C896">▸</span> Respondro</a>
+    <div class="flex items-center gap-3">
+      <a href="/respondro.html" class="btn-ghost" style="padding:8px 18px;width:auto">Dashboard</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<section class="pt-32 pb-20 grid-bg relative">
+  <div style="position:absolute;top:10%;left:50%;transform:translateX(-50%);width:700px;height:400px;background:radial-gradient(ellipse at center,rgba(0,200,150,0.08),transparent 70%);pointer-events:none"></div>
+
+  <div class="max-w-6xl mx-auto px-6 relative">
+
+    <!-- Header -->
+    <div class="text-center mb-12 fade-up">
+      <div class="inline-flex items-center gap-2 mb-4 px-3 py-1.5 rounded-full text-xs font-mono" style="border:1px solid rgba(0,200,150,0.3);color:#00C896;background:rgba(0,200,150,0.06)">
+        4-day free trial · No credit card charged during trial
+      </div>
+      <h1 class="font-bold mb-4" style="font-size:clamp(36px,5vw,56px);line-height:1.1">
+        Simple pricing.<br><span style="color:#00C896">AI that actually works.</span>
+      </h1>
+      <p class="text-lg mx-auto" style="color:#8B96B0;max-width:520px;line-height:1.6">
+        Pick the plan that fits your store. All plans include a 4-day free trial. Upgrade, downgrade, or cancel anytime from your Shopify admin.
+      </p>
+    </div>
+
+    <!-- Monthly/Annual Toggle -->
+    <div class="flex justify-center mb-10 fade-up">
+      <div class="toggle-switch" id="interval-toggle">
+        <div class="toggle-slider" id="toggle-slider" style="left:4px;width:88px"></div>
+        <button class="toggle-option active" data-interval="monthly" onclick="setInterval('monthly')">Monthly</button>
+        <button class="toggle-option" data-interval="annual" onclick="setInterval('annual')">
+          Annual<span class="save-pill">Save 20%</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Pricing tiers -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-12" id="tiers-grid">
+      <!-- Populated by JS -->
+    </div>
+
+    <!-- Enterprise -->
+    <div class="max-w-4xl mx-auto rounded-2xl p-8 fade-up" style="background:linear-gradient(135deg,rgba(0,200,150,0.05),rgba(167,139,250,0.05));border:1px solid rgba(255,255,255,0.1)">
+      <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div class="flex-1">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-xs font-mono px-2 py-1 rounded" style="background:rgba(167,139,250,0.15);color:#A78BFA">ENTERPRISE</span>
+            <span class="text-xs" style="color:#5A6785">Multi-store operations</span>
+          </div>
+          <h3 class="text-2xl font-bold mb-2">From $699/mo</h3>
+          <p class="text-sm mb-3" style="color:#8B96B0;max-width:480px;line-height:1.5">
+            10,000+ emails/month, multi-store support, API access, dedicated onboarding, custom SLA. Pricing scales with the number of connected stores.
+          </p>
+          <div class="flex flex-wrap gap-4 text-xs" style="color:#5A6785">
+            <span>✓ Multi-store</span>
+            <span>✓ API access</span>
+            <span>✓ Dedicated onboarding</span>
+            <span>✓ Custom SLA</span>
+          </div>
+        </div>
+        <a href="mailto:support@respondro.ai?subject=Enterprise%20inquiry" class="btn-ghost" style="width:auto;white-space:nowrap">Contact sales →</a>
+      </div>
+    </div>
+
+    <!-- Trust row -->
+    <div class="text-center mt-12">
+      <div class="flex flex-wrap justify-center gap-6 text-xs" style="color:#5A6785">
+        <span>✓ 4-day free trial</span>
+        <span>✓ Cancel anytime</span>
+        <span>✓ Billed through Shopify</span>
+        <span>✓ GDPR compliant</span>
+      </div>
+    </div>
+
+    <!-- FAQ -->
+    <div class="max-w-3xl mx-auto mt-20">
+      <h2 class="text-2xl font-bold text-center mb-8">Frequently asked questions</h2>
+      <div class="space-y-3" id="faq-container">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<footer style="background:#060A14;border-top:1px solid rgba(255,255,255,0.05);padding:24px">
+  <div class="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center gap-3">
+    <div class="flex items-center gap-2 font-bold"><span style="color:#00C896">▸</span> Respondro</div>
+    <div class="flex items-center gap-5 text-xs" style="color:#5A6785">
+      <a href="/privacy.html" class="hover:text-white transition">Privacy</a>
+      <a href="/terms.html" class="hover:text-white transition">Terms</a>
+      <a href="mailto:support@respondro.ai" class="hover:text-white transition">Support</a>
+      <span>© 2026</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+// ═══ PLANS DATA (stays in sync with plans table in Supabase) ═══
+const PLANS = [
+  {
+    tier: 'starter',
+    name: 'Starter',
+    tagline: 'Small stores, testing the waters',
+    priceMonthly: 29,
+    priceAnnual: 279, // ~$23.25/mo
+    emails: 150,
+    popular: false,
+    features: [
+      { label: 'AI drafts responses for review', included: true },
+      { label: 'Manual send (semi-automatic)', included: true },
+      { label: 'Shopify order lookups', included: true },
+      { label: '40+ languages supported', included: true },
+      { label: 'Auto-reply', included: false },
+      { label: 'Auto-refund', included: false },
+      { label: 'Auto-cancel & address change', included: false }
+    ]
+  },
+  {
+    tier: 'essential',
+    name: 'Essential',
+    tagline: 'Growing stores, light automation',
+    priceMonthly: 49,
+    priceAnnual: 469, // ~$39/mo
+    emails: 400,
+    popular: false,
+    features: [
+      { label: 'Everything in Starter', included: true },
+      { label: 'Auto-reply (5-min delay)', included: true },
+      { label: 'Auto-categorization', included: true },
+      { label: 'Review board with pre-drafts', included: true },
+      { label: 'Auto-refund', included: false },
+      { label: 'Auto-cancel & address change', included: false },
+      { label: 'Priority support', included: false }
+    ]
+  },
+  {
+    tier: 'growth',
+    name: 'Growth',
+    tagline: 'Growing DTC brands',
+    priceMonthly: 79,
+    priceAnnual: 759, // ~$63.25/mo
+    emails: 750,
+    popular: true,
+    features: [
+      { label: 'Everything in Essential', included: true },
+      { label: 'Auto-refund (up to $50)', included: true },
+      { label: 'Auto-cancel orders', included: true },
+      { label: '2-min reply delay', included: true },
+      { label: 'Priority support', included: true },
+      { label: 'Auto-address change', included: false },
+      { label: 'Custom rules engine', included: false }
+    ]
+  },
+  {
+    tier: 'scale',
+    name: 'Scale',
+    tagline: 'High-volume stores',
+    priceMonthly: 199,
+    priceAnnual: 1909, // ~$159/mo
+    emails: 2500,
+    popular: false,
+    features: [
+      { label: 'Everything in Growth', included: true },
+      { label: 'Unlimited auto-refunds', included: true },
+      { label: 'Auto-address change', included: true },
+      { label: 'Custom rules engine', included: true },
+      { label: 'Instant reply (0-min delay)', included: true },
+      { label: 'Custom agent training', included: true },
+      { label: 'Dedicated Slack channel', included: true }
+    ]
+  }
+];
+
+const FAQS = [
+  {
+    q: 'How does the 4-day free trial work?',
+    a: "You pick a plan during install, approve the charge in Shopify, and get 4 days to try everything (max 15 emails/day during trial). You won't be charged until the trial ends. Cancel anytime during the trial from your Shopify admin — no questions asked."
+  },
+  {
+    q: 'What happens if I hit my monthly email limit?',
+    a: "Your customer emails keep flowing into your Review Board so you can reply manually, but the AI stops auto-processing until your next billing cycle or you upgrade. We'll warn you when you hit 90% of your quota so you have time to decide."
+  },
+  {
+    q: 'Can I switch plans later?',
+    a: 'Yes. Upgrade or downgrade anytime from the Settings page in the app. Shopify prorates the billing automatically. If you downgrade, the change takes effect at the end of your current cycle.'
+  },
+  {
+    q: 'How do you charge? Credit card?',
+    a: 'All billing goes through Shopify\'s secure billing system — the same way your existing Shopify apps charge you. We never see or store your card details. Your Respondro subscription appears on your regular Shopify invoice.'
+  },
+  {
+    q: 'What happens when I uninstall?',
+    a: "Your subscription cancels immediately with no further charges. We hold your data for 48 hours in case you want to reinstall, then it's permanently deleted per GDPR."
+  },
+  {
+    q: 'Does the AI read all my customer emails?',
+    a: 'Only emails forwarded to your connected Respondro mailbox. Emails are processed by our Claude AI to classify and draft responses, then stored securely in our EU-hosted database. Your email data is never used to train AI models.'
+  }
+];
+
+// ═══ STATE ═══
+let currentInterval = 'monthly';
+let shopDomain = null;
+
+// Detect if we came from Shopify install
+const urlParams = new URLSearchParams(window.location.search);
+shopDomain = urlParams.get('shop');
+
+// ═══ RENDER ═══
+function renderTiers() {
+  const grid = document.getElementById('tiers-grid');
+  grid.innerHTML = PLANS.map((plan, i) => {
+    const price = currentInterval === 'annual'
+      ? (plan.priceAnnual / 12).toFixed(0)
+      : plan.priceMonthly;
+    const billingNote = currentInterval === 'annual'
+      ? `$${plan.priceAnnual}/yr billed annually`
+      : 'Billed monthly';
+
+    const features = plan.features.map(f => `
+      <div class="flex items-start gap-2.5">
+        <span class="${f.included ? 'feature-check' : 'feature-no'}">${f.included ? '✓' : '×'}</span>
+        <span class="text-sm" style="color:${f.included ? '#C8D0E0' : '#3A4760'};line-height:1.5">${f.label}</span>
+      </div>
+    `).join('');
+
+    return `
+      <div class="tier-card fade-up ${plan.popular ? 'popular relative' : ''}">
+        ${plan.popular ? '<div class="tier-badge">MOST POPULAR</div>' : ''}
+        <div class="mb-4">
+          <h3 class="text-lg font-bold mb-1">${plan.name}</h3>
+          <p class="text-xs" style="color:#5A6785;line-height:1.4">${plan.tagline}</p>
+        </div>
+        <div class="mb-4 pb-4" style="border-bottom:1px solid rgba(255,255,255,0.05)">
+          <div class="flex items-baseline gap-1 mb-1">
+            <span class="text-4xl font-bold">$${price}</span>
+            <span class="text-sm" style="color:#5A6785">/mo</span>
+          </div>
+          <div class="text-xs" style="color:#3A4760">${billingNote}</div>
+          <div class="mt-3 text-xs font-mono" style="color:#00C896">${plan.emails.toLocaleString()} emails/month</div>
+        </div>
+        <div class="space-y-2.5 mb-6 flex-1">
+          ${features}
+        </div>
+        <button onclick="startCheckout('${plan.tier}')" class="btn-primary" data-tier="${plan.tier}">
+          Start free trial →
+        </button>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderFaqs() {
+  const container = document.getElementById('faq-container');
+  container.innerHTML = FAQS.map((faq, i) => `
+    <details class="rounded-xl p-5 transition-all" style="background:#0F1623;border:1px solid rgba(255,255,255,0.05)">
+      <summary class="font-semibold cursor-pointer flex justify-between items-center text-sm" style="list-style:none">
+        <span>${faq.q}</span>
+        <span style="color:#5A6785;transition:transform 0.2s">+</span>
+      </summary>
+      <p class="mt-3 text-sm leading-relaxed" style="color:#8B96B0">${faq.a}</p>
+    </details>
+  `).join('');
+}
+
+function setInterval(interval) {
+  currentInterval = interval;
+
+  // Update toggle UI
+  document.querySelectorAll('.toggle-option').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.interval === interval);
+  });
+
+  const slider = document.getElementById('toggle-slider');
+  if (interval === 'monthly') {
+    slider.style.left = '4px';
+    slider.style.width = '88px';
+  } else {
+    slider.style.left = '96px';
+    slider.style.width = '148px';
+  }
+
+  renderTiers();
+}
+
+// ═══ CHECKOUT ═══
+async function startCheckout(tier) {
+  const btn = document.querySelector(`button[data-tier="${tier}"]`);
+  const originalText = btn.innerHTML;
+
+  // If not coming from Shopify install, prompt for shop URL
+  if (!shopDomain) {
+    const entered = prompt('Enter your Shopify store URL:\n(example: yourstore.myshopify.com)');
+    if (!entered) return;
+    const cleaned = entered.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    if (!/^[a-z0-9][a-z0-9\-]*\.myshopify\.com$/.test(cleaned)) {
+      showToast('Please enter a valid Shopify store URL (e.g., yourstore.myshopify.com)', 'error');
+      return;
+    }
+    shopDomain = cleaned;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span>Redirecting to Shopify...</span>';
+
+  try {
+    const res = await fetch('/api/shopify/billing/create-charge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        shop: shopDomain,
+        tier: tier,
+        interval: currentInterval
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      // Store not connected? Send them through install first
+      if (data.error && data.error.toLowerCase().includes('not found')) {
+        showToast('First connect your store in Shopify, then come back to pick a plan.', 'error');
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        setTimeout(() => {
+          window.location.href = `/api/shopify-install?shop=${shopDomain}`;
+        }, 2000);
+        return;
+      }
+      throw new Error(data.error || 'Failed to create charge');
+    }
+
+    // Redirect to Shopify approval screen
+    window.location.href = data.confirmationUrl;
+  } catch (err) {
+    console.error('Checkout error:', err);
+    showToast(err.message || 'Something went wrong. Please try again or contact support.', 'error');
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
+}
+
+// ═══ TOAST ═══
+function showToast(message, type = 'error') {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.className = 'toast show' + (type === 'success' ? ' success' : '');
+  setTimeout(() => {
+    toast.className = 'toast' + (type === 'success' ? ' success' : '');
+  }, 4000);
+}
+
+// ═══ INIT ═══
+renderTiers();
+renderFaqs();
+
+// If user arrived with billing_error query param, show it
+const billingError = urlParams.get('billing_error');
+if (billingError) {
+  const errorMessages = {
+    'activation_failed': 'Your subscription couldn\'t be activated. Please try again or contact support.',
+    'missing_params': 'Something went wrong with the checkout. Please try again.',
+    'invalid_shop': 'The shop URL is invalid. Please contact support.',
+    'store_not_found': 'We couldn\'t find your store. Please install the app first.',
+    'server_error': 'A server error occurred. Please try again in a moment.'
+  };
+  showToast(errorMessages[billingError] || 'Checkout failed. Please try again.');
+}
+</script>
+</body>
+</html>
