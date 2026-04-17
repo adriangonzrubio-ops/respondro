@@ -175,11 +175,17 @@ For "address_change":
         }
 
         // Safety: confidence threshold depends on whether an action is needed
-        var safeAutoCategories = ['order_status', 'shipping', 'product_question', 'thank_you', 'general', 'address_change'];
+        var safeAutoCategories = ['order_status', 'shipping', 'product_question', 'thank_you', 'general', 'address_change', 'missing_item'];
+        var actionCategories = ['refund_request', 'cancellation', 'return', 'exchange', 'billing', 'damaged_item'];
         var confidenceThreshold = 90;
         // Lower threshold for simple queries with no Shopify mutation
         if (parsed.required_action === 'none' && safeAutoCategories.indexOf(parsed.category) > -1) {
             confidenceThreshold = 75;
+        }
+        // Action categories: let the AI automate if confidence is decent (80%+)
+        // The worker's usage gate will enforce the real permissions (plan tier + merchant toggles)
+        if (parsed.required_action !== 'none' && actionCategories.indexOf(parsed.category) > -1) {
+            confidenceThreshold = 80;
         }
         if (parsed.path === 'AUTOMATE' && (parsed.confidence || 0) < confidenceThreshold) {
             parsed.path = 'REVIEW';
