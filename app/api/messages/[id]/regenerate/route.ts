@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { generateAiDraft } from '@/lib/ai-generator';
 import { getShopifyContext, extractOrderNumber } from '@/lib/shopify';
 
@@ -9,76 +9,83 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         const body = await req.json().catch(() => ({}));
 
         // 1. Fetch the message
-        const { data: message } = await supabase.from('messages').select('*').eq('id', id).single();
-        if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 });
+        const { data: message } = await supabaseAdmin.from('messages').select('*').eq('id', id).single();
+        if (!message) return NextResponse.json({ error: 'Message not found' }, { status: 404 });
 
-        // 2. Fetch Store ID
-        let storeId = null;
-        const { data: conn } = await supabase.from('user_connections').select('store_id').eq('id', message.connection_id).single();
-        if (conn?.store_id) {
-            storeId = conn.store_id;
-        } else {
-            const { data: firstStore } = await supabase.from('stores').select('id').limit(1).single();
+        // 2. Get store_id
+        let storeId = message.store_id;
+        if (!storeId) {
+            const { data: conn } = await supabaseAdmin.from('user_connections').select('store_id').eq('id', message.connection_id).single();
+            storeId = conn?.store_id;
+        }
+        if (!storeId) {
+            const { data: firstStore } = await supabaseAdmin.from('stores').select('id').limit(1).single();
             storeId = firstStore?.id;
         }
 
-        // 3. Fetch Settings (try store_id first, fallback to first row)
+        // 3. Fetch settings
         let settings: any = null;
         if (storeId) {
-            const { data: s1 } = await supabase.from('settings').select('*').eq('store_id', storeId).maybeSingle();
-            settings = s1;
-        }
-        if (!settings) {
-            const { data: s2 } = await supabase.from('settings').select('*').limit(1).single();
-            settings = s2;
+            const { data: s } = await supabaseAdmin.from('settings').select('*').eq('store_id', storeId).maybeSingle();
+            settings = s;
         }
 
-        // 4. ALWAYS fetch fresh Shopify data on regenerate
+        // 4. Fetch Shopify credentials from STORES table (not settings)
+        let shopUrl = '';
+        let shopToken = '';
+        if (storeId) {
+            const { data: store } = await supabaseAdmin.from('stores').select('shopify_url, shopify_token').eq('id', storeId).single();
+            if (store?.shopify_url && store?.shopify_token) {
+                shopUrl = store.shopify_url;
+                shopToken = store.shopify_token;
+            }
+        }
+
+        // 5. Fetch fresh Shopify data
         let freshShopifyData: any = null;
-        if (settings?.shop_url && settings?.shopify_access_token) {
+        if (shopUrl && shopToken) {
             const senderEmail = message.sender?.includes('<')
                 ? message.sender.split('<')[1].replace('>', '').trim()
                 : message.sender;
             const senderName = (message.sender || '').split('<')[0].replace(/"/g, '').trim();
             const orderNum = extractOrderNumber((message.body_text || '') + ' ' + (message.subject || ''));
 
-            freshShopifyData = await getShopifyContext(
-                settings.shop_url,
-                settings.shopify_access_token,
-                senderEmail || '',
-                orderNum,
-                senderName
-            );
+            freshShopifyData = await getShopifyContext(shopUrl, shopToken, senderEmail || '', orderNum, senderName);
 
-            // Cache the fresh data
             if (freshShopifyData && freshShopifyData.length > 0) {
-                await supabase.from('messages').update({ shopify_data: freshShopifyData }).eq('id', id);
+                await supabaseAdmin.from('messages').update({ shopify_data: freshShopifyData }).eq('id', id);
             }
         }
 
-        // 5. Use frontend rulebook if provided, otherwise database
-        const finalRulebook = body.rulebook || settings?.rulebook || "Be professional.";
-        const finalSignature = body.signature || settings?.signature || "";
-        console.log("🔍 Signature debug:", { bodySignature: body.signature, settingsSignature: settings?.signature, finalSignature });
+        // 6. Build rulebook and generate draft
+        const finalRulebook = body.rulebook || settings?.rulebook || 'Be professional.';
+        const finalSignature = body.signature || settings?.signature || '';
+
         const shopifyForAI = freshShopifyData && freshShopifyData.length > 0
             ? freshShopifyData
             : message.shopify_data || {};
 
-        // 6. Generate AI Draft with fresh data
+        // Load agent rulebooks for richer context
+        let agents: any[] = [];
+        if (storeId) {
+            const { data: agentData } = await supabaseAdmin.from('support_agents').select('agent_type, rulebook, is_enabled').eq('store_id', storeId);
+            agents = agentData || [];
+        }
+
         const aiDraft = await generateAiDraft({
             category: message.category || 'General Inquiry',
-            body: message.body_text || "",
+            body: message.body_text || '',
             rulebook: finalRulebook,
+            agents: agents,
             shopifyData: shopifyForAI,
             toneExamples: finalSignature
         });
 
-        // 7. Save and return
-        await supabase.from('messages').update({ ai_draft: aiDraft }).eq('id', id);
+        await supabaseAdmin.from('messages').update({ ai_draft: aiDraft }).eq('id', id);
         return NextResponse.json({ draft: aiDraft });
 
     } catch (error: any) {
-        console.error("❌ Critical Regenerate Error:", error.message);
+        console.error('❌ Regenerate error:', error.message);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
