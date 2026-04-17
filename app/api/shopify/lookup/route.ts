@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getShopifyContext, extractOrderNumber } from '@/lib/shopify';
 
 export async function POST(req: Request) {
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
         let emailBody = (body || '') + ' ' + (subject || '');
 
         if (messageId) {
-            const { data: msg } = await supabase
+            const { data: msg } = await supabaseAdmin
                 .from('messages')
                 .select('store_id, sender, body_text, subject, shopify_data')
                 .eq('id', messageId)
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
         }
 
         if (!storeId) {
-            const { data: stores } = await supabase.from('stores').select('id').limit(1);
+            const { data: stores } = await supabaseAdmin.from('stores').select('id').limit(1);
             storeId = stores?.[0]?.id || null;
         }
 
@@ -49,50 +49,29 @@ export async function POST(req: Request) {
             return NextResponse.json({ orders: [], error: 'No store found' });
         }
 
-        let shopUrl = '';
-        let shopToken = '';
-
-        // Try stores table first
-        const { data: storeInfo } = await supabase
+        const { data: storeInfo } = await supabaseAdmin
             .from('stores')
             .select('shopify_url, shopify_token')
             .eq('id', storeId)
             .single();
 
-        if (storeInfo?.shopify_url && storeInfo?.shopify_token) {
-            shopUrl = storeInfo.shopify_url;
-            shopToken = storeInfo.shopify_token;
-        } else {
-            // Fallback: try settings table (different column names)
-            const { data: settingsInfo } = await supabase
-                .from('settings')
-                .select('shop_url, shopify_access_token')
-                .eq('store_id', storeId)
-                .single();
-
-            if (settingsInfo?.shop_url && settingsInfo?.shopify_access_token) {
-                shopUrl = settingsInfo.shop_url;
-                shopToken = settingsInfo.shopify_access_token;
-            }
-        }
-
-        if (!shopUrl || !shopToken) {
+        if (!storeInfo?.shopify_url || !storeInfo?.shopify_token) {
             return NextResponse.json({ orders: [], error: 'Shopify not connected' });
         }
 
         const orderNumber = extractOrderNumber(emailBody);
-        console.log('🔍 Shopify Lookup Debug:', { email: senderEmail, name: senderName, orderNumber, emailBodyPreview: emailBody.substring(0, 100) });
+        console.log('🔍 Shopify Lookup:', { email: senderEmail, name: senderName, orderNumber });
 
         const orders = await getShopifyContext(
-            shopUrl,
-            shopToken,
+            storeInfo.shopify_url,
+            storeInfo.shopify_token,
             senderEmail || '',
             orderNumber,
             senderName
         );
 
         if (messageId && orders.length > 0) {
-            await supabase
+            await supabaseAdmin
                 .from('messages')
                 .update({ shopify_data: orders })
                 .eq('id', messageId);
