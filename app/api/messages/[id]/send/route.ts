@@ -1,11 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as nodemailer from 'nodemailer';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabaseAdmin } from '@/lib/supabase';
+import { decrypt } from '@/lib/encryption';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -13,11 +9,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const { id } = await params;
     
     // Fetch the message
-    const { data: msg } = await supabase.from('messages').select('*').eq('id', id).single();
+    const { data: msg } = await supabaseAdmin.from('messages').select('*').eq('id', id).single();
     if (!msg) return NextResponse.json({ error: 'Message not found' }, { status: 404 });
 
-    // Fetch email connection (use store_id if available for multi-tenant)
-    let connQuery = supabase.from('user_connections').select('*').not('imap_host', 'is', null);
+    // Fetch email connection
+    let connQuery = supabaseAdmin.from('user_connections').select('*').not('imap_host', 'is', null);
     if (msg.store_id) {
       connQuery = connQuery.eq('store_id', msg.store_id);
     }
@@ -30,7 +26,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     
     const storeId = msg.store_id || conn.store_id;
     if (storeId) {
-      const { data: settings } = await supabase.from('settings').select('logo_url, logo_width, store_name').eq('store_id', storeId).single();
+      const { data: settings } = await supabaseAdmin.from('settings').select('logo_url, logo_width, store_name').eq('store_id', storeId).single();
       if (settings?.logo_url && !settings.logo_url.startsWith('data:')) {
         logoHtml = `<br><img src="${settings.logo_url}" width="${settings.logo_width || 120}" alt="Store Logo" style="max-width:100%;">`;
       }
@@ -39,18 +35,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       }
     }
 
-    // Fallback: try first available settings if no store_id
-    if (senderName === 'Customer Support') {
-      const { data: fallbackSettings } = await supabase.from('settings').select('logo_url, logo_width, store_name').limit(1).single();
-      if (fallbackSettings?.logo_url && !fallbackSettings.logo_url.startsWith('data:')) {
-        logoHtml = `<br><img src="${fallbackSettings.logo_url}" width="${fallbackSettings.logo_width || 120}" alt="Store Logo" style="max-width:100%;">`;
-      }
-      if (fallbackSettings?.store_name) {
-        senderName = fallbackSettings.store_name;
-      }
-    }
-
-    // Build the SMTP transporter dynamically from connection data
+    // Build the SMTP transporter with decrypted password
     const smtpHost = conn.smtp_host || conn.imap_host;
     const smtpPort = conn.smtp_port || 465;
     
@@ -58,7 +43,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       host: smtpHost,
       port: smtpPort,
       secure: smtpPort === 465,
-      auth: { user: conn.imap_user, pass: conn.imap_pass },
+      auth: { user: conn.imap_user, pass: decrypt(conn.imap_pass) },
     });
 
     // Convert plain text to HTML paragraphs
@@ -75,7 +60,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       html: htmlBody,
     });
 
-    await supabase.from('messages').update({ 
+    await supabaseAdmin.from('messages').update({ 
       status: 'done',
       sent_reply: text,
       sent_at: new Date().toISOString()
