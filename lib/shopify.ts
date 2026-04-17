@@ -18,7 +18,7 @@ export async function getShopifyContext(shop: string, token: string, email: stri
             const cleanNum = String(orderNumber).replace('#', '').trim();
             const numericOrder = parseInt(cleanNum, 10);
             
-            const allRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders.json?status=any&limit=250`, {
+            const allRes = await fetch(`https://${cleanShop}/admin/api/2025-04/orders.json?status=any&limit=250`, {
                 headers: { 'X-Shopify-Access-Token': token }
             });
             const allData = await allRes.json();
@@ -29,14 +29,14 @@ export async function getShopifyContext(shop: string, token: string, email: stri
 
         // 2. Search by email
         if (orders.length === 0 && cleanEmail) {
-            const customerSearch = await fetch(`https://${cleanShop}/admin/api/2024-04/customers/search.json?query=email:${cleanEmail}`, {
+            const customerSearch = await fetch(`https://${cleanShop}/admin/api/2025-04/customers/search.json?query=email:${cleanEmail}`, {
                 headers: { 'X-Shopify-Access-Token': token }
             });
             const customerData = await customerSearch.json();
             const customerId = customerData.customers?.[0]?.id;
 
             if (customerId) {
-                const orderRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders.json?customer_id=${customerId}&status=any`, {
+                const orderRes = await fetch(`https://${cleanShop}/admin/api/2025-04/orders.json?customer_id=${customerId}&status=any`, {
                     headers: { 'X-Shopify-Access-Token': token }
                 });
                 const orderData = await orderRes.json();
@@ -49,14 +49,14 @@ export async function getShopifyContext(shop: string, token: string, email: stri
             const nameParts = customerName.split(' ').filter((p: string) => p.length > 1);
             if (nameParts.length > 0) {
                 const nameQuery = nameParts.join(' ');
-                const nameSearch = await fetch(`https://${cleanShop}/admin/api/2024-04/customers/search.json?query=${encodeURIComponent(nameQuery)}`, {
+                const nameSearch = await fetch(`https://${cleanShop}/admin/api/2025-04/customers/search.json?query=${encodeURIComponent(nameQuery)}`, {
                     headers: { 'X-Shopify-Access-Token': token }
                 });
                 const nameData = await nameSearch.json();
                 const nameCustomerId = nameData.customers?.[0]?.id;
 
                 if (nameCustomerId) {
-                    const orderRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders.json?customer_id=${nameCustomerId}&status=any`, {
+                    const orderRes = await fetch(`https://${cleanShop}/admin/api/2025-04/orders.json?customer_id=${nameCustomerId}&status=any`, {
                         headers: { 'X-Shopify-Access-Token': token }
                     });
                     const orderData = await orderRes.json();
@@ -143,7 +143,7 @@ export async function executeRefund(shop: string, token: string, orderNumber: st
         const numericOrder = parseInt(cleanNum, 10);
 
         // Find the order
-        const allRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders.json?status=any&limit=250`, {
+        const allRes = await fetch(`https://${cleanShop}/admin/api/2025-04/orders.json?status=any&limit=250`, {
             headers: { 'X-Shopify-Access-Token': token }
         });
         const allData = await allRes.json();
@@ -151,13 +151,13 @@ export async function executeRefund(shop: string, token: string, orderNumber: st
         if (!order) return { success: false, action: 'refund', details: `Order #${orderNumber} not found in Shopify` };
 
         // Get full order with transactions
-        const orderRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders/${order.id}.json`, {
+        const orderRes = await fetch(`https://${cleanShop}/admin/api/2025-04/orders/${order.id}.json`, {
             headers: { 'X-Shopify-Access-Token': token }
         });
         const orderData = await orderRes.json();
         const fullOrder = orderData.order;
 
-        const txnRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders/${order.id}/transactions.json`, {
+        const txnRes = await fetch(`https://${cleanShop}/admin/api/2025-04/orders/${order.id}/transactions.json`, {
             headers: { 'X-Shopify-Access-Token': token }
         });
         const txnData = await txnRes.json();
@@ -183,7 +183,7 @@ export async function executeRefund(shop: string, token: string, orderNumber: st
         const currency = fullOrder.presentment_currency || fullOrder.currency;
 
         // Execute refund
-        const refundRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders/${order.id}/refunds.json`, {
+        const refundRes = await fetch(`https://${cleanShop}/admin/api/2025-04/orders/${order.id}/refunds.json`, {
             method: 'POST',
             headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -207,7 +207,7 @@ export async function executeRefund(shop: string, token: string, orderNumber: st
         }
 
         // Add note to order
-        await fetch(`https://${cleanShop}/admin/api/2024-04/orders/${order.id}.json`, {
+        await fetch(`https://${cleanShop}/admin/api/2025-04/orders/${order.id}.json`, {
             method: 'PUT',
             headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
             body: JSON.stringify({ order: { id: order.id, note: `${fullOrder.note ? fullOrder.note + '\n' : ''}[Respondro AI] Refund of ${currency} ${refundAmount.toFixed(2)} processed automatically.` } })
@@ -235,7 +235,7 @@ export async function cancelOrder(shop: string, token: string, orderNumber: stri
         const numericOrder = parseInt(cleanNum, 10);
 
         // Find the order
-        const allRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders.json?status=any&limit=250`, {
+        const allRes = await fetch(`https://${cleanShop}/admin/api/2025-04/orders.json?status=any&limit=250`, {
             headers: { 'X-Shopify-Access-Token': token }
         });
         const allData = await allRes.json();
@@ -251,7 +251,7 @@ export async function cancelOrder(shop: string, token: string, orderNumber: stri
         }
 
         // Cancel the order
-        const cancelRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders/${order.id}/cancel.json`, {
+        const cancelRes = await fetch(`https://${cleanShop}/admin/api/2025-04/orders/${order.id}/cancel.json`, {
             method: 'POST',
             headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
             body: JSON.stringify({ reason: 'customer', email: true })
@@ -287,7 +287,7 @@ export async function updateShippingAddress(shop: string, token: string, orderNu
         const numericOrder = parseInt(cleanNum, 10);
 
         // Find the order
-        const allRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders.json?status=any&limit=250`, {
+        const allRes = await fetch(`https://${cleanShop}/admin/api/2025-04/orders.json?status=any&limit=250`, {
             headers: { 'X-Shopify-Access-Token': token }
         });
         const allData = await allRes.json();
@@ -321,7 +321,7 @@ export async function updateShippingAddress(shop: string, token: string, orderNu
         }
 
         // Update the order
-        const updateRes = await fetch(`https://${cleanShop}/admin/api/2024-04/orders/${order.id}.json`, {
+        const updateRes = await fetch(`https://${cleanShop}/admin/api/2025-04/orders/${order.id}.json`, {
             method: 'PUT',
             headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
             body: JSON.stringify({ order: { id: order.id, ...addressPayload, note: `${order.note ? order.note + '\n' : ''}[Respondro AI] Shipping address updated per customer request.` } })
