@@ -826,7 +826,7 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
                     <p class="text-gray-500 text-xs mt-1">Tell your agent new rules or updates. It will add them to the existing rulebook automatically.</p>
                 </div>
                 <div id="agent-chat-box" class="flex-1 p-4 overflow-y-auto space-y-3 custom-scrollbar bg-black/10">
-                    <div class="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl text-xs text-emerald-200">
+                    <div class="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl text-xs" style="color:#065F46">
                         👋 Hi! I'm your <span id="chat-agent-type" class="font-bold"></span> Agent. Tell me new rules or policy changes and I'll update my Rulebook automatically.
                     </div>
                 </div>
@@ -1790,7 +1790,7 @@ async function sendMessageToAgent() {
     if (!message) return;
 
     // 1. Add User Bubble
-    const userBubble = `<div class="flex justify-end"><div class="bg-emerald-600 text-white p-3 rounded-xl rounded-tr-none text-xs max-w-[80%]">${message}</div></div>`;
+    const userBubble = `<div class="flex justify-end"><div class="p-3 rounded-xl rounded-tr-none text-xs max-w-[80%]" style="background:#059669;color:#ffffff">${message}</div></div>`;
     chatBox.insertAdjacentHTML('beforeend', userBubble);
     input.value = '';
     chatBox.scrollTop = chatBox.scrollHeight;
@@ -1821,7 +1821,7 @@ async function sendMessageToAgent() {
             rulebookDisplay.value = data.updatedRulebook;
             
             // 5. Add AI Response Bubble
-            const aiBubble = `<div class="flex justify-start"><div class="bg-white/10 text-emerald-200 p-3 rounded-xl rounded-tl-none text-xs max-w-[80%]">${data.aiResponse}</div></div>`;
+            const aiBubble = `<div class="flex justify-start"><div class="p-3 rounded-xl rounded-tl-none text-xs max-w-[80%]" style="background:#F0FDF4;color:#065F46;border:1px solid #BBF7D0">${data.aiResponse}</div></div>`;
             chatBox.insertAdjacentHTML('beforeend', aiBubble);
 
             // 6. Save the new Rulebook to Supabase
