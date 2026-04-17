@@ -64,7 +64,7 @@ export async function GET(request: Request) {
     let shopCurrency = 'USD';
 
     try {
-        const shopRes = await fetch(`https://${shop}/admin/api/2025-04/shop.json`, {
+        const shopRes = await fetch(`https://${shop}/admin/api/2025-07/shop.json`, {
             headers: { 'X-Shopify-Access-Token': access_token }
         });
         const shopData = await shopRes.json();
@@ -159,7 +159,7 @@ export async function GET(request: Request) {
 
     // 7. Auto-sync Shopify store policies into the rulebook
     try {
-        const policiesRes = await fetch(`https://${shop}/admin/api/2025-04/policies.json`, {
+        const policiesRes = await fetch(`https://${shop}/admin/api/2025-07/policies.json`, {
             headers: { 'X-Shopify-Access-Token': access_token }
         });
         const policies = await policiesRes.json();
@@ -223,7 +223,7 @@ async function registerMandatoryWebhooks(shop: string, token: string) {
 
     for (const wh of webhooks) {
         try {
-            const res = await fetch(`https://${shop}/admin/api/2025-04/webhooks.json`, {
+            const res = await fetch(`https://${shop}/admin/api/2025-07/webhooks.json`, {
                 method: 'POST',
                 headers: {
                     'X-Shopify-Access-Token': token,

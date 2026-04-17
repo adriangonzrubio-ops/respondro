@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════
 // SHOPIFY BILLING LIBRARY
 // Handles recurring charges via Shopify's Admin API
-// Docs: https://shopify.dev/docs/api/admin-rest/2024-04/resources/recurringapplicationcharge
+// Docs: https://shopify.dev/docs/api/admin-rest/2025-07/resources/recurringapplicationcharge
 // ═══════════════════════════════════════════════════════
 
 import { supabaseAdmin } from './supabase';
@@ -77,7 +77,7 @@ export async function createRecurringCharge(params: {
     };
 
     try {
-        const res = await fetch(`https://${shop}/admin/api/2024-04/recurring_application_charges.json`, {
+        const res = await fetch(`https://${shop}/admin/api/2025-07/recurring_application_charges.json`, {
             method: 'POST',
             headers: {
                 'X-Shopify-Access-Token': token,
@@ -110,7 +110,7 @@ export async function createRecurringCharge(params: {
 export async function activateCharge(shop: string, token: string, chargeId: number): Promise<{ success: boolean; charge?: any; error?: string }> {
     try {
         // First, check the charge status
-        const getRes = await fetch(`https://${shop}/admin/api/2024-04/recurring_application_charges/${chargeId}.json`, {
+        const getRes = await fetch(`https://${shop}/admin/api/2025-07/recurring_application_charges/${chargeId}.json`, {
             headers: { 'X-Shopify-Access-Token': token }
         });
 
@@ -122,7 +122,7 @@ export async function activateCharge(shop: string, token: string, chargeId: numb
         // If the merchant approved but the charge is still "accepted" (not "active"),
         // we need to activate it explicitly
         if (charge.status === 'accepted') {
-            const activateRes = await fetch(`https://${shop}/admin/api/2024-04/recurring_application_charges/${chargeId}/activate.json`, {
+            const activateRes = await fetch(`https://${shop}/admin/api/2025-07/recurring_application_charges/${chargeId}/activate.json`, {
                 method: 'POST',
                 headers: { 'X-Shopify-Access-Token': token }
             });
@@ -148,7 +148,7 @@ export async function activateCharge(shop: string, token: string, chargeId: numb
  */
 export async function cancelCharge(shop: string, token: string, chargeId: number): Promise<{ success: boolean; error?: string }> {
     try {
-        const res = await fetch(`https://${shop}/admin/api/2024-04/recurring_application_charges/${chargeId}.json`, {
+        const res = await fetch(`https://${shop}/admin/api/2025-07/recurring_application_charges/${chargeId}.json`, {
             method: 'DELETE',
             headers: { 'X-Shopify-Access-Token': token }
         });
@@ -169,7 +169,7 @@ export async function cancelCharge(shop: string, token: string, chargeId: number
  */
 export async function getActiveCharge(shop: string, token: string): Promise<any | null> {
     try {
-        const res = await fetch(`https://${shop}/admin/api/2024-04/recurring_application_charges.json`, {
+        const res = await fetch(`https://${shop}/admin/api/2025-07/recurring_application_charges.json`, {
             headers: { 'X-Shopify-Access-Token': token }
         });
 
