@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { verifyShopifyOAuth } from '@/lib/shopify-security';
+import crypto from 'crypto';
 
 const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_CLIENT_ID;
 const SHOPIFY_CLIENT_SECRET = process.env.SHOPIFY_CLIENT_SECRET;
@@ -12,23 +13,23 @@ export async function GET(request: Request) {
     const code = searchParams.get('code');
     const state = searchParams.get('state');
 
-    // Retrieve the state we saved in the cookie during install
+    // Retrieve state cookie
     const cookieHeader = request.headers.get('cookie') || '';
     const cookieState = cookieHeader.split('shopify_state=')[1]?.split(';')[0];
 
-    // SECURITY CHECK 1: Verify HMAC (proves Shopify sent this)
+    // SECURITY: Verify HMAC
     if (!verifyShopifyOAuth(searchParams)) {
         console.error('❌ HMAC validation failed');
         return new Response('Unauthorized: HMAC validation failed', { status: 401 });
     }
 
-    // SECURITY CHECK 2: Verify state (CSRF protection)
+    // SECURITY: Verify state (CSRF)
     if (!state || state !== cookieState) {
         console.error('❌ State validation failed');
         return new Response('Forbidden: State validation failed', { status: 403 });
     }
 
-    // SECURITY CHECK 3: Shop domain format
+    // SECURITY: Shop domain format
     const shopRegex = /^[a-zA-Z0-9][a-zA-Z0-9\-]*\.myshopify\.com$/;
     if (!shop || !shopRegex.test(shop)) {
         return new Response('Invalid shop domain', { status: 400 });
@@ -57,10 +58,70 @@ export async function GET(request: Request) {
         return new Response('Token exchange failed', { status: 500 });
     }
 
-    // 2. Save or update the store record
+    // 2. Fetch the shop owner's email from Shopify
+    let shopOwnerEmail = '';
+    let shopName = '';
+    let shopCurrency = 'USD';
+
+    try {
+        const shopRes = await fetch(`https://${shop}/admin/api/2024-04/shop.json`, {
+            headers: { 'X-Shopify-Access-Token': access_token }
+        });
+        const shopData = await shopRes.json();
+        shopOwnerEmail = shopData.shop?.email || '';
+        shopName = shopData.shop?.name || shop;
+        shopCurrency = shopData.shop?.currency || 'USD';
+        console.log(`🏪 Shop: ${shopName} (${shopOwnerEmail})`);
+    } catch (e) {
+        console.error('Failed to fetch shop info:', e);
+    }
+
+    if (!shopOwnerEmail) {
+        console.error('❌ No shop owner email found');
+        return new Response('Could not retrieve shop owner email from Shopify', { status: 500 });
+    }
+
+    // 3. Create or find the Supabase Auth user
+    let authUserId: string | null = null;
+
+    // Check if user already exists
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+    const existingUser = existingUsers?.users?.find(
+        u => u.email?.toLowerCase() === shopOwnerEmail.toLowerCase()
+    );
+
+    if (existingUser) {
+        authUserId = existingUser.id;
+        console.log(`👤 Existing auth user found: ${shopOwnerEmail}`);
+    } else {
+        // Create new user with random password (they'll use magic link or password reset to set their own)
+        const randomPassword = crypto.randomBytes(20).toString('hex');
+
+        const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+            email: shopOwnerEmail,
+            password: randomPassword,
+            email_confirm: true, // Auto-confirm — no verification email needed
+            user_metadata: {
+                store_name: shopName,
+                shop_domain: shop
+            }
+        });
+
+        if (createError) {
+            console.error('❌ Auth user creation failed:', createError);
+            // Non-fatal — continue with store setup, they can sign up manually later
+        } else {
+            authUserId = newUser?.user?.id || null;
+            console.log(`👤 New auth user created: ${shopOwnerEmail}`);
+        }
+    }
+
+    // 4. Save or update the store record
     const { data: store, error: storeError } = await supabaseAdmin.from('stores').upsert({
         shopify_url: shop,
         shopify_token: access_token,
+        email: shopOwnerEmail, // Link store to auth user by email
+        store_name: shopName,
         plan: 'trial',
         created_at: new Date().toISOString(),
     }, {
@@ -72,15 +133,16 @@ export async function GET(request: Request) {
         return new Response('Failed to save store', { status: 500 });
     }
 
-    // 3. Initialize settings row with billing defaults
+    // 5. Initialize settings row with billing defaults
     if (store) {
         const now = new Date();
         const trialEnd = new Date(now.getTime() + 4 * 24 * 60 * 60 * 1000);
 
         await supabaseAdmin.from('settings').upsert({
             store_id: store.id,
+            store_name: shopName,
             rulebook: 'Be helpful, empathetic, and professional.',
-            signature: 'Best regards, Customer Service Team',
+            signature: `Best regards,\n${shopName} Support`,
             plan_tier: 'trial',
             subscription_status: 'trialing',
             trial_started_at: now.toISOString(),
@@ -92,31 +154,25 @@ export async function GET(request: Request) {
         }, { onConflict: 'store_id' });
     }
 
-    // 4. Auto-register mandatory Shopify webhooks (app/uninstalled, GDPR)
+    // 6. Auto-register mandatory webhooks
     await registerMandatoryWebhooks(shop, access_token);
 
-    // 5. Auto-sync Shopify policies into the rulebook
+    // 7. Auto-sync Shopify store policies into the rulebook
     try {
-        const shopRes = await fetch(`https://${shop}/admin/api/2024-04/shop.json`, {
-            headers: { 'X-Shopify-Access-Token': access_token }
-        });
-        const shopData = await shopRes.json();
-
         const policiesRes = await fetch(`https://${shop}/admin/api/2024-04/policies.json`, {
             headers: { 'X-Shopify-Access-Token': access_token }
         });
         const policies = await policiesRes.json();
 
-        const rulebook = `STORE: ${shopData.shop?.name}
-CURRENCY: ${shopData.shop?.currency}
-COUNTRY: ${shopData.shop?.country_name}
-TIMEZONE: ${shopData.shop?.timezone}
+        const rulebook = `STORE: ${shopName}
+CURRENCY: ${shopCurrency}
+COUNTRY: ${shop}
 
 POLICIES FROM SHOPIFY:
 ${policies.policies?.map((p: any) => `- ${p.title}: ${p.body?.replace(/<[^>]*>?/gm, '').slice(0, 300)}`).join('\n\n') || 'No policies found'}
 
 SHIPPING: Check Shopify for current shipping rates.
-ALWAYS ESCALATE: Refunds over ${shopData.shop?.currency || 'USD'} 100, legal threats, chargebacks.`;
+ALWAYS ESCALATE: Refunds over ${shopCurrency} 100, legal threats, chargebacks.`;
 
         if (store) {
             await supabaseAdmin.from('settings').update({ rulebook }).eq('store_id', store.id);
@@ -125,8 +181,34 @@ ALWAYS ESCALATE: Refunds over ${shopData.shop?.currency || 'USD'} 100, legal thr
         console.error('Policies fetch failed (non-critical):', e);
     }
 
-    // 6. Redirect merchant to plan picker with shop pre-filled
-    return NextResponse.redirect(`${SHOPIFY_APP_URL}/pricing.html?shop=${shop}&connected=true`);
+    // 8. Generate a magic link to auto-login the merchant
+    let redirectUrl = `${SHOPIFY_APP_URL}/pricing.html?shop=${shop}&connected=true`;
+
+    if (authUserId && shopOwnerEmail) {
+        try {
+            const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+                type: 'magiclink',
+                email: shopOwnerEmail,
+                options: {
+                    redirectTo: `${SHOPIFY_APP_URL}/pricing.html?shop=${shop}&connected=true`
+                }
+            });
+
+            if (linkData?.properties?.action_link) {
+                // The action_link goes through Supabase auth, sets the session cookie, then redirects
+                redirectUrl = linkData.properties.action_link;
+                console.log(`🔑 Magic link generated for ${shopOwnerEmail}`);
+            } else if (linkError) {
+                console.error('Magic link generation failed:', linkError);
+                // Fall through to manual redirect — user will need to log in manually
+            }
+        } catch (e) {
+            console.error('Magic link error:', e);
+        }
+    }
+
+    // 9. Redirect merchant (either via magic link auto-login, or directly to pricing)
+    return NextResponse.redirect(redirectUrl);
 }
 
 // Register the webhooks Shopify REQUIRES for app submission
@@ -158,7 +240,7 @@ async function registerMandatoryWebhooks(shop: string, token: string) {
 
             if (!res.ok) {
                 const errData = await res.json();
-                console.warn(`⚠️ Webhook ${wh.topic} registration issue:`, errData);
+                console.warn(`⚠️ Webhook ${wh.topic}:`, errData);
             } else {
                 console.log(`✅ Registered webhook: ${wh.topic}`);
             }
