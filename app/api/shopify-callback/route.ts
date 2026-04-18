@@ -182,7 +182,7 @@ ALWAYS ESCALATE: Refunds over ${shopCurrency} 100, legal threats, chargebacks.`;
     }
 
     // 8. Generate a magic link to auto-login the merchant
-    let redirectUrl = `${SHOPIFY_APP_URL}/pricing.html?shop=${shop}&connected=true`;
+    let redirectUrl = `${SHOPIFY_APP_URL}/onboarding.html?shop=${shop}&connected=true`;
 
     if (authUserId && shopOwnerEmail) {
         try {
@@ -190,7 +190,7 @@ ALWAYS ESCALATE: Refunds over ${shopCurrency} 100, legal threats, chargebacks.`;
                 type: 'magiclink',
                 email: shopOwnerEmail,
                 options: {
-                    redirectTo: `${SHOPIFY_APP_URL}/pricing.html?shop=${shop}&connected=true`
+                    redirectTo: `${SHOPIFY_APP_URL}/onboarding.html?shop=${shop}&connected=true`
                 }
             });
 

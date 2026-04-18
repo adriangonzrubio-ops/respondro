@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Get Started — Respondro</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#F8FAFB;color:#1A2332;font-family:'Inter',sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased}
+.topbar{background:#fff;border-bottom:1px solid #E5E8ED;padding:14px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.topbar-logo{display:flex;align-items:center;gap:10px}
+.topbar-logo img{height:30px}
+.topbar-help{font-size:13px;color:#5A6785;text-decoration:none}
+.topbar-help:hover{color:#1A2332}
+.progress-container{background:#fff;border-bottom:1px solid #E5E8ED;padding:18px 32px}
+.progress-inner{max-width:760px;margin:0 auto}
+.progress-steps{display:flex;align-items:center;justify-content:space-between;position:relative}
+.progress-line{position:absolute;top:14px;left:24px;right:24px;height:2px;background:#E5E8ED;z-index:0}
+.progress-line-fill{position:absolute;top:14px;left:24px;height:2px;background:#059669;z-index:1;transition:width 0.4s ease}
+.progress-step{display:flex;flex-direction:column;align-items:center;gap:5px;z-index:2;position:relative}
+.progress-dot{width:28px;height:28px;border-radius:50%;border:2px solid #E5E8ED;background:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#5A6785;transition:all 0.3s}
+.progress-dot.active{border-color:#059669;background:#059669;color:#fff}
+.progress-dot.done{border-color:#059669;background:#059669;color:#fff}
+.progress-label{font-size:10px;color:#8B96B0;font-weight:500;white-space:nowrap}
+.progress-label.active{color:#059669;font-weight:600}
+.wizard-container{max-width:760px;margin:28px auto;padding:0 20px 60px}
+.wizard-card{background:#fff;border:1px solid #E5E8ED;border-radius:16px;padding:32px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.wizard-card h2{font-size:22px;font-weight:800;margin-bottom:6px;letter-spacing:-0.02em}
+.wizard-card .subtitle{font-size:14px;color:#5A6785;margin-bottom:24px;line-height:1.5}
+.form-group{margin-bottom:18px}
+.form-label{display:block;font-size:12px;font-weight:600;color:#3A4760;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em}
+.form-input{width:100%;padding:10px 14px;border:1px solid #D1D5DB;border-radius:10px;font-size:14px;font-family:inherit;background:#FAFBFC;transition:border 0.2s}
+.form-input:focus{outline:none;border-color:#059669;background:#fff;box-shadow:0 0 0 3px rgba(5,150,105,0.1)}
+.form-input::placeholder{color:#B0B8C9}
+textarea.form-input{min-height:120px;resize:vertical;line-height:1.6}
+select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235A6785' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;cursor:pointer}
+.form-hint{font-size:11px;color:#8B96B0;margin-top:4px;line-height:1.4}
+.form-hint a{color:#059669}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:600px){.form-row{grid-template-columns:1fr}}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border:1px solid #E5E8ED;border-radius:12px;margin-bottom:10px;background:#FAFBFC;transition:opacity 0.2s}
+.toggle-row.locked{opacity:0.5}
+.toggle-info h4{font-size:14px;font-weight:600;margin-bottom:2px}
+.toggle-info p{font-size:12px;color:#8B96B0}
+.lock-badge{font-size:10px;font-weight:700;background:#FEF3C7;color:#92400E;padding:2px 8px;border-radius:999px;margin-left:8px}
+.toggle-switch{width:44px;height:24px;background:#D1D5DB;border-radius:999px;cursor:pointer;position:relative;transition:background 0.2s;flex-shrink:0}
+.toggle-switch.on{background:#059669}
+.toggle-switch.disabled{cursor:not-allowed;opacity:0.4}
+.toggle-switch::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform 0.2s;box-shadow:0 1px 2px rgba(0,0,0,0.15)}
+.toggle-switch.on::after{transform:translateX(20px)}
+.btn-row{display:flex;justify-content:space-between;align-items:center;margin-top:24px;gap:12px}
+.btn-primary{background:#059669;color:#fff;border:none;padding:12px 28px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:all 0.2s;font-family:inherit}
+.btn-primary:hover{background:#047857;transform:translateY(-1px)}
+.btn-primary:disabled{opacity:0.5;cursor:wait;transform:none}
+.btn-secondary{background:#fff;color:#3A4760;border:1px solid #D1D5DB;padding:12px 28px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;font-family:inherit}
+.btn-secondary:hover{background:#F3F4F6}
+.btn-skip{background:none;border:none;color:#8B96B0;font-size:13px;cursor:pointer;font-family:inherit;text-decoration:underline;text-underline-offset:2px}
+.btn-skip:hover{color:#5A6785}
+.btn-google{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:12px;border:1px solid #D1D5DB;border-radius:10px;background:#fff;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;color:#3A4760;transition:all 0.2s;margin-bottom:16px}
+.btn-google:hover{background:#F9FAFB;border-color:#B0B8C9;box-shadow:0 2px 6px rgba(0,0,0,0.06)}
+.btn-google img{width:20px;height:20px}
+.success-icon{width:48px;height:48px;border-radius:50%;background:#ECFDF5;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:22px}
+.conn-status{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:13px;font-weight:600}
+.conn-status.connected{background:#ECFDF5;color:#047857;border:1px solid #A7F3D0}
+.tip-box{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:12px;padding:16px;margin-bottom:20px;font-size:13px;line-height:1.6;color:#065F46}
+.tip-box strong{display:block;margin-bottom:4px;font-size:14px}
+.divider-text{display:flex;align-items:center;gap:12px;margin:16px 0;font-size:12px;color:#8B96B0}
+.divider-text::before,.divider-text::after{content:'';flex:1;height:1px;background:#E5E8ED}
+.provider-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px}
+@media(max-width:600px){.provider-grid{grid-template-columns:1fr 1fr}}
+.provider-btn{padding:14px 12px;border:1px solid #E5E8ED;border-radius:12px;background:#FAFBFC;cursor:pointer;text-align:center;transition:all 0.2s;font-family:inherit;position:relative}
+.provider-btn:hover{border-color:#059669;background:#F0FDF4}
+.provider-btn.selected{border-color:#059669;background:#F0FDF4;box-shadow:0 0 0 2px rgba(5,150,105,0.15)}
+.provider-btn h4{font-size:12px;font-weight:600;margin-bottom:2px}
+.provider-btn p{font-size:10px;color:#8B96B0}
+.provider-help{position:absolute;top:6px;right:8px;width:18px;height:18px;border-radius:50%;background:#E5E8ED;color:#5A6785;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:5;border:none;font-family:inherit;line-height:1}
+.provider-help:hover{background:#059669;color:#fff}
+.help-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;display:none;align-items:center;justify-content:center;padding:20px}
+.help-overlay.show{display:flex}
+.help-modal{background:#fff;border-radius:16px;padding:28px;max-width:520px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 40px rgba(0,0,0,0.15);position:relative}
+.help-modal h3{font-size:18px;font-weight:700;margin-bottom:6px}
+.help-modal .close-btn{position:absolute;top:12px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:#8B96B0}
+.help-modal ol{padding-left:20px;margin:12px 0;font-size:13px;line-height:1.8;color:#3A4760}
+.help-modal ol li{margin-bottom:4px}
+.help-modal .note{font-size:12px;color:#8B96B0;background:#FAFBFC;padding:10px 14px;border-radius:8px;margin-top:12px;line-height:1.5}
+.plan-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+@media(max-width:700px){.plan-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.plan-grid{grid-template-columns:1fr}}
+.plan-card{border:1px solid #E5E8ED;border-radius:14px;padding:20px 16px;cursor:pointer;transition:all 0.2s;background:#fff;position:relative;text-align:center}
+.plan-card:hover{border-color:#059669;background:#F0FDF4}
+.plan-card.selected{border-color:#059669;background:#F0FDF4;box-shadow:0 0 0 2px rgba(5,150,105,0.2)}
+.plan-card.popular{border-color:#059669}
+.plan-popular-badge{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#059669;color:#fff;font-size:9px;font-weight:700;padding:2px 10px;border-radius:999px;white-space:nowrap}
+.plan-card h4{font-size:14px;font-weight:700;margin-bottom:2px}
+.plan-card .plan-price{font-size:28px;font-weight:800;margin:8px 0 2px}
+.plan-card .plan-period{font-size:11px;color:#8B96B0}
+.plan-card .plan-emails{font-size:12px;color:#059669;font-weight:600;margin-top:6px}
+.plan-card .plan-features{text-align:left;margin-top:12px;font-size:11px;color:#5A6785;line-height:1.7}
+.plan-card .plan-features .yes{color:#047857}
+.plan-card .plan-features .no{color:#CBD5E1}
+.logo-upload-area{border:2px dashed #D1D5DB;border-radius:12px;padding:20px;text-align:center;cursor:pointer;transition:all 0.2s;margin-bottom:12px}
+.logo-upload-area:hover{border-color:#059669;background:#F0FDF4}
+.logo-upload-area img{max-height:60px;margin-bottom:8px}
+.logo-upload-area p{font-size:12px;color:#8B96B0}
+.step-view{display:none}
+.step-view.active{display:block}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);background:#fff;border:1px solid #D1D5DB;color:#1A2332;padding:10px 20px;border-radius:10px;font-size:13px;z-index:999;transition:transform 0.3s ease;box-shadow:0 8px 24px rgba(0,0,0,0.1)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.error{border-color:#FCA5A5;color:#DC2626}
+.toast.success{border-color:#A7F3D0;color:#047857}
+.completion-screen{text-align:center;padding:40px 20px}
+.completion-screen h2{font-size:28px;margin-bottom:8px}
+.completion-checks{text-align:left;max-width:360px;margin:24px auto;display:flex;flex-direction:column;gap:10px}
+.completion-check{display:flex;align-items:center;gap:10px;font-size:14px;color:#047857}
+.completion-check .dot{width:24px;height:24px;border-radius:50%;background:#ECFDF5;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-logo"><img src="https://i.ibb.co/wFmZT2R6/light-mode-logo.png" alt="Respondro"></div>
+  <a href="mailto:support@respondro.ai" class="topbar-help">Need help? support@respondro.ai</a>
+</div>
+<div class="progress-container"><div class="progress-inner"><div class="progress-steps">
+  <div class="progress-line"></div><div class="progress-line-fill" id="progress-fill" style="width:0%"></div>
+  <div class="progress-step"><div class="progress-dot active" id="dot-1">1</div><span class="progress-label active" id="label-1">Store</span></div>
+  <div class="progress-step"><div class="progress-dot" id="dot-2">2</div><span class="progress-label" id="label-2">Plan</span></div>
+  <div class="progress-step"><div class="progress-dot" id="dot-3">3</div><span class="progress-label" id="label-3">Email</span></div>
+  <div class="progress-step"><div class="progress-dot" id="dot-4">4</div><span class="progress-label" id="label-4">Rulebook</span></div>
+  <div class="progress-step"><div class="progress-dot" id="dot-5">5</div><span class="progress-label" id="label-5">Preferences</span></div>
+</div></div></div>
+<div id="toast" class="toast"></div>
+<div class="help-overlay" id="help-overlay" onclick="if(event.target===this)closeHelp()"><div class="help-modal" id="help-modal-content"></div></div>
+<div class="wizard-container">
+
+<!-- STEP 1: STORE -->
+<div class="step-view active" id="step-1"><div class="wizard-card">
+  <div class="success-icon">🎉</div>
+  <h2>Your store is connected!</h2>
+  <p class="subtitle">Respondro is now linked to your Shopify store. We've imported your store data automatically.</p>
+  <div class="conn-status connected"><span>✓</span><span id="store-name-display">Your Shopify Store</span> — Connected</div>
+  <div style="padding:16px;background:#FAFBFC;border-radius:12px;border:1px solid #E5E8ED;margin-bottom:16px">
+    <div style="font-size:12px;color:#5A6785;text-transform:uppercase;font-weight:600;margin-bottom:8px;letter-spacing:0.04em">What we imported</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <span style="font-size:12px;background:#ECFDF5;color:#047857;padding:4px 10px;border-radius:6px;font-weight:500">Store policies</span>
+      <span style="font-size:12px;background:#ECFDF5;color:#047857;padding:4px 10px;border-radius:6px;font-weight:500">Product catalog</span>
+      <span style="font-size:12px;background:#ECFDF5;color:#047857;padding:4px 10px;border-radius:6px;font-weight:500">Order access</span>
+      <span style="font-size:12px;background:#ECFDF5;color:#047857;padding:4px 10px;border-radius:6px;font-weight:500">Customer data</span>
+    </div>
+  </div>
+  <div class="btn-row" style="justify-content:flex-end"><button class="btn-primary" onclick="goToStep(2)">Choose your plan →</button></div>
+</div></div>
+
+<!-- STEP 2: PLAN -->
+<div class="step-view" id="step-2"><div class="wizard-card">
+  <h2>Choose your plan</h2>
+  <p class="subtitle">All plans include a 4-day free trial. Cancel anytime from your Shopify admin — no questions asked.</p>
+  <div class="plan-grid" id="plan-grid">
+    <div class="plan-card" onclick="selectPlan(this,'starter')" data-tier="starter"><h4>Starter</h4><div class="plan-price">$29</div><div class="plan-period">per month</div><div class="plan-emails">150 emails/mo</div><div class="plan-features"><div class="yes">✓ AI drafts for review</div><div class="yes">✓ Manual send</div><div class="yes">✓ Shopify order lookups</div><div class="no">✕ Auto-reply</div><div class="no">✕ Auto-refund</div></div></div>
+    <div class="plan-card" onclick="selectPlan(this,'essential')" data-tier="essential"><h4>Essential</h4><div class="plan-price">$49</div><div class="plan-period">per month</div><div class="plan-emails">400 emails/mo</div><div class="plan-features"><div class="yes">✓ Everything in Starter</div><div class="yes">✓ Auto-reply (5-min delay)</div><div class="yes">✓ Auto-categorization</div><div class="no">✕ Auto-refund</div><div class="no">✕ Auto-cancel</div></div></div>
+    <div class="plan-card popular" onclick="selectPlan(this,'growth')" data-tier="growth"><div class="plan-popular-badge">MOST POPULAR</div><h4>Growth</h4><div class="plan-price">$79</div><div class="plan-period">per month</div><div class="plan-emails">750 emails/mo</div><div class="plan-features"><div class="yes">✓ Everything in Essential</div><div class="yes">✓ Auto-refund (up to $50)</div><div class="yes">✓ Auto-cancel orders</div><div class="yes">✓ 2-min reply delay</div></div></div>
+    <div class="plan-card" onclick="selectPlan(this,'scale')" data-tier="scale"><h4>Scale</h4><div class="plan-price">$199</div><div class="plan-period">per month</div><div class="plan-emails">2,500 emails/mo</div><div class="plan-features"><div class="yes">✓ Everything in Growth</div><div class="yes">✓ Unlimited refunds</div><div class="yes">✓ Auto-address change</div><div class="yes">✓ Instant replies</div></div></div>
+  </div>
+  <div style="text-align:center;margin-bottom:8px"><a href="mailto:support@respondro.ai?subject=Enterprise%20inquiry" style="font-size:12px;color:#5A6785;text-decoration:underline">Need 10,000+ emails? Contact us about Enterprise →</a></div>
+  <div class="btn-row"><button class="btn-secondary" onclick="goToStep(1)">← Back</button><button class="btn-primary" id="btn-choose-plan" onclick="startBilling()" disabled>Select Plan & Start Trial →</button></div>
+</div></div>
+
+<!-- STEP 3: EMAIL -->
+<div class="step-view" id="step-3"><div class="wizard-card">
+  <h2>Connect your support email</h2>
+  <p class="subtitle">Link your customer service inbox so Respondro can read and reply to emails on your behalf.</p>
+  <button class="btn-google" onclick="connectGoogleOAuth()"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">Sign in with Google</button>
+  <div class="divider-text">or connect via IMAP</div>
+  <div class="form-group"><label class="form-label">Choose your email provider</label>
+    <div class="provider-grid">
+      <div class="provider-btn" onclick="selectProvider(this,'gmail')" data-provider="gmail"><button class="provider-help" onclick="event.stopPropagation();showHelp('gmail')" title="Setup guide">?</button><h4>Gmail</h4><p>App Password required</p></div>
+      <div class="provider-btn" onclick="selectProvider(this,'outlook')" data-provider="outlook"><button class="provider-help" onclick="event.stopPropagation();showHelp('outlook')" title="Setup guide">?</button><h4>Outlook / 365</h4><p>App Password required</p></div>
+      <div class="provider-btn" onclick="selectProvider(this,'privateemail')" data-provider="privateemail"><button class="provider-help" onclick="event.stopPropagation();showHelp('privateemail')" title="Setup guide">?</button><h4>PrivateEmail</h4><p>Namecheap hosting</p></div>
+      <div class="provider-btn" onclick="selectProvider(this,'protonmail')" data-provider="protonmail"><button class="provider-help" onclick="event.stopPropagation();showHelp('protonmail')" title="Setup guide">?</button><h4>Proton Mail</h4><p>Bridge required</p></div>
+      <div class="provider-btn" onclick="selectProvider(this,'zoho')" data-provider="zoho"><button class="provider-help" onclick="event.stopPropagation();showHelp('zoho')" title="Setup guide">?</button><h4>Zoho Mail</h4><p>App Password required</p></div>
+      <div class="provider-btn" onclick="selectProvider(this,'custom')" data-provider="custom"><button class="provider-help" onclick="event.stopPropagation();showHelp('custom')" title="Setup guide">?</button><h4>Other IMAP</h4><p>Custom settings</p></div>
+    </div>
+  </div>
+  <div id="imap-fields" style="display:none">
+    <div class="form-group"><label class="form-label">Email Address</label><input type="email" class="form-input" id="ob-email" placeholder="support@yourstore.com"></div>
+    <div class="form-group"><label class="form-label">Password</label><input type="password" class="form-input" id="ob-password" placeholder="Your app-specific password"><div class="form-hint" id="password-hint">Use your email password or app-specific password.</div></div>
+    <div id="custom-imap-fields" style="display:none">
+      <div class="form-row"><div class="form-group"><label class="form-label">IMAP Host</label><input type="text" class="form-input" id="ob-imap-host" placeholder="imap.provider.com"></div><div class="form-group"><label class="form-label">IMAP Port</label><input type="number" class="form-input" id="ob-imap-port" value="993"></div></div>
+      <div class="form-row"><div class="form-group"><label class="form-label">SMTP Host</label><input type="text" class="form-input" id="ob-smtp-host" placeholder="smtp.provider.com"></div><div class="form-group"><label class="form-label">SMTP Port</label><input type="number" class="form-input" id="ob-smtp-port" value="465"></div></div>
+    </div>
+    <button class="btn-primary" style="width:100%" id="btn-connect-email" onclick="connectEmail()">Connect Email →</button>
+  </div>
+  <div class="btn-row"><button class="btn-secondary" onclick="goToStep(2)">← Back</button><div style="display:flex;gap:12px;align-items:center"><button class="btn-skip" onclick="goToStep(4)">Skip for now</button></div></div>
+</div></div>
+
+<!-- STEP 4: RULEBOOK -->
+<div class="step-view" id="step-4"><div class="wizard-card">
+  <h2>Set up your AI rulebook</h2>
+  <p class="subtitle">Tell the AI how to respond to customers. The more specific you are, the better the responses will be.</p>
+  <div class="tip-box"><strong>🤖 Tip: Use AI to write your rulebook in 30 seconds</strong>Open ChatGPT, Claude, or Gemini and paste this prompt:<div style="background:#fff;padding:10px 14px;border-radius:8px;border:1px solid #D1D5DB;margin-top:8px;color:#3A4760;font-size:12px;line-height:1.6">"I run a Shopify store called <strong>[YOUR STORE NAME]</strong> selling <strong>[YOUR PRODUCTS]</strong>. Write me a customer service rulebook for my AI support agent. Include: brand voice and tone, how to handle order status inquiries, refund policy rules, shipping info, common FAQs, and when to escalate to a human. Keep it under 3000 characters."</div><div style="margin-top:8px;font-size:11px;color:#047857">Paste the AI's output below. You can always edit it later in Settings → Support Agents.</div></div>
+  <div class="form-group"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><label class="form-label" style="margin:0">Your Rulebook</label><span id="rulebook-count" style="font-size:11px;color:#8B96B0">0 / 3,000</span></div>
+  <textarea class="form-input" id="ob-rulebook" placeholder="Example:&#10;You are the customer service agent for [Store Name].&#10;&#10;TONE: Friendly, helpful, empathetic. Always use the customer's first name.&#10;&#10;SHIPPING: We ship from the EU. Standard 5-10 business days. Express 2-4 days.&#10;&#10;REFUNDS: Full refund within 30 days if unopened. Opened products — exchange only.&#10;&#10;ESCALATE: Legal threats, chargebacks, orders over $200, photo complaints." maxlength="3000" oninput="updateRulebookCount()"></textarea></div>
+  <div class="btn-row"><button class="btn-secondary" onclick="goToStep(3)">← Back</button><div style="display:flex;gap:12px;align-items:center"><button class="btn-skip" onclick="goToStep(5)">Skip for now</button><button class="btn-primary" onclick="saveRulebook()">Save & Continue →</button></div></div>
+</div></div>
+
+<!-- STEP 5: PREFERENCES -->
+<div class="step-view" id="step-5"><div class="wizard-card">
+  <h2>Set your preferences</h2>
+  <p class="subtitle">Configure branding, signature, and automation. All of this can be changed later in Settings.</p>
+  <div class="form-group"><label class="form-label">Email Signature Logo</label>
+    <div class="logo-upload-area" id="logo-upload-area" onclick="document.getElementById('logo-file-input').click()"><img id="logo-preview" src="" style="display:none"><p id="logo-upload-text">Click to upload your store logo (appears in email signatures)</p><p style="font-size:10px;color:#B0B8C9;margin-top:4px">PNG or JPG, max 2MB</p></div>
+    <input type="file" id="logo-file-input" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="handleLogoUpload(event)">
+  </div>
+  <div class="form-group"><label class="form-label">Email Signature Text</label><textarea class="form-input" id="ob-signature" rows="3" placeholder="Best regards,&#10;Jack T.&#10;Customer Service — Your Store"></textarea><div class="form-hint">Appended to every AI-generated email, above your logo.</div></div>
+  <div class="form-group"><label class="form-label">Auto-Reply Delay</label><select class="form-input" id="ob-delay"><option value="5" selected>5 minutes (recommended)</option><option value="10">10 minutes</option><option value="15">15 minutes</option></select><div class="form-hint">Minimum 5 minutes — so customers feel they're getting a personal response, not an automated one.</div></div>
+  <div class="form-group"><label class="form-label" style="margin-bottom:12px">AI Autonomy <span style="font-size:10px;color:#8B96B0;text-transform:none;font-weight:400;letter-spacing:0">(features depend on your plan)</span></label>
+    <div class="toggle-row" id="row-reply"><div class="toggle-info"><h4>Auto-Reply <span class="lock-badge" id="lock-reply" style="display:none">UPGRADE</span></h4><p>AI sends replies automatically after the delay</p></div><div class="toggle-switch" id="toggle-reply" onclick="toggleSwitch(this)"></div></div>
+    <div class="toggle-row" id="row-refund"><div class="toggle-info"><h4>Auto-Refund <span class="lock-badge" id="lock-refund" style="display:none">UPGRADE</span></h4><p>AI processes refunds up to your max amount</p></div><div class="toggle-switch" id="toggle-refund" onclick="toggleSwitch(this)"></div></div>
+    <div class="toggle-row" id="row-cancel"><div class="toggle-info"><h4>Auto-Cancel <span class="lock-badge" id="lock-cancel" style="display:none">UPGRADE</span></h4><p>AI cancels unfulfilled orders on request</p></div><div class="toggle-switch" id="toggle-cancel" onclick="toggleSwitch(this)"></div></div>
+    <div class="toggle-row" id="row-address"><div class="toggle-info"><h4>Auto-Address Change <span class="lock-badge" id="lock-address" style="display:none">UPGRADE</span></h4><p>AI updates shipping addresses</p></div><div class="toggle-switch" id="toggle-address" onclick="toggleSwitch(this)"></div></div>
+  </div>
+  <div class="btn-row"><button class="btn-secondary" onclick="goToStep(4)">← Back</button><button class="btn-primary" onclick="savePreferences()">Finish Setup →</button></div>
+</div></div>
+
+<!-- STEP 6: COMPLETE -->
+<div class="step-view" id="step-6"><div class="wizard-card"><div class="completion-screen">
+  <div class="success-icon" style="margin:0 auto 16px">🚀</div>
+  <h2>You're all set!</h2>
+  <p class="subtitle" style="max-width:420px;margin:0 auto 24px">Respondro is ready to handle your customer emails.</p>
+  <div class="completion-checks" id="completion-checks"></div>
+  <div style="margin-top:32px"><button class="btn-primary" onclick="goToDashboard()" style="padding:14px 36px;font-size:15px">Open Dashboard →</button></div>
+  <p style="font-size:12px;color:#8B96B0;margin-top:16px">Update all settings anytime from the Settings page.</p>
+</div></div></div>
+
+</div>
+
+<script>
+var currentStep=1,storeId=null,shopUrl=null,selectedProvider=null,selectedTier=null,uploadedLogoUrl='',sb=null;
+var completedSteps={store:true,plan:false,email:false,rulebook:false,preferences:false};
+var TIER_FEATURES={starter:{reply:false,refund:false,cancel:false,address:false},essential:{reply:true,refund:false,cancel:false,address:false},growth:{reply:true,refund:true,cancel:true,address:false},scale:{reply:true,refund:true,cancel:true,address:true}};
+var PROVIDERS={gmail:{imap_host:'imap.gmail.com',imap_port:993,smtp_host:'smtp.gmail.com',smtp_port:465},outlook:{imap_host:'outlook.office365.com',imap_port:993,smtp_host:'smtp.office365.com',smtp_port:587},privateemail:{imap_host:'mail.privateemail.com',imap_port:993,smtp_host:'mail.privateemail.com',smtp_port:465},protonmail:{imap_host:'127.0.0.1',imap_port:1143,smtp_host:'127.0.0.1',smtp_port:1025},zoho:{imap_host:'imap.zoho.com',imap_port:993,smtp_host:'smtp.zoho.com',smtp_port:465},custom:{imap_host:'',imap_port:993,smtp_host:'',smtp_port:465}};
+var HELP_CONTENT={
+  gmail:{title:'Connect Gmail / Google Workspace',steps:['Go to <a href="https://myaccount.google.com/security" target="_blank">myaccount.google.com/security</a>','Enable <strong>2-Step Verification</strong> if not already on','Go to <a href="https://myaccount.google.com/apppasswords" target="_blank">myaccount.google.com/apppasswords</a>','Select "Mail" and your device, then click <strong>Generate</strong>','Copy the 16-character password (remove spaces)','Paste it in the password field below — NOT your regular Gmail password'],note:'Tip: If you don\'t see "App passwords", make sure 2-Step Verification is enabled first. Your regular Gmail password will not work with IMAP.'},
+  outlook:{title:'Connect Outlook / Microsoft 365',steps:['Go to <a href="https://account.microsoft.com/security" target="_blank">account.microsoft.com/security</a>','Enable <strong>Two-step verification</strong>','Under "App passwords", click <strong>Create a new app password</strong>','Copy the generated password','Paste it in the password field below'],note:'If your organization uses Microsoft 365 with admin-managed security, ask your IT admin to enable IMAP access.'},
+  privateemail:{title:'Connect PrivateEmail (Namecheap)',steps:['Log into <a href="https://privateemail.com" target="_blank">privateemail.com</a>','Use your regular email address and password — no app password needed','IMAP Host: <strong>mail.privateemail.com</strong> · Port: <strong>993</strong>','SMTP Host: <strong>mail.privateemail.com</strong> · Port: <strong>465</strong>'],note:'PrivateEmail supports standard IMAP login. Just use your normal email password — no extra setup required.'},
+  protonmail:{title:'Connect Proton Mail',steps:['Download <a href="https://proton.me/mail/bridge" target="_blank">Proton Mail Bridge</a> on your computer','Open Bridge and sign in with your Proton account','Bridge displays local IMAP/SMTP credentials (host: 127.0.0.1)','Copy the <strong>Bridge password</strong> (NOT your Proton password)','Important: Bridge must be running on your computer at all times'],note:'Proton Mail requires Bridge running locally. This works best on a server or always-on computer. For most stores, Gmail or Outlook is easier.'},
+  zoho:{title:'Connect Zoho Mail',steps:['Go to <a href="https://accounts.zoho.com/home#security/security_pwd" target="_blank">Zoho Account Security</a>','Under "Application-Specific Passwords", click <strong>Generate</strong>','Name it "Respondro" and copy the password','IMAP: <strong>imap.zoho.com</strong> (or imap.zoho.eu for EU accounts)','SMTP: <strong>smtp.zoho.com</strong> (or smtp.zoho.eu for EU accounts)'],note:'If your Zoho account is on the EU datacenter, use the .eu variants for IMAP and SMTP hosts.'},
+  custom:{title:'Connect Custom IMAP Provider',steps:['Find your provider\'s IMAP/SMTP server settings in their help docs','Enter the IMAP host and port (usually 993 for SSL)','Enter the SMTP host and port (usually 465 for SSL)','Use your full email address as the username','Use your password or app-specific password'],note:'Make sure IMAP access is enabled in your provider\'s settings. Some providers disable it by default.'}
+};
+
+document.addEventListener('DOMContentLoaded',async function(){
+  var params=new URLSearchParams(window.location.search);
+  shopUrl=params.get('shop')||'';
+  if(params.get('billing_success')==='true'){selectedTier=params.get('tier')||'growth';completedSteps.plan=true;goToStep(3);showToast('Plan activated! ✓','success');}
+  if(params.get('email_connected')==='true'){completedSteps.email=true;}
+  try{
+    var cr=await fetch('/api/config');var cfg=await cr.json();
+    if(cfg.supabaseUrl&&cfg.supabaseAnonKey){sb=supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
+    var{data:sess}=await sb.auth.getSession();
+    if(sess?.session){var r=await fetch('/api/settings',{headers:{'Authorization':'Bearer '+sess.session.access_token}});var d=await r.json();
+      if(d.store_id){storeId=d.store_id;shopUrl=d.shop_url||shopUrl;document.getElementById('store-name-display').textContent=d.store_name||shopUrl||'Your Store';
+      if(d.connected_email)completedSteps.email=true;
+      if(d.rulebook&&d.rulebook.length>50){completedSteps.rulebook=true;document.getElementById('ob-rulebook').value=d.rulebook;updateRulebookCount();}
+      if(d.signature)document.getElementById('ob-signature').value=d.signature;
+      if(d.plan_tier&&d.plan_tier!=='trial'){selectedTier=d.plan_tier;completedSteps.plan=true;}}}}
+  }catch(e){console.warn('Init:',e);}
+  if(shopUrl&&!storeId)document.getElementById('store-name-display').textContent=shopUrl;
+});
+
+function goToStep(s){document.querySelectorAll('.step-view').forEach(function(v){v.classList.remove('active')});document.getElementById('step-'+s).classList.add('active');currentStep=s;updateProgress(s);if(s===5)applyTierLocks();window.scrollTo(0,0);}
+function updateProgress(s){var t=5;var f=Math.min(((s-1)/(t-1))*100,100);document.getElementById('progress-fill').style.width=f+'%';for(var i=1;i<=5;i++){var d=document.getElementById('dot-'+i);var l=document.getElementById('label-'+i);if(i<s){d.className='progress-dot done';d.textContent='✓';l.className='progress-label';}else if(i===s){d.className='progress-dot active';d.textContent=i;l.className='progress-label active';}else{d.className='progress-dot';d.textContent=i;l.className='progress-label';}}}
+
+function selectPlan(el,tier){document.querySelectorAll('.plan-card').forEach(function(c){c.classList.remove('selected')});el.classList.add('selected');selectedTier=tier;document.getElementById('btn-choose-plan').disabled=false;}
+async function startBilling(){if(!selectedTier)return;var shop=shopUrl;if(!shop){shop=prompt('Enter your Shopify store URL (e.g. yourstore.myshopify.com)');if(!shop)return;}var btn=document.getElementById('btn-choose-plan');btn.disabled=true;btn.textContent='Redirecting to Shopify...';
+try{var res=await fetch('/api/shopify/billing/create-charge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({shop:shop,tier:selectedTier,interval:'monthly'})});var data=await res.json();
+if(data.confirmationUrl){window.location.href=data.confirmationUrl;}else{completedSteps.plan=true;showToast('Plan selected ✓','success');setTimeout(function(){goToStep(3);},600);}}catch(e){showToast('Continuing setup...','error');completedSteps.plan=true;setTimeout(function(){goToStep(3);},1000);}btn.disabled=false;btn.textContent='Select Plan & Start Trial →';}
+
+function connectGoogleOAuth(){if(sb){sb.auth.signInWithOAuth({provider:'google',options:{scopes:'https://mail.google.com/',redirectTo:window.location.origin+'/onboarding.html?shop='+(shopUrl||'')+'&step=4&email_connected=true'}});}else{showToast('Google sign-in not available. Use IMAP.','error');}}
+
+function selectProvider(el,p){document.querySelectorAll('.provider-btn').forEach(function(b){b.classList.remove('selected')});el.classList.add('selected');selectedProvider=p;document.getElementById('imap-fields').style.display='block';document.getElementById('custom-imap-fields').style.display=p==='custom'?'block':'none';
+var hints={gmail:'Use a <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color:#059669">Google App Password</a> — your regular password won\'t work.',outlook:'Use an <a href="https://account.microsoft.com/security" target="_blank" style="color:#059669">App Password</a> from Microsoft.',privateemail:'Use your regular PrivateEmail password.',protonmail:'Use the password from <strong>Proton Bridge</strong> — not your Proton password.',zoho:'Use a <a href="https://accounts.zoho.com/home#security/security_pwd" target="_blank" style="color:#059669">Zoho App Password</a>.',custom:'Use the password or app-specific password for your provider.'};
+document.getElementById('password-hint').innerHTML=hints[p]||hints.custom;}
+
+async function connectEmail(){var email=document.getElementById('ob-email').value.trim();var pass=document.getElementById('ob-password').value;if(!email||!pass){showToast('Enter email and password','error');return;}
+var cfg=PROVIDERS[selectedProvider]||PROVIDERS.custom;var ih=selectedProvider==='custom'?document.getElementById('ob-imap-host').value:cfg.imap_host;var ip=selectedProvider==='custom'?parseInt(document.getElementById('ob-imap-port').value):cfg.imap_port;var sh=selectedProvider==='custom'?document.getElementById('ob-smtp-host').value:cfg.smtp_host;var sp=selectedProvider==='custom'?parseInt(document.getElementById('ob-smtp-port').value):cfg.smtp_port;
+var btn=document.getElementById('btn-connect-email');btn.disabled=true;btn.textContent='Connecting...';
+try{var res=await fetch('/api/auth/imap',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,imap_host:ih,imap_port:ip,imap_user:email,imap_pass:pass,smtp_host:sh,smtp_port:sp})});var data=await res.json();
+if(data.success||res.ok){completedSteps.email=true;showToast('Email connected! ✓','success');setTimeout(function(){goToStep(4);},800);}else{showToast(data.error||'Connection failed. Check credentials.','error');}}catch(e){showToast('Network error.','error');}btn.disabled=false;btn.textContent='Connect Email →';}
+
+function showHelp(p){var h=HELP_CONTENT[p];if(!h)return;document.getElementById('help-modal-content').innerHTML='<button class="close-btn" onclick="closeHelp()">✕</button><h3>'+h.title+'</h3><ol>'+h.steps.map(function(s){return'<li>'+s+'</li>';}).join('')+'</ol>'+(h.note?'<div class="note">ℹ️ '+h.note+'</div>':'');document.getElementById('help-overlay').classList.add('show');}
+function closeHelp(){document.getElementById('help-overlay').classList.remove('show');}
+
+function updateRulebookCount(){var c=document.getElementById('ob-rulebook').value.length;var el=document.getElementById('rulebook-count');el.textContent=c.toLocaleString()+' / 3,000';el.style.color=c>2800?'#DC2626':c>2000?'#D97706':'#8B96B0';}
+async function saveRulebook(){var rb=document.getElementById('ob-rulebook').value.trim();if(!rb){showToast('Add a rulebook or skip','error');return;}
+try{var headers={'Content-Type':'application/json'};if(sb){var{data:s}=await sb.auth.getSession();if(s?.session)headers['Authorization']='Bearer '+s.session.access_token;}
+var res=await fetch('/api/settings',{method:'POST',headers:headers,body:JSON.stringify({rulebook:rb})});if(res.ok){completedSteps.rulebook=true;showToast('Rulebook saved! ✓','success');setTimeout(function(){goToStep(5);},600);}else showToast('Failed to save','error');}catch(e){showToast('Network error','error');}}
+
+function applyTierLocks(){var tier=selectedTier||'starter';var perms=TIER_FEATURES[tier]||TIER_FEATURES.starter;
+[{key:'reply',id:'toggle-reply',row:'row-reply',lock:'lock-reply'},{key:'refund',id:'toggle-refund',row:'row-refund',lock:'lock-refund'},{key:'cancel',id:'toggle-cancel',row:'row-cancel',lock:'lock-cancel'},{key:'address',id:'toggle-address',row:'row-address',lock:'lock-address'}].forEach(function(f){
+var row=document.getElementById(f.row);var toggle=document.getElementById(f.id);var lock=document.getElementById(f.lock);
+if(perms[f.key]){row.classList.remove('locked');toggle.classList.remove('disabled');lock.style.display='none';}else{row.classList.add('locked');toggle.classList.add('disabled');toggle.classList.remove('on');lock.style.display='inline';}});}
+function toggleSwitch(el){if(el.classList.contains('disabled')){showToast('Upgrade your plan to unlock this','error');return;}el.classList.toggle('on');}
+function handleLogoUpload(e){var f=e.target.files[0];if(!f)return;if(f.size>2*1024*1024){showToast('Logo must be under 2MB','error');return;}var r=new FileReader();r.onload=function(ev){uploadedLogoUrl=ev.target.result;var p=document.getElementById('logo-preview');p.src=uploadedLogoUrl;p.style.display='block';document.getElementById('logo-upload-text').textContent='Click to change logo';};r.readAsDataURL(f);}
+async function savePreferences(){var sig=document.getElementById('ob-signature').value.trim();var delay=parseInt(document.getElementById('ob-delay').value);var ar=document.getElementById('toggle-reply').classList.contains('on');var af=document.getElementById('toggle-refund').classList.contains('on');var ac=document.getElementById('toggle-cancel').classList.contains('on');var aa=document.getElementById('toggle-address').classList.contains('on');
+try{var headers={'Content-Type':'application/json'};if(sb){var{data:s}=await sb.auth.getSession();if(s?.session)headers['Authorization']='Bearer '+s.session.access_token;}
+var payload={signature:sig,auto_reply_delay_minutes:delay,auto_reply_enabled:ar,auto_refund_enabled:af,auto_cancel_enabled:ac,auto_address_change_enabled:aa};if(uploadedLogoUrl)payload.logo_url=uploadedLogoUrl;
+var res=await fetch('/api/settings',{method:'POST',headers:headers,body:JSON.stringify(payload)});if(res.ok){completedSteps.preferences=true;renderCompletion();goToStep(6);showToast('Setup complete! 🎉','success');}else showToast('Failed to save','error');}catch(e){showToast('Network error','error');}}
+
+function renderCompletion(){var c=document.getElementById('completion-checks');var items=[{done:completedSteps.store,label:'Shopify store connected'},{done:completedSteps.plan,label:'Plan selected'+(selectedTier?' ('+selectedTier+')':'')},{done:completedSteps.email,label:'Support email connected'},{done:completedSteps.rulebook,label:'AI rulebook configured'},{done:completedSteps.preferences,label:'Preferences saved'}];
+c.innerHTML=items.map(function(i){return'<div class="completion-check"><div class="dot">'+(i.done?'✓':'—')+'</div><span style="color:'+(i.done?'#047857':'#8B96B0')+'">'+i.label+(i.done?'':' <em style="font-size:11px">(skipped)</em>')+'</span></div>';}).join('');}
+function goToDashboard(){window.location.href='/respondro.html'+(shopUrl?'?shop='+shopUrl:'');}
+function showToast(msg,type){var t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(type==='error'?' error':type==='success'?' success':'');setTimeout(function(){t.className='toast';},3500);}
+</script>
+</body>
+</html>
