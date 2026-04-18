@@ -343,6 +343,8 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
   #rb-ticket-list input[type="checkbox"] { display:none !important }
   #rb-ticket-list .flex.items-start.gap-2 > div { width:100% !important }
   #rb-ticket-list [onclick*="rbOpenTicket"] { cursor:pointer;-webkit-tap-highlight-color:rgba(0,200,150,0.1) }
+  #rb-ticket-list * { pointer-events:auto !important }
+  #rb-ticket-list [id^="rb-ticket-card-"] { touch-action:manipulation }
   #view-dashboard, #view-settings, #view-agents, #view-mailboxes, #view-integrations { padding-bottom:100px !important }
   #dash-action-queue { padding-bottom:80px !important }
 }
@@ -5180,6 +5182,23 @@ function closeMobileSidebar() {
   if (sidebar) sidebar.classList.remove('mobile-open');
   if (overlay) overlay.classList.remove('show');
 }
+// ═══ MOBILE TICKET TAP ═══
+document.addEventListener('DOMContentLoaded', function() {
+  var ticketList = document.getElementById('rb-ticket-list');
+  if (!ticketList) return;
+  ticketList.addEventListener('click', function(e) {
+    var card = e.target.closest('[id^="rb-ticket-card-"]');
+    if (!card) return;
+    var id = card.id.replace('rb-ticket-card-', '');
+    if (id) rbOpenTicket(id);
+  }, { passive: true });
+  ticketList.addEventListener('touchend', function(e) {
+    var card = e.target.closest('[id^="rb-ticket-card-"]');
+    if (!card) return;
+    var id = card.id.replace('rb-ticket-card-', '');
+    if (id) { e.preventDefault(); rbOpenTicket(id); }
+  });
+});
 // Show hamburger on mobile
 (function() {
   function checkMobile() {
