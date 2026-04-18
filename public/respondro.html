@@ -321,11 +321,9 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
   #rb-shopify-sidebar { display:none !important }
   #view-review-board .flex.flex-1.overflow-hidden > .flex.flex-col.border-r { width:100% !important;min-width:100% !important }
   #rb-workspace { display:none;position:fixed;inset:0;top:56px;z-index:80;background:#F7F8FA;flex-direction:column }
-  #rb-workspace.mobile-ticket-open { display:flex !important }
-  #view-review-board .flex.flex-col.border-r { overflow-y:auto !important;-webkit-overflow-scrolling:touch }
-  #rb-ticket-list { max-height:calc(100vh - 260px) !important;overflow-y:auto !important;-webkit-overflow-scrolling:touch;padding-bottom:80px !important }
-  #view-dashboard, #view-settings, #view-agents, #view-mailboxes, #view-integrations { padding-bottom:100px !important }
-  #dash-action-queue { padding-bottom:80px !important }
+  #rb-workspace.mobile-ticket-open { display:flex !important;overflow-y:auto !important;-webkit-overflow-scrolling:touch }
+  #rb-workspace.mobile-ticket-open .flex-1.overflow-y-auto { overflow-y:visible !important }
+  #rb-workspace.mobile-ticket-open .flex.gap-2.p-4.border-t { position:sticky;bottom:0;z-index:10 }
   #rb-active-ticket.flex-1 { position:fixed;inset:0;top:56px;z-index:80 }
   body.light #rb-active-ticket { background:#F7F8FA }
   #view-review-board .flex.flex-1.overflow-hidden { flex-direction:column }
@@ -340,6 +338,13 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
   .provider-grid { grid-template-columns:1fr 1fr !important }
   .dash-nav .hidden.md\\:flex, .dash-nav .hidden.md\\:block { display:none !important }
   #user-name-nav { display:none !important }
+  #view-review-board .flex.flex-col.border-r { overflow-y:auto !important;-webkit-overflow-scrolling:touch }
+  #rb-ticket-list { max-height:calc(100vh - 260px) !important;overflow-y:scroll !important;-webkit-overflow-scrolling:touch;padding-bottom:80px !important;position:relative;z-index:1 }
+  #rb-ticket-list input[type="checkbox"] { display:none !important }
+  #rb-ticket-list .flex.items-start.gap-2 > div { width:100% !important }
+  #rb-ticket-list [onclick*="rbOpenTicket"] { cursor:pointer;-webkit-tap-highlight-color:rgba(0,200,150,0.1) }
+  #view-dashboard, #view-settings, #view-agents, #view-mailboxes, #view-integrations { padding-bottom:100px !important }
+  #dash-action-queue { padding-bottom:80px !important }
 }
 @media (max-width: 480px) {
   .plan-grid { grid-template-columns:1fr !important }
@@ -644,7 +649,7 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
               <h3 id="rb-ticket-subject" class="font-display font-600 text-sm text-white truncate"></h3>
               <p id="rb-ticket-from" class="text-xs text-gray-500 mt-0.5"></p>
             </div>
-            <button onclick="rbCloseTicket()" class="text-gray-600 hover:text-white transition text-sm px-2 py-1 rounded" style="background:rgba(255,255,255,0.04)">✕</button>
+            <button onclick="rbCloseTicket()" class="text-gray-600 hover:text-white transition text-sm px-2 py-1 rounded" style="background:rgba(255,255,255,0.04)">← Close</button>
           </div>
         </div>
         <div class="flex-1 overflow-y-auto p-6 space-y-4">
@@ -4103,7 +4108,7 @@ function renderRbTicketList(messages) {
 
     return '<div class="flex items-start gap-2">'
       + checkbox
-      + '<div onclick="rbOpenTicket(\'' + msg.id + '\')" id="rb-ticket-card-' + msg.id + '" class="flex-1 p-3 rounded-xl cursor-pointer transition-all relative" style="background:' + (isActive?'rgba(0,200,150,0.07)':'rgba(255,255,255,0.02)') + ';border:1px solid ' + (isActive?'rgba(0,200,150,0.25)':'rgba(255,255,255,0.05)') + ';margin-bottom:4px;opacity:' + (isArchived?'0.45':'1') + '">'
+      + '<div ontouchend="rbOpenTicket(\'' + msg.id + '\')" onclick="rbOpenTicket(\'' + msg.id + '\')" id="rb-ticket-card-' + msg.id + '" class="flex-1 p-3 rounded-xl cursor-pointer transition-all relative" style="background:' + (isActive?'rgba(0,200,150,0.07)':'rgba(255,255,255,0.02)') + ';border:1px solid ' + (isActive?'rgba(0,200,150,0.25)':'rgba(255,255,255,0.05)') + ';margin-bottom:4px;opacity:' + (isArchived?'0.45':'1') + '">'
       + '<div style="position:absolute;left:0;top:8px;bottom:8px;width:2px;border-radius:1px;background:' + priorityColor + ';opacity:0.7"></div>'
       + '<div class="flex justify-between items-start mb-1 pl-2"><span class="text-[10px] font-600 text-gray-300 truncate" style="max-width:140px">' + cleanName + '</span><span class="text-[9px] font-mono text-gray-600 flex-shrink-0 ml-1">' + timeStr + '</span></div>'
       + '<div class="text-[11px] text-gray-400 truncate mb-2 pl-2">' + (msg.subject || 'No Subject') + '</div>'
