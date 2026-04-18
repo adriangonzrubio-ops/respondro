@@ -41,7 +41,6 @@ async function getCurrentStore(request: Request): Promise<{ store: any; error?: 
         }
 
         if (!userEmail) {
-            // Fallback: try shop URL from query params (for onboarding flow)
             const url = new URL(request.url);
             const shop = url.searchParams.get('shop');
             if (shop) {
@@ -63,6 +62,17 @@ async function getCurrentStore(request: Request): Promise<{ store: any; error?: 
             .single();
 
         if (error || !store) {
+            // Email didn't match — try shop URL fallback (for Google OAuth with different email)
+            const url = new URL(request.url);
+            const shop = url.searchParams.get('shop');
+            if (shop) {
+                const { data: storeByShop } = await supabaseAdmin
+                    .from('stores')
+                    .select('*')
+                    .eq('shopify_url', shop)
+                    .single();
+                if (storeByShop) return { store: storeByShop };
+            }
             return { store: null, error: 'Store not found for user' };
         }
 
