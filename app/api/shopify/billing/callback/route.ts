@@ -19,13 +19,13 @@ export async function GET(request: Request) {
         const interval = searchParams.get('interval') as 'monthly' | 'annual';
 
         if (!shop || !chargeId || !tier || !interval) {
-            return NextResponse.redirect(`${SHOPIFY_APP_URL}/respondro.html?billing_error=missing_params`);
+            return NextResponse.redirect(`${SHOPIFY_APP_URL}/onboarding.html?billing_error=missing_params`);
         }
 
         // Shop domain validation
         const shopRegex = /^[a-zA-Z0-9][a-zA-Z0-9\-]*\.myshopify\.com$/;
         if (!shopRegex.test(shop)) {
-            return NextResponse.redirect(`${SHOPIFY_APP_URL}/respondro.html?billing_error=invalid_shop`);
+            return NextResponse.redirect(`${SHOPIFY_APP_URL}/onboarding.html?billing_error=invalid_shop`);
         }
 
         // Fetch the store's token
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
             .single();
 
         if (storeError || !store?.shopify_token) {
-            return NextResponse.redirect(`${SHOPIFY_APP_URL}/respondro.html?billing_error=store_not_found`);
+            return NextResponse.redirect(`${SHOPIFY_APP_URL}/onboarding.html?billing_error=store_not_found`);
         }
 
         // Verify and activate the charge
@@ -53,7 +53,7 @@ export async function GET(request: Request) {
                 raw_webhook_payload: { error: result.error }
             });
 
-            return NextResponse.redirect(`${SHOPIFY_APP_URL}/respondro.html?billing_error=activation_failed`);
+            return NextResponse.redirect(`${SHOPIFY_APP_URL}/onboarding.html?billing_error=activation_failed`);
         }
 
         const charge = result.charge;
@@ -107,9 +107,9 @@ export async function GET(request: Request) {
         console.log(`✅ Charge activated for ${shop}: ${tier} (${interval})`);
 
         // Redirect merchant to dashboard
-        return NextResponse.redirect(`${SHOPIFY_APP_URL}/respondro.html?shop=${shop}&billing_success=true&tier=${tier}`);
+        return NextResponse.redirect(`${SHOPIFY_APP_URL}/onboarding.html?shop=${shop}&billing_success=true&tier=${tier}`);
     } catch (err: any) {
         console.error('Billing callback error:', err);
-        return NextResponse.redirect(`${SHOPIFY_APP_URL}/respondro.html?billing_error=server_error`);
+        return NextResponse.redirect(`${SHOPIFY_APP_URL}/onboarding.html?billing_error=server_error`);
     }
 }

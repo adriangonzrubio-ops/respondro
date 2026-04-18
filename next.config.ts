@@ -11,6 +11,14 @@ const nextConfig: NextConfig = {
       },
     ]
   },
+  async rewrites() {
+    return [
+      { source: '/privacy', destination: '/privacy.html' },
+      { source: '/terms', destination: '/terms.html' },
+      { source: '/pricing', destination: '/pricing.html' },
+      { source: '/onboarding', destination: '/onboarding.html' },
+    ]
+  },
 }
 
 export default nextConfig
