@@ -4108,9 +4108,9 @@ function renderRbTicketList(messages) {
     var isMarked = window.rbMarkedIds && window.rbMarkedIds.has(msg.id);
     var checkbox = '<input type="checkbox" ' + (isMarked ? 'checked' : '') + ' onclick="event.stopPropagation();rbToggleMark(\'' + msg.id + '\', this.checked)" style="accent-color:#00C896;width:14px;height:14px;flex-shrink:0;cursor:pointer;margin-top:2px">';
 
-    return '<div class="flex items-start gap-2">'
+    return '<div class="flex items-start gap-2 rb-ticket-wrap" data-msgid="' + msg.id + '">'
       + checkbox
-      + '<div ontouchend="rbOpenTicket(\'' + msg.id + '\')" onclick="rbOpenTicket(\'' + msg.id + '\')" id="rb-ticket-card-' + msg.id + '" class="flex-1 p-3 rounded-xl cursor-pointer transition-all relative" style="background:' + (isActive?'rgba(0,200,150,0.07)':'rgba(255,255,255,0.02)') + ';border:1px solid ' + (isActive?'rgba(0,200,150,0.25)':'rgba(255,255,255,0.05)') + ';margin-bottom:4px;opacity:' + (isArchived?'0.45':'1') + '">'
+      + '<div id="rb-ticket-card-' + msg.id + '" class="flex-1 p-3 rounded-xl cursor-pointer transition-all relative" style="background:' + (isActive?'rgba(0,200,150,0.07)':'rgba(255,255,255,0.02)') + ';border:1px solid ' + (isActive?'rgba(0,200,150,0.25)':'rgba(255,255,255,0.05)') + ';margin-bottom:4px;opacity:' + (isArchived?'0.45':'1') + '">'
       + '<div style="position:absolute;left:0;top:8px;bottom:8px;width:2px;border-radius:1px;background:' + priorityColor + ';opacity:0.7"></div>'
       + '<div class="flex justify-between items-start mb-1 pl-2"><span class="text-[10px] font-600 text-gray-300 truncate" style="max-width:140px">' + cleanName + '</span><span class="text-[9px] font-mono text-gray-600 flex-shrink-0 ml-1">' + timeStr + '</span></div>'
       + '<div class="text-[11px] text-gray-400 truncate mb-2 pl-2">' + (msg.subject || 'No Subject') + '</div>'
@@ -5183,22 +5183,34 @@ function closeMobileSidebar() {
   if (overlay) overlay.classList.remove('show');
 }
 // ═══ MOBILE TICKET TAP ═══
-document.addEventListener('DOMContentLoaded', function() {
-  var ticketList = document.getElementById('rb-ticket-list');
-  if (!ticketList) return;
-  ticketList.addEventListener('click', function(e) {
-    var card = e.target.closest('[id^="rb-ticket-card-"]');
-    if (!card) return;
-    var id = card.id.replace('rb-ticket-card-', '');
-    if (id) rbOpenTicket(id);
+(function() {
+  var startY = 0;
+  var moved = false;
+  document.addEventListener('touchstart', function(e) {
+    var wrap = e.target.closest('.rb-ticket-wrap');
+    if (wrap) { startY = e.touches[0].clientY; moved = false; }
   }, { passive: true });
-  ticketList.addEventListener('touchend', function(e) {
-    var card = e.target.closest('[id^="rb-ticket-card-"]');
-    if (!card) return;
-    var id = card.id.replace('rb-ticket-card-', '');
-    if (id) { e.preventDefault(); rbOpenTicket(id); }
+  document.addEventListener('touchmove', function(e) {
+    if (Math.abs(e.touches[0].clientY - startY) > 10) moved = true;
+  }, { passive: true });
+  document.addEventListener('touchend', function(e) {
+    if (moved) return;
+    var wrap = e.target.closest('.rb-ticket-wrap');
+    if (!wrap) return;
+    var checkbox = e.target.closest('input[type="checkbox"]');
+    if (checkbox) return;
+    var id = wrap.getAttribute('data-msgid');
+    if (id) rbOpenTicket(id);
   });
-});
+  document.addEventListener('click', function(e) {
+    var wrap = e.target.closest('.rb-ticket-wrap');
+    if (!wrap) return;
+    var checkbox = e.target.closest('input[type="checkbox"]');
+    if (checkbox) return;
+    var id = wrap.getAttribute('data-msgid');
+    if (id) rbOpenTicket(id);
+  });
+})();
 // Show hamburger on mobile
 (function() {
   function checkMobile() {
