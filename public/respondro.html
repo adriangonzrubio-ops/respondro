@@ -311,30 +311,35 @@ body.light #user-name-nav{color:#1A1D26!important}
 body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!important}
 /* ═══ MOBILE RESPONSIVE ═══ */
 @media (max-width: 768px) {
-  .sidebar { position:fixed;left:-280px;top:56px;bottom:0;width:280px;z-index:90;transition:left 0.3s ease;box-shadow:4px 0 20px rgba(0,0,0,0.3) }
+  html, body { overflow-x:hidden !important;max-width:100vw !important }
+  #app-container, .flex[style*="height:calc"] { overflow-x:hidden !important;max-width:100vw !important }
+  .sidebar { position:fixed !important;left:-280px;top:56px;bottom:0;width:280px !important;z-index:90;transition:left 0.3s ease;box-shadow:4px 0 20px rgba(0,0,0,0.3) }
   .sidebar.mobile-open { left:0 }
+  .mobile-menu-btn { display:block !important }
   .mobile-overlay { position:fixed;inset:0;top:56px;background:rgba(0,0,0,0.5);z-index:85;display:none }
   .mobile-overlay.show { display:block }
   #rb-shopify-sidebar { display:none !important }
   #view-review-board .flex.flex-1.overflow-hidden > .flex.flex-col.border-r { width:100% !important;min-width:100% !important }
   #rb-workspace { display:none }
-  #rb-active-ticket { position:fixed;inset:0;top:56px;z-index:80;background:#F7F8FA }
+  #rb-active-ticket.flex-1 { position:fixed;inset:0;top:56px;z-index:80 }
   body.light #rb-active-ticket { background:#F7F8FA }
   #view-review-board .flex.flex-1.overflow-hidden { flex-direction:column }
   .dash-nav { padding:0 12px }
-  #main-content { padding:0 !important }
-  #view-dashboard, #view-settings, #view-agents, #view-agent-config, #view-integrations, #view-mailboxes { padding:16px !important }
+  #main-content > div { padding:16px !important }
   .settings-card { padding:14px }
-  #view-settings .grid.grid-cols-1.lg\\:grid-cols-2 { grid-template-columns:1fr !important }
+  #view-settings .grid { grid-template-columns:1fr !important }
   #view-agents .grid { grid-template-columns:1fr !important }
   .plan-grid { grid-template-columns:1fr 1fr !important }
   #view-review-board .flex.justify-between.items-center.px-6.py-4 { padding:12px !important;flex-wrap:wrap;gap:8px }
   #view-review-board .flex.items-center.gap-3 { flex-wrap:wrap }
   .provider-grid { grid-template-columns:1fr 1fr !important }
+  .dash-nav .hidden.md\\:flex, .dash-nav .hidden.md\\:block { display:none !important }
+  #user-name-nav { display:none !important }
 }
 @media (max-width: 480px) {
   .plan-grid { grid-template-columns:1fr !important }
   .provider-grid { grid-template-columns:1fr !important }
+  .grid.grid-cols-2 { grid-template-columns:1fr !important }
 }
 </style>
 </head>
@@ -426,7 +431,7 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
 <!-- ═══════ DASHBOARD ═══════ -->
 <div id="dashboard">
   <div class="dash-nav">
-    <button id="mobile-menu-btn" onclick="toggleMobileSidebar()" style="display:none;background:none;border:none;color:#6B7280;font-size:22px;cursor:pointer;padding:4px 8px;margin-right:8px">☰</button>
+    <button id="mobile-menu-btn" onclick="toggleMobileSidebar()" class="mobile-menu-btn" style="display:none;background:none;border:none;color:#6B7280;font-size:22px;cursor:pointer;padding:4px 8px;margin-right:8px">☰</button>
     <div class="mr-auto"><img id="nav-logo-dark" src="https://i.ibb.co/5xf5tGBY/dark-mode-logo.png" style="height:28px;display:none" alt="Respondro"><img id="nav-logo-light" src="https://i.ibb.co/JjBmc7bK/light-mode-logo.png" style="height:28px" alt="Respondro"></div>
     <div class="flex items-center gap-2 text-xs font-mono hidden md:flex" id="api-status-container" style="display:none"><div class="api-dot" id="api-dot" style="background:#3A4760"></div><span id="api-status-txt" style="color:#5A6785"></span></div>
     <div class="flex items-center gap-3 ml-4">
