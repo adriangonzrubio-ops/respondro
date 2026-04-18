@@ -1844,8 +1844,8 @@ async function sendMessageToAgent() {
 
 // ═══ 1. DATA & STATE (Preserving your full list) ═══
 const PROVIDERS = [
-    { id: 'gmail', name: 'Gmail', sub: 'Google Workspace', type: 'oauth', icon: 'G', color: '#EA4335', oauthLabel: 'Sign in with Google', oauthBg: '#fff', oauthColor: '#202223' },
-    { id: 'outlook', name: 'Outlook', sub: 'Microsoft 365', type: 'oauth', icon: 'M', color: '#0078D4', oauthLabel: 'Sign in with Microsoft', oauthBg: '#0078D4', oauthColor: '#fff' },
+    { id: 'gmail', name: 'Gmail', sub: 'Google Workspace', type: 'google-oauth', icon: 'G', color: '#EA4335', oauthLabel: 'Connect with Google', oauthBg: '#fff', oauthColor: '#202223' },
+    { id: 'outlook', name: 'Outlook', sub: 'Microsoft 365 · IMAP', type: 'imap', icon: 'M', color: '#0078D4', host: 'outlook.office365.com', port: '993', steps: ['Go to <a href="https://account.microsoft.com/security" target="_blank">account.microsoft.com/security</a>', 'Enable Two-step verification', 'Under App passwords, click Create a new app password', 'Copy the generated password', 'Paste it in the password field below'] },
     { id: 'private', name: 'PrivateEmail', sub: 'IMAP/SMTP', type: 'PE', icon: 'PE', color: '#0057B8', host: 'mail.privateemail.com', port: '993' },
     { id: 'zoho', name: 'Zoho Mail', sub: 'IMAP/SMTP', type: 'imap', icon: 'Z', color: '#E42527', host: 'imap.zoho.com', port: '993' },
     { id: 'fastmail', name: 'Fastmail', sub: 'IMAP/SMTP', type: 'imap', icon: 'F', color: '#3B5BDB', host: 'imap.fastmail.com', port: '993' },
@@ -2649,10 +2649,16 @@ function openProviderModal(p){
   document.getElementById('provider-modal').classList.add('open');document.body.style.overflow='hidden';
   const c=document.getElementById('provider-modal-content');
   const header=`<div class="flex items-center gap-3 mb-5"><div class="w-10 h-10 rounded-xl flex items-center justify-center font-700" style="background:${p.color}22;color:${p.color}">${p.icon}</div><div><div class="font-display font-700 text-lg">${p.name}</div><div class="text-xs" style="color:#5A6785">${p.sub}</div></div></div>`;
-  if(p.type==='oauth'){
-    c.innerHTML=`${header}<p class="text-sm mb-5" style="color:#8B96B0">Click below to authorise Respondro. You can revoke access at any time from your ${p.name} account.</p>
-    <div id="op1"><button class="w-full flex items-center justify-center gap-3 rounded-xl py-3 mb-3 font-700 text-sm" style="background:${p.oauthBg||p.color};color:${p.oauthColor||'#fff'};border:none;cursor:pointer;font-family:'Inter',sans-serif" onclick="simulateOAuth('${p.id}','${p.name}')"><span style="font-weight:700">${p.icon}</span>${p.oauthLabel}</button><p class="text-xs text-center" style="color:#3A4760">Read/send mail only · No contacts, calendar, or other data</p></div>
-    <div id="op2" class="hidden text-center"><div style="font-size:40px;margin-bottom:10px">🎉</div><h3 class="font-display font-700 text-lg mb-2" style="color:#00C896">${p.name} connected!</h3><p class="text-sm mb-4" style="color:#5A6785">Respondro will now read and reply from your ${p.name} account.</p><button class="btn-primary w-full justify-center" onclick="closeModal('provider-modal')">Done</button></div>`;
+  if(p.type==='google-oauth'){
+    c.innerHTML=`${header}<p class="text-sm mb-5" style="color:#8B96B0">Click below to connect your Gmail account. Respondro will be able to read and send emails on your behalf. You can revoke access at any time from your Google account.</p>
+    <button class="w-full flex items-center justify-center gap-3 rounded-xl py-3 mb-3 font-700 text-sm" style="background:#fff;color:#202223;border:1px solid #dadce0;cursor:pointer;font-family:'Inter',sans-serif" onclick="connectGmailReal()"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:18px;height:18px"> Connect with Google</button>
+    <p class="text-xs text-center mb-4" style="color:#3A4760">Read/send mail only · No contacts, calendar, or other data</p>
+    <div class="rounded-xl p-3 mb-4" style="background:rgba(0,200,150,0.06);border:1px solid rgba(0,200,150,0.15)"><p class="text-xs" style="color:#00C896"><strong>Or connect via IMAP:</strong> Go to <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color:#059669">myaccount.google.com/apppasswords</a>, generate an App Password, and use it below.</p></div>
+    <div class="space-y-2">
+      <div><label class="form-label">Email address</label><input type="text" class="form-input" id="gmail-imap-email" placeholder="you@gmail.com"></div>
+      <div><label class="form-label">App Password</label><input type="password" class="form-input" id="gmail-imap-pass" placeholder="16-character app password"></div>
+    </div>
+    <button class="btn-primary w-full justify-center mt-4" onclick="connectGmailImap()">Connect via IMAP →</button>`;
   } else {
     const stepsHTML=(p.steps||[]).map((s,i)=>`<div class="guide-step"><div class="guide-num">${i+1}</div><div class="guide-text">${s}</div></div>`).join('');
     c.innerHTML=`${header}<div class="rounded-xl p-3 mb-4" style="background:rgba(0,200,150,0.06);border:1px solid rgba(0,200,150,0.15)"><p class="text-xs font-600 mb-2" style="color:#00C896">How to connect ${p.name}</p>${stepsHTML}</div>
@@ -2664,31 +2670,56 @@ function openProviderModal(p){
     <button class="btn-primary w-full justify-center mt-4" onclick="simulateImap('${p.id}','${p.name}')">Connect ${p.name}</button>`;
   }
 }
-function simulateOAuth(id, name) {
-  if (id === 'gmail') {
-    // This sends the user to the real backend route we built
-    window.location.href = '/api/auth/google';
-    return;
-  }
+function connectGmailReal(){
+  var shopUrl = '';
+  try { shopUrl = ST.billing?.shopify_url || ''; } catch(e) {}
+  window.location.href='/api/auth/google-email?shop='+shopUrl+'&from=settings';
+}
+
+function connectGmailImap(){
+  var email=document.getElementById('gmail-imap-email').value.trim();
+  var pass=document.getElementById('gmail-imap-pass').value;
+  if(!email||!pass){showToast('Enter your email and App Password');return;}
+  connectImapReal(email,pass,'imap.gmail.com',993,'smtp.gmail.com',465,'gmail','Gmail');
+}
+
+async function connectImapReal(email,pass,imapHost,imapPort,smtpHost,smtpPort,providerId,providerName){
+  try{
+    var res=await fetch('/api/auth/imap',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,imap_host:imapHost,imap_port:imapPort,imap_user:email,imap_pass:pass,smtp_host:smtpHost,smtp_port:smtpPort})});
+    var data=await res.json();
+    if(data.success||res.ok){
+      showToast(providerName+' connected! ✓');
+      ST.connectedEmail=email;
+      document.getElementById('pconn-'+providerId).style.display='inline';
+      closeModal('provider-modal');
+      buildProviderList();buildProviderGrid();
+    }else{
+      showToast(data.error||'Connection failed. Check your credentials.');
+    }
+  }catch(e){showToast('Network error. Try again.');}
+}
   
   // Keep the "fake" logic for other providers like Outlook/Apple for now
   document.getElementById('op1').classList.add('hidden');
   document.getElementById('op2').classList.remove('hidden');
   markEmailConnected(id, name);
-}
-async function simulateImap(id, name) {
-  // 🎯 Target the modal specifically so we don't grab hidden inputs from the background
-  const modal = document.getElementById('provider-modal');
-  const emailInput = modal.querySelector('input[type="text"]');
-  const passInput = modal.querySelector('input[type="password"]');
-  
-  // This helps you see in the "Inspect > Console" if the data is being captured
-  console.log("Attempting to connect:", emailInput?.value);
 
-  if (!emailInput?.value || !passInput?.value) {
-    alert("Please enter both email and password.");
-    return;
-  }
+function simulateImap(id,name){
+  var modal=document.getElementById('provider-modal-content');
+  var inputs=modal.querySelectorAll('input');
+  var email=inputs[0]?.value?.trim();
+  var pass=inputs[1]?.value;
+  var host=inputs[2]?.value||'';
+  var port=parseInt(inputs[3]?.value||'993');
+  if(!email||!pass){showToast('Enter your email and password');return;}
+  var provider=PROVIDERS.find(function(p){return p.id===id});
+  var imapHost=host||provider?.host||'';
+  var smtpHost=imapHost.replace('imap.','smtp.');
+  if(provider?.id==='private')smtpHost='mail.privateemail.com';
+  if(provider?.id==='proton')smtpHost='127.0.0.1';
+  var smtpPort=(provider?.id==='outlook')?587:465;
+  connectImapReal(email,pass,imapHost,port,smtpHost,smtpPort,id,name);
+}
 
   // 2. Prepare the settings (Standard Namecheap PrivateEmail)
   const settings = {
@@ -2720,7 +2751,6 @@ async function simulateImap(id, name) {
     console.error('Connection Error:', err);
     alert('Failed to save settings.');
 } // This closes the catch block
-} // <--- ADD THIS EXTRA BRACKET HERE to close simulateImap
 
 function markEmailConnected(id, name) {
     ST.connectedEmail = true;
@@ -3535,6 +3565,9 @@ function checkBillingUrlParams() {
     showToast('Welcome to ' + tier.charAt(0).toUpperCase() + tier.slice(1) + '! Your subscription is active ✓', 'success');
     // Clean up URL
     window.history.replaceState({}, '', '/respondro.html');
+  }
+  if (params.get('gmail_connected') === 'true' || params.get('email_connected') === 'true') {
+    showToast('Email connected successfully! ✓');
   }
   if (params.get('billing_error')) {
     var errorMessages = {
