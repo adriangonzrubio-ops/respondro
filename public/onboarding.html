@@ -259,7 +259,7 @@ document.addEventListener('DOMContentLoaded',async function(){
     var cr=await fetch('/api/config');var cfg=await cr.json();
     if(cfg.supabaseUrl&&cfg.supabaseAnonKey){sb=supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
     var{data:sess}=await sb.auth.getSession();
-    if(sess?.session){var r=await fetch('/api/settings',{headers:{'Authorization':'Bearer '+sess.session.access_token}});var d=await r.json();
+    if(sess?.session){var sp=shopUrl?'?shop='+shopUrl:'';var r=await fetch('/api/settings'+sp,{headers:{'Authorization':'Bearer '+sess.session.access_token}});var d=await r.json();
       if(d.store_id){storeId=d.store_id;shopUrl=d.shop_url||shopUrl;document.getElementById('store-name-display').textContent=d.store_name||shopUrl||'Your Store';
       if(d.connected_email)completedSteps.email=true;
       if(d.rulebook&&d.rulebook.length>50){completedSteps.rulebook=true;document.getElementById('ob-rulebook').value=d.rulebook;updateRulebookCount();}
@@ -295,7 +295,7 @@ function closeHelp(){document.getElementById('help-overlay').classList.remove('s
 function updateRulebookCount(){var c=document.getElementById('ob-rulebook').value.length;var el=document.getElementById('rulebook-count');el.textContent=c.toLocaleString()+' / 3,000';el.style.color=c>2800?'#DC2626':c>2000?'#D97706':'#8B96B0';}
 async function saveRulebook(){var rb=document.getElementById('ob-rulebook').value.trim();if(!rb){showToast('Add a rulebook or skip','error');return;}
 try{var headers={'Content-Type':'application/json'};if(sb){var{data:s}=await sb.auth.getSession();if(s?.session)headers['Authorization']='Bearer '+s.session.access_token;}
-var res=await fetch('/api/settings',{method:'POST',headers:headers,body:JSON.stringify({rulebook:rb})});if(res.ok){completedSteps.rulebook=true;showToast('Rulebook saved! ✓','success');setTimeout(function(){goToStep(5);},600);}else showToast('Failed to save','error');}catch(e){showToast('Network error','error');}}
+var sp=shopUrl?'?shop='+shopUrl:'';var res=await fetch('/api/settings'+sp,{method:'POST',headers:headers,body:JSON.stringify({rulebook:rb})});if(res.ok){completedSteps.rulebook=true;showToast('Rulebook saved! ✓','success');setTimeout(function(){goToStep(5);},600);}else showToast('Failed to save','error');}catch(e){showToast('Network error','error');}}
 
 function applyTierLocks(){var tier=selectedTier||'starter';var perms=TIER_FEATURES[tier]||TIER_FEATURES.starter;
 [{key:'reply',id:'toggle-reply',row:'row-reply',lock:'lock-reply'},{key:'refund',id:'toggle-refund',row:'row-refund',lock:'lock-refund'},{key:'cancel',id:'toggle-cancel',row:'row-cancel',lock:'lock-cancel'},{key:'address',id:'toggle-address',row:'row-address',lock:'lock-address'}].forEach(function(f){
@@ -306,7 +306,7 @@ function previewLogoUrl(){var url=document.getElementById('ob-logo-url').value.t
 async function savePreferences(){var sig=document.getElementById('ob-signature').value.trim();var delay=parseInt(document.getElementById('ob-delay').value);var ar=document.getElementById('toggle-reply').classList.contains('on');var af=document.getElementById('toggle-refund').classList.contains('on');var ac=document.getElementById('toggle-cancel').classList.contains('on');var aa=document.getElementById('toggle-address').classList.contains('on');
 try{var headers={'Content-Type':'application/json'};if(sb){var{data:s}=await sb.auth.getSession();if(s?.session)headers['Authorization']='Bearer '+s.session.access_token;}
 var payload={signature:sig,auto_reply_delay_minutes:delay,auto_reply_enabled:ar,auto_refund_enabled:af,auto_cancel_enabled:ac,auto_address_change_enabled:aa};if(uploadedLogoUrl)payload.logo_url=uploadedLogoUrl;
-var res=await fetch('/api/settings',{method:'POST',headers:headers,body:JSON.stringify(payload)});if(res.ok){completedSteps.preferences=true;renderCompletion();goToStep(6);showToast('Setup complete! 🎉','success');}else showToast('Failed to save','error');}catch(e){showToast('Network error','error');}}
+var sp=shopUrl?'?shop='+shopUrl:'';var res=await fetch('/api/settings'+sp,{method:'POST',headers:headers,body:JSON.stringify(payload)});if(res.ok){completedSteps.preferences=true;renderCompletion();goToStep(6);showToast('Setup complete! 🎉','success');}else showToast('Failed to save','error');}catch(e){showToast('Network error','error');}}
 
 function renderCompletion(){var c=document.getElementById('completion-checks');var items=[{done:completedSteps.store,label:'Shopify store connected'},{done:completedSteps.plan,label:'Plan selected'+(selectedTier?' ('+selectedTier+')':'')},{done:completedSteps.email,label:'Support email connected'},{done:completedSteps.rulebook,label:'AI rulebook configured'},{done:completedSteps.preferences,label:'Preferences saved'}];
 c.innerHTML=items.map(function(i){return'<div class="completion-check"><div class="dot">'+(i.done?'✓':'—')+'</div><span style="color:'+(i.done?'#047857':'#8B96B0')+'">'+i.label+(i.done?'':' <em style="font-size:11px">(skipped)</em>')+'</span></div>';}).join('');}
