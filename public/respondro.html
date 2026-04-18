@@ -321,6 +321,8 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
   #rb-shopify-sidebar { display:none !important }
   #view-review-board .flex.flex-1.overflow-hidden > .flex.flex-col.border-r { width:100% !important;min-width:100% !important }
   #rb-workspace { display:none }
+  #view-review-board .flex.flex-col.border-r { overflow-y:auto !important;-webkit-overflow-scrolling:touch }
+  #rb-ticket-list { max-height:calc(100vh - 200px) !important;overflow-y:auto !important;-webkit-overflow-scrolling:touch }
   #rb-active-ticket.flex-1 { position:fixed;inset:0;top:56px;z-index:80 }
   body.light #rb-active-ticket { background:#F7F8FA }
   #view-review-board .flex.flex-1.overflow-hidden { flex-direction:column }
@@ -2660,13 +2662,22 @@ function updateSidebarLogo() {
     }
 }
 
-function disconnectEmail() {
+async function disconnectEmail() {
     if (!confirm('Are you sure you want to disconnect your email? You will stop receiving customer support tickets.')) return;
-    ST.connectedEmail = false;
-    ST.activeEmail = '';
-    ST.imapHost = '';
-    renderMailboxProviders();
-    showToast('Email disconnected');
+    try {
+        // Delete from database
+        if (ST.activeEmail) {
+            var { error } = await sb.from('user_connections').delete().eq('email', ST.activeEmail);
+            if (error) console.error('Disconnect error:', error);
+        }
+        ST.connectedEmail = false;
+        ST.activeEmail = '';
+        ST.imapHost = '';
+        renderMailboxProviders();
+        showToast('Email disconnected');
+    } catch(e) {
+        showToast('Error disconnecting email');
+    }
 }
 
 function buildSignupProviders(){
@@ -2719,7 +2730,8 @@ function connectGmailImap(){
 
 async function connectImapReal(email,pass,imapHost,imapPort,smtpHost,smtpPort,providerId,providerName){
   try{
-    var res=await fetch('/api/auth/imap',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,imap_host:imapHost,imap_port:imapPort,imap_user:email,imap_pass:pass,smtp_host:smtpHost,smtp_port:smtpPort})});
+    var storeId = ST.settings?.store_id || null;
+    var res=await fetch('/api/auth/imap',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,imap_host:imapHost,imap_port:imapPort,imap_user:email,imap_pass:pass,smtp_host:smtpHost,smtp_port:smtpPort,store_id:storeId})});
     var data=await res.json();
     if(data.success||res.ok){
       showToast(providerName+' connected! ✓');
