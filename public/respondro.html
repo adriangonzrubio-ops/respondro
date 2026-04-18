@@ -320,7 +320,8 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
   .mobile-overlay.show { display:block }
   #rb-shopify-sidebar { display:none !important }
   #view-review-board .flex.flex-1.overflow-hidden > .flex.flex-col.border-r { width:100% !important;min-width:100% !important }
-  #rb-workspace { display:none }
+  #rb-workspace { display:none;position:fixed;inset:0;top:56px;z-index:80;background:#F7F8FA;flex-direction:column }
+  #rb-workspace.mobile-ticket-open { display:flex !important }
   #view-review-board .flex.flex-col.border-r { overflow-y:auto !important;-webkit-overflow-scrolling:touch }
   #rb-ticket-list { max-height:calc(100vh - 260px) !important;overflow-y:auto !important;-webkit-overflow-scrolling:touch;padding-bottom:80px !important }
   #view-dashboard, #view-settings, #view-agents, #view-mailboxes, #view-integrations { padding-bottom:100px !important }
@@ -4115,7 +4116,7 @@ async function rbOpenTicket(msgId) {
   const emptyState = document.getElementById('rb-empty-state');
   const workspace = document.getElementById('rb-active-ticket');
   if (emptyState) emptyState.classList.add('hidden');
-  if (workspace) workspace.classList.remove('hidden');
+  if (workspace) { workspace.classList.remove('hidden'); workspace.classList.add('mobile-ticket-open'); }
 
   try {
     const { data: msg } = await sb.from('messages').select('*').eq('id', msgId).single();
@@ -4766,7 +4767,7 @@ function rbCloseTicket() {
   const shopifyData = document.getElementById('rb-shopify-data');
   const shopifyLoad = document.getElementById('rb-shopify-loading');
   if (emptyState) emptyState.classList.remove('hidden');
-  if (workspace) workspace.classList.add('hidden');
+  if (workspace) { workspace.classList.add('hidden'); workspace.classList.remove('mobile-ticket-open'); }
   if (shopifyEmpty) shopifyEmpty.classList.remove('hidden');
   if (shopifyData) shopifyData.classList.add('hidden');
   if (shopifyLoad) shopifyLoad.classList.add('hidden');
