@@ -170,7 +170,7 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 <div class="step-view" id="step-3"><div class="wizard-card">
   <h2>Connect your support email</h2>
   <p class="subtitle">Link your customer service inbox so Respondro can read and reply to emails on your behalf.</p>
-  <button class="btn-google" onclick="connectGoogleOAuth()"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">Sign in with Google</button>
+  <button class="btn-google" onclick="connectGmailOAuth()"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">Connect Gmail with Google</button>
   <div class="divider-text">or connect via IMAP</div>
   <div class="form-group"><label class="form-label">Choose your email provider</label>
     <div class="provider-grid">
@@ -254,7 +254,9 @@ document.addEventListener('DOMContentLoaded',async function(){
   var params=new URLSearchParams(window.location.search);
   shopUrl=params.get('shop')||'';
   if(params.get('billing_success')==='true'){selectedTier=params.get('tier')||'growth';completedSteps.plan=true;goToStep(3);showToast('Plan activated! ✓','success');}
-  if(params.get('email_connected')==='true'){completedSteps.email=true;}
+  if(params.get('step')){var s=parseInt(params.get('step'));if(s>=2&&s<=5)goToStep(s);}
+  if(params.get('email_connected')==='true'){completedSteps.email=true;showToast('Email connected: '+(params.get('email')||'Gmail')+' ✓','success');}
+  if(params.get('email_error')){var errs={denied:'Google sign-in was cancelled',token_failed:'Could not connect Gmail. Try IMAP instead.',no_email:'Could not get email address from Google',save_failed:'Could not save connection. Try again.',server_error:'Server error. Try IMAP instead.'};showToast(errs[params.get('email_error')]||'Connection failed','error');}
   try{
     var cr=await fetch('/api/config');var cfg=await cr.json();
     if(cfg.supabaseUrl&&cfg.supabaseAnonKey){sb=supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
@@ -277,7 +279,7 @@ async function startBilling(){if(!selectedTier)return;var shop=shopUrl;if(!shop)
 try{var res=await fetch('/api/shopify/billing/create-charge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({shop:shop,tier:selectedTier,interval:'monthly'})});var data=await res.json();
 if(data.confirmationUrl){window.location.href=data.confirmationUrl;}else{completedSteps.plan=true;showToast('Plan selected ✓','success');setTimeout(function(){goToStep(3);},600);}}catch(e){showToast('Continuing setup...','error');completedSteps.plan=true;setTimeout(function(){goToStep(3);},1000);}btn.disabled=false;btn.textContent='Select Plan & Start Trial →';}
 
-function connectGoogleOAuth(){if(sb){sb.auth.signInWithOAuth({provider:'google',options:{scopes:'https://mail.google.com/',redirectTo:window.location.origin+'/onboarding.html?shop='+(shopUrl||'')+'&step=4&email_connected=true'}});}else{showToast('Google sign-in not available. Use IMAP.','error');}}
+function connectGmailOAuth(){window.location.href='/api/auth/google-email?shop='+(shopUrl||'')+'&from=onboarding';}
 
 function selectProvider(el,p){document.querySelectorAll('.provider-btn').forEach(function(b){b.classList.remove('selected')});el.classList.add('selected');selectedProvider=p;document.getElementById('imap-fields').style.display='block';document.getElementById('custom-imap-fields').style.display=p==='custom'?'block':'none';
 var hints={gmail:'Use a <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color:#059669">Google App Password</a> — your regular password won\'t work.',outlook:'Use an <a href="https://account.microsoft.com/security" target="_blank" style="color:#059669">App Password</a> from Microsoft.',privateemail:'Use your regular PrivateEmail password.',protonmail:'Use the password from <strong>Proton Bridge</strong> — not your Proton password.',zoho:'Use a <a href="https://accounts.zoho.com/home#security/security_pwd" target="_blank" style="color:#059669">Zoho App Password</a>.',custom:'Use the password or app-specific password for your provider.'};
