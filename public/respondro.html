@@ -4124,6 +4124,8 @@ async function rbOpenTicket(msgId) {
   const workspace = document.getElementById('rb-active-ticket');
   if (emptyState) emptyState.classList.add('hidden');
   if (workspace) { workspace.classList.remove('hidden'); workspace.classList.add('mobile-ticket-open'); }
+  var rbWs = document.getElementById('rb-workspace');
+  if (rbWs) { rbWs.classList.remove('hidden'); rbWs.classList.add('mobile-ticket-open'); }
 
   try {
     const { data: msg } = await sb.from('messages').select('*').eq('id', msgId).single();
@@ -4775,6 +4777,8 @@ function rbCloseTicket() {
   const shopifyLoad = document.getElementById('rb-shopify-loading');
   if (emptyState) emptyState.classList.remove('hidden');
   if (workspace) { workspace.classList.add('hidden'); workspace.classList.remove('mobile-ticket-open'); }
+  var rbWs = document.getElementById('rb-workspace');
+  if (rbWs) rbWs.classList.remove('mobile-ticket-open');
   if (shopifyEmpty) shopifyEmpty.classList.remove('hidden');
   if (shopifyData) shopifyData.classList.add('hidden');
   if (shopifyLoad) shopifyLoad.classList.add('hidden');
