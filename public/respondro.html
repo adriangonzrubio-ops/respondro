@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Respondro — AI Customer Service</title>
-<link rel="icon" type="image/png" href="https://cdn.shopify.com/s/files/1/0995/4213/9257/files/Untitled_design_21.png?v=1776578580">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
@@ -355,477 +354,98 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
   .provider-grid { grid-template-columns:1fr !important }
   .grid.grid-cols-2 { grid-template-columns:1fr !important }
 }
-/* ═══════════════════════════════════════════════════════
-   LANDING PAGE CSS
-   
-   WHERE TO PUT THIS:
-   Open respondro.html, search for </style>
-   Paste ALL of this code RIGHT BEFORE </style>
-   ═══════════════════════════════════════════════════════ */
-
-/* ═══ LANDING ANIMATIONS ═══ */
-@keyframes fadeUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-@keyframes dotPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.8)}}
-@keyframes slideInRight{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
-
-.reveal{opacity:0;transform:translateY(30px);transition:opacity 0.7s cubic-bezier(0.16,1,0.3,1),transform 0.7s cubic-bezier(0.16,1,0.3,1)}
-.reveal.visible{opacity:1;transform:translateY(0)}
-.reveal-delay-1{transition-delay:0.1s}
-.reveal-delay-2{transition-delay:0.2s}
-.reveal-delay-3{transition-delay:0.3s}
-.reveal-delay-4{transition-delay:0.4s}
-
-/* ═══ LANDING NAV ═══ */
-.lp-nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 24px;transition:all 0.4s cubic-bezier(0.16,1,0.3,1)}
-.lp-nav.scrolled{background:rgba(6,11,24,0.85);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.06)}
-.lp-nav-inner{max-width:1200px;margin:0 auto;height:64px;display:flex;align-items:center;justify-content:space-between}
-.lp-nav-links{display:flex;align-items:center;gap:32px}
-.lp-nav-links a{color:#6B7A99;font-size:13px;font-weight:500;text-decoration:none;transition:color 0.2s;letter-spacing:-0.01em}
-.lp-nav-links a:hover{color:#fff}
-
-/* ═══ LANDING BUTTONS ═══ */
-.btn-primary-lp{background:#00C896;color:#060B18;font-family:'Inter',sans-serif;font-weight:700;border-radius:12px;padding:12px 24px;cursor:pointer;border:none;font-size:14px;transition:all 0.3s cubic-bezier(0.16,1,0.3,1);display:inline-flex;align-items:center;gap:8px;text-decoration:none;letter-spacing:-0.01em}
-.btn-primary-lp:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,200,150,0.4);background:#00D9A3}
-.btn-ghost-lp{background:transparent;color:#C8D0E0;font-family:'Inter',sans-serif;font-weight:600;border-radius:12px;padding:12px 24px;border:1px solid rgba(255,255,255,0.1);cursor:pointer;font-size:14px;transition:all 0.3s;text-decoration:none;letter-spacing:-0.01em}
-.btn-ghost-lp:hover{border-color:rgba(255,255,255,0.25);background:rgba(255,255,255,0.04)}
-.btn-sm-lp{padding:8px 16px;font-size:13px;border-radius:10px}
-
-/* ═══ LANDING HERO ═══ */
-.hero{min-height:100vh;display:flex;align-items:center;position:relative;overflow:hidden}
-.hero::before{content:'';position:absolute;top:-200px;right:-200px;width:800px;height:800px;background:radial-gradient(circle,rgba(0,200,150,0.07) 0%,transparent 60%);pointer-events:none}
-.hero-grid{max-width:1200px;margin:0 auto;padding:100px 24px 60px;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
-.hero-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border-radius:100px;font-size:12px;font-family:'JetBrains Mono',monospace;color:#00C896;background:rgba(0,200,150,0.06);border:1px solid rgba(0,200,150,0.15);margin-bottom:28px;animation:fadeIn 0.8s ease}
-.hero-badge-dot{width:6px;height:6px;border-radius:50%;background:#00C896;animation:dotPulse 2s infinite}
-.hero h1{font-size:clamp(40px,5.5vw,68px);font-weight:800;line-height:1.05;letter-spacing:-0.03em;margin-bottom:24px;animation:fadeUp 0.8s ease 0.1s both}
-.hero h1 span{color:#00C896}
-.hero-sub{font-size:17px;color:#6B7A99;line-height:1.7;max-width:460px;margin-bottom:32px;animation:fadeUp 0.8s ease 0.2s both}
-.hero-sub strong{color:#C8D0E0}
-.hero-actions{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:28px;animation:fadeUp 0.8s ease 0.3s both}
-.hero-proof{display:flex;gap:24px;font-size:12px;color:#4A5568;animation:fadeUp 0.8s ease 0.4s both}
-.hero-proof span{display:flex;align-items:center;gap:6px}
-.hero-proof span::before{content:'✓';color:#00C896;font-weight:700}
-
-/* ═══ LANDING EMAIL CARD ═══ */
-.email-card{background:linear-gradient(145deg,#0D1424 0%,#111B2E 100%);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:28px;max-width:440px;margin-left:auto;animation:slideInRight 0.9s ease 0.3s both;box-shadow:0 24px 80px rgba(0,0,0,0.4);position:relative;overflow:hidden}
-.email-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,200,150,0.3),transparent)}
-.email-card-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:100px;font-size:10px;font-family:'JetBrains Mono',monospace;color:#00C896;background:rgba(0,200,150,0.1);font-weight:600}
-.email-card-time{font-size:10px;color:#4A5568;font-family:'JetBrains Mono',monospace}
-.email-card-subject{font-size:15px;font-weight:600;color:#E8EBF2;margin:12px 0 4px}
-.email-card-from{font-size:11px;color:#4A5568;font-family:'JetBrains Mono',monospace;margin-bottom:16px}
-.email-card-body{font-size:13px;color:#8B96B0;line-height:1.75;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06)}
-.email-card-body .hl{color:#00C896;font-weight:600}
-.email-card-footer{margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);font-size:11px;color:#3A4760;font-family:'JetBrains Mono',monospace;display:flex;align-items:center;gap:6px}
-.email-card-footer::before{content:'✓';color:#00C896;font-weight:700}
-
-/* ═══ LANDING COST COMPARISON ═══ */
-.cost-section{background:#0A1020;border-top:1px solid rgba(255,255,255,0.04);border-bottom:1px solid rgba(255,255,255,0.04);padding:80px 24px}
-.cost-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
-.cost-heading{font-size:clamp(32px,4.5vw,52px);font-weight:800;line-height:1.08;letter-spacing:-0.03em;color:#fff;margin-bottom:20px}
-.cost-heading span{color:#00C896}
-.cost-desc{font-size:15px;color:#6B7A99;line-height:1.7;margin-bottom:32px;max-width:440px}
-.cost-desc strong{color:#C8D0E0}
-.cost-cta{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-.cost-cta-note{font-size:12px;color:#4A5568;font-family:'JetBrains Mono',monospace}
-.cost-bars{display:flex;flex-direction:column;gap:16px}
-.cost-bar-card{background:#0D1424;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:20px 24px;transition:all 0.3s}
-.cost-bar-card:hover{border-color:rgba(255,255,255,0.1)}
-.cost-bar-card.active{background:rgba(0,200,150,0.03);border:1px solid rgba(0,200,150,0.25)}
-.cost-bar-card.active:hover{border-color:rgba(0,200,150,0.4)}
-.cost-bar-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
-.cost-bar-name{font-size:14px;font-weight:600;color:#E8EBF2}
-.cost-bar-sub{font-size:11px;color:#4A5568;margin-bottom:12px}
-.cost-bar-price{font-size:28px;font-weight:800;letter-spacing:-0.02em;text-align:right}
-.cost-bar-period{font-size:12px;color:#4A5568;font-weight:400}
-.cost-bar-track{height:6px;background:rgba(255,255,255,0.04);border-radius:3px;overflow:hidden}
-.cost-bar-fill{height:100%;border-radius:3px;width:0;transition:width 1.2s cubic-bezier(0.16,1,0.3,1)}
-.cost-bar-fill.animate{width:var(--bar-w)}
-.cost-bar-tag{display:inline-flex;font-size:10px;font-family:'JetBrains Mono',monospace;padding:3px 10px;border-radius:100px;margin-bottom:8px}
-.cost-bar-bottom{margin-top:16px;text-align:center;font-size:12px;font-family:'JetBrains Mono',monospace}
-
-/* ═══ LANDING SECTIONS ═══ */
-.section{padding:100px 24px}
-.section-inner{max-width:1200px;margin:0 auto}
-.section-label{font-size:11px;font-family:'JetBrains Mono',monospace;color:#00C896;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:12px}
-.section-title{font-size:clamp(28px,4vw,44px);font-weight:800;letter-spacing:-0.03em;line-height:1.15;margin-bottom:16px;color:#fff}
-.section-desc{font-size:15px;color:#6B7A99;line-height:1.7;max-width:500px}
-.section-desc-center{text-align:center;margin:0 auto 60px}
-
-/* ═══ LANDING HOW IT WORKS ═══ */
-.steps-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
-.step-card{background:#0D1424;border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:32px;transition:all 0.4s cubic-bezier(0.16,1,0.3,1);position:relative;overflow:hidden}
-.step-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#00C896,transparent);opacity:0;transition:opacity 0.4s}
-.step-card:hover{border-color:rgba(0,200,150,0.2);transform:translateY(-4px);box-shadow:0 16px 48px rgba(0,0,0,0.3)}
-.step-card:hover::before{opacity:1}
-.step-num{font-size:11px;font-family:'JetBrains Mono',monospace;color:#00C896;letter-spacing:0.1em;margin-bottom:16px}
-.step-card h3{font-size:18px;font-weight:700;letter-spacing:-0.02em;margin-bottom:12px;color:#fff}
-.step-card p{font-size:13px;color:#6B7A99;line-height:1.7;margin-bottom:20px}
-.step-mini{background:#080E1C;border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:14px;font-size:12px}
-.step-mini-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-.step-mini-row:last-child{margin-bottom:0}
-.step-mini-badge{font-size:9px;padding:3px 8px;border-radius:100px;font-family:'JetBrains Mono',monospace;font-weight:600}
-
-/* ═══ LANDING FEATURES ═══ */
-.features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-.feature-card{background:#0D1424;border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:32px;transition:all 0.4s cubic-bezier(0.16,1,0.3,1)}
-.feature-card:hover{border-color:rgba(255,255,255,0.12);transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,0.25)}
-.feature-icon{font-size:28px;margin-bottom:16px;display:block}
-.feature-card h3{font-size:16px;font-weight:700;letter-spacing:-0.01em;margin-bottom:8px;color:#fff}
-.feature-card p{font-size:13px;color:#6B7A99;line-height:1.65}
-
-/* ═══ LANDING ALWAYS ON ═══ */
-.always-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
-.always-stats{display:flex;gap:40px;margin-top:8px}
-.always-stat-num{font-size:36px;font-weight:800;color:#00C896;letter-spacing:-0.02em}
-.always-stat-label{font-size:10px;font-family:'JetBrains Mono',monospace;color:#4A5568;letter-spacing:0.08em;text-transform:uppercase}
-.activity-card{background:#0D1424;border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:28px}
-.activity-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
-.activity-live{font-size:10px;font-family:'JetBrains Mono',monospace;padding:4px 12px;border-radius:100px;background:rgba(0,200,150,0.1);color:#00C896;display:flex;align-items:center;gap:6px}
-.activity-live::before{content:'';width:6px;height:6px;border-radius:50%;background:#00C896;animation:dotPulse 2s infinite}
-.activity-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:12px;margin-bottom:8px;font-size:12px;transition:all 0.2s}
-.activity-row:hover{background:rgba(255,255,255,0.02)}
-.activity-time{font-size:10px;font-family:'JetBrains Mono',monospace;color:#4A5568;width:36px;flex-shrink:0}
-.activity-badge{font-size:9px;padding:3px 8px;border-radius:100px;font-family:'JetBrains Mono',monospace;font-weight:700;flex-shrink:0}
-.activity-text{flex:1;color:#8B96B0}
-
-/* ═══ LANDING PRICING ═══ */
-.pricing-toggle{display:flex;justify-content:center;margin-bottom:48px}
-.pricing-toggle-inner{display:flex;gap:4px;padding:4px;border-radius:100px;background:#0D1424;border:1px solid rgba(255,255,255,0.06)}
-.pricing-toggle-btn{padding:8px 24px;border-radius:100px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all 0.3s;font-family:'Inter',sans-serif}
-.pricing-toggle-btn.active{background:#00C896;color:#060B18}
-.pricing-toggle-btn:not(.active){background:transparent;color:#6B7A99}
-.pricing-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
-.plan-card{background:#0D1424;border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:32px;transition:all 0.4s cubic-bezier(0.16,1,0.3,1);position:relative}
-.plan-card:hover{border-color:rgba(255,255,255,0.12);transform:translateY(-4px);box-shadow:0 16px 48px rgba(0,0,0,0.3)}
-.plan-card.popular{background:rgba(0,200,150,0.03);border-color:rgba(0,200,150,0.25)}
-.plan-card.popular:hover{border-color:rgba(0,200,150,0.4)}
-.plan-popular-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);font-size:10px;font-family:'JetBrains Mono',monospace;padding:4px 14px;border-radius:100px;background:#00C896;color:#060B18;font-weight:700}
-.plan-name{font-size:13px;font-weight:700;color:#6B7A99;margin-bottom:16px}
-.plan-card.popular .plan-name{color:#00C896}
-.plan-price{font-size:36px;font-weight:800;letter-spacing:-0.03em;color:#fff;margin-bottom:2px}
-.plan-card.popular .plan-price{color:#00C896}
-.plan-period{font-size:13px;color:#4A5568}
-.plan-emails{font-size:11px;color:#4A5568;margin-bottom:24px;font-family:'JetBrains Mono',monospace}
-.plan-features{list-style:none;margin-bottom:28px}
-.plan-features li{font-size:12px;color:#6B7A99;padding:6px 0;display:flex;align-items:flex-start;gap:8px;line-height:1.5}
-.plan-features li::before{content:'✓';color:#00C896;font-weight:700;flex-shrink:0;margin-top:1px}
-.plan-features li strong{color:#C8D0E0}
-
-/* ═══ LANDING CTA ═══ */
-.cta-section{text-align:center;padding:100px 24px;position:relative;overflow:hidden}
-.cta-section::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:600px;height:400px;background:radial-gradient(ellipse,rgba(0,200,150,0.06),transparent 70%);pointer-events:none}
-
-/* ═══ LANDING FOOTER ═══ */
-.lp-footer{border-top:1px solid rgba(255,255,255,0.04);padding:28px 24px;background:#050A15}
-.lp-footer-inner{max-width:1200px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
-.lp-footer-links{display:flex;gap:24px}
-.lp-footer-links a{color:#3A4760;font-size:12px;text-decoration:none;transition:color 0.2s}
-.lp-footer-links a:hover{color:#8B96B0}
-
-/* ═══ LANDING MOBILE ═══ */
-@media(max-width:768px){
-  .hero-grid,.cost-inner,.always-grid{grid-template-columns:1fr;gap:40px}
-  .hero-grid{padding:90px 20px 40px}
-  .hero h1{font-size:36px}
-  .email-card{display:none}
-  .steps-grid,.features-grid{grid-template-columns:1fr;gap:16px}
-  .pricing-grid{grid-template-columns:1fr 1fr;gap:12px}
-  .lp-nav-links{display:none}
-  .section,.cost-section{padding:60px 20px}
-  .cost-heading{font-size:32px}
-  .lp-footer-inner{flex-direction:column;text-align:center}
-}
-@media(max-width:480px){
-  .pricing-grid{grid-template-columns:1fr}
-  .hero-proof{flex-direction:column;gap:8px}
-  .always-stats{flex-direction:column;gap:16px}
-}
 </style>
 </head>
 <body class="font-body">
 
-<!-- ═══════════════════════════════════════════════════════
-   LANDING PAGE HTML
-   
-   WHERE TO PUT THIS:
-   1. Open respondro.html
-   2. Find:  <div id="landing">
-   3. Select everything from <div id="landing"> all the way
-      down to (but NOT including) this line:
-      <!-- ═══════ DASHBOARD ═══════ -->
-   4. DELETE that entire selection
-   5. PASTE this entire file in its place
-   ═══════════════════════════════════════════════════════ -->
-
+<!-- ═══════ LANDING (abbreviated) ═══════ -->
 <div id="landing">
-
-<!-- NAV -->
-<nav class="lp-nav" id="lp-navbar">
-  <div class="lp-nav-inner">
-    <a href="#"><img src="https://cdn.shopify.com/s/files/1/0995/4213/9257/files/respondro_500_x_200_px.png?v=1776578108" style="height:26px" alt="Respondro"></a>
-    <div class="lp-nav-links">
-      <a href="#features">Features</a>
-      <a href="#how-it-works">How it works</a>
-      <a href="#pricing">Pricing</a>
+<nav id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b border-transparent" style="background:transparent">
+  <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+    <a href="#" class="flex items-center gap-2 font-display font-800 text-xl"><span style="color:#00C896">▸</span> Respondro</a>
+    <div class="hidden md:flex items-center gap-7 text-sm" style="color:#8B96B0">
+      <a href="#features" class="hover:text-white transition-colors">Features</a>
+      <a href="/pricing.html" class="hover:text-white transition-colors">Pricing</a>
     </div>
-    <div style="display:flex;align-items:center;gap:12px">
-      <button class="btn-ghost-lp btn-sm-lp" onclick="openAuth('login')">Log in</button>
-      <a href="#pricing" class="btn-primary-lp btn-sm-lp" style="text-decoration:none">Start free trial</a>
+    <div class="flex items-center gap-3">
+      <button class="btn-ghost" onclick="openAuth('login')" style="padding:9px 18px">Log in</button>
+      <button class="btn-primary" style="padding:9px 20px" onclick="openAuth('signup')">Start free trial</button>
     </div>
   </div>
 </nav>
-
-<!-- HERO -->
-<section class="hero">
-  <div class="hero-grid">
-    <div>
-      <div class="hero-badge"><span class="hero-badge-dot"></span> AI Customer Service for Shopify</div>
-      <h1>Your support team that <span>runs itself.</span></h1>
-      <p class="hero-sub">Respondro reads every customer email, pulls live Shopify order data, and writes the reply in your voice — <strong>24/7, on autopilot.</strong></p>
-      <div class="hero-actions">
-        <a href="#pricing" class="btn-primary-lp" style="font-size:15px;padding:14px 28px;text-decoration:none">Install on Shopify →</a>
-        <a href="#how-it-works" class="btn-ghost-lp" style="font-size:15px;padding:14px 28px;text-decoration:none">See how it works</a>
-      </div>
-      <div class="hero-proof">
-        <span>4-day free trial</span>
-        <span>No credit card</span>
-        <span>Cancel anytime</span>
-      </div>
+<section class="relative min-h-screen flex flex-col justify-center grid-bg pt-16">
+  <div style="position:absolute;top:20%;left:50%;transform:translateX(-50%);width:700px;height:500px;background:radial-gradient(ellipse at center,rgba(0,200,150,0.08),transparent 70%);pointer-events:none"></div>
+  <div class="relative max-w-4xl mx-auto px-6 py-20 text-center">
+    <div class="inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full text-xs font-mono fade-up" style="border:1px solid rgba(0,200,150,0.3);color:#00C896;background:rgba(0,200,150,0.06)"><span style="width:6px;height:6px;border-radius:50%;background:#00C896;animation:flash 2s infinite"></span>Built by 7+ years of e-commerce experience — we know your inbox</div>
+    <h1 class="font-display font-800 leading-none mb-6 fade-up" style="font-size:clamp(42px,6.5vw,78px);animation-delay:0.1s">Your store's AI that<br><span style="color:#00C896">actually replies</span><br>to customers.</h1>
+    <p class="text-lg mb-10 mx-auto fade-up" style="color:#8B96B0;max-width:540px;line-height:1.7;animation-delay:0.2s">Not drafts. <strong style="color:#E8EBF2">Real automatic replies</strong> sent from your email — 95% on autopilot. The 5% that need your call land on your review board, pre-drafted and ready to approve.</p>
+    <div class="flex flex-wrap gap-4 justify-center mb-10 fade-up" style="animation-delay:0.3s">
+      <button class="btn-primary" style="font-size:16px;padding:14px 30px" onclick="openAuth('signup')">Start free — 14 days →</button>
+      <a href="#features" class="btn-ghost" style="font-size:16px;padding:14px 30px">See features ↓</a>
     </div>
-    <div>
-      <div class="email-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-          <span class="email-card-badge">auto_sent</span>
-          <span class="email-card-time">11s · 02:47 AM</span>
-        </div>
-        <div class="email-card-subject">Re: Where is my order?</div>
-        <div class="email-card-from">sarah.k@gmail.com</div>
-        <div class="email-card-body">
-          Hi Sarah — your <span class="hl">order #3336</span> shipped yesterday via DHL.<br><br>
-          Tracking says it's currently in Rotterdam and should arrive <strong style="color:#C8D0E0">Thu, Apr 18</strong>. I'll follow up the moment it lands.<br><br>
-          Thanks for your patience!<br>
-          <span style="color:#00C896;font-weight:600">— Xhale Support</span>
-        </div>
-        <div class="email-card-footer">Sent automatically · no human review needed</div>
-      </div>
+    <div class="flex items-center justify-center gap-3 fade-up" style="animation-delay:0.4s">
+      <div class="flex -space-x-2"><div class="w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-display font-700" style="border-color:#080D1A;background:#1D4E3A;color:#00C896">MA</div><div class="w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-display font-700" style="border-color:#080D1A;background:#3D2E10;color:#F0A500">TB</div><div class="w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-display font-700" style="border-color:#080D1A;background:#2A1B3D;color:#A78BFA">LF</div></div>
+      <span class="text-sm" style="color:#5A6785">Trusted by <strong style="color:#E8EBF2">300+ Shopify stores</strong> across Europe</span>
+    </div>
+    <div class="mt-12 overflow-hidden fade-up" style="animation-delay:0.5s">
+      <p class="text-xs font-mono mb-3" style="color:#3A4760">▸ Emails being handled right now</p>
+      <div style="overflow:hidden;mask:linear-gradient(90deg,transparent,black 8%,black 92%,transparent)"><div class="ticker-track gap-3"><div class="flex gap-3"><div class="flex-shrink-0 rounded-xl px-4 py-3 text-left" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07);min-width:240px"><div class="text-xs font-mono mb-1" style="color:#5A6785">incoming</div><div class="text-sm font-500 mb-2">"Where is my order #4521?"</div><span class="text-xs px-2 py-0.5 rounded-full font-mono" style="background:rgba(0,200,150,0.1);color:#00C896">✓ Sent automatically</span></div><div class="flex-shrink-0 rounded-xl px-4 py-3 text-left" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07);min-width:240px"><div class="text-xs font-mono mb-1" style="color:#5A6785">incoming</div><div class="text-sm font-500 mb-2">"Do you ship to Germany?"</div><span class="text-xs px-2 py-0.5 rounded-full font-mono" style="background:rgba(0,200,150,0.1);color:#00C896">✓ Sent automatically</span></div><div class="flex-shrink-0 rounded-xl px-4 py-3 text-left" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07);min-width:240px"><div class="text-xs font-mono mb-1" style="color:#5A6785">review needed</div><div class="text-sm font-500 mb-2">"Refund request #3918"</div><span class="text-xs px-2 py-0.5 rounded-full font-mono" style="background:rgba(240,165,0,0.1);color:#F0A500">⚑ Paused for review</span></div><div class="flex-shrink-0 rounded-xl px-4 py-3 text-left" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07);min-width:240px"><div class="text-xs font-mono mb-1" style="color:#5A6785">incoming</div><div class="text-sm font-500 mb-2">"Waar is mijn pakket?"</div><span class="text-xs px-2 py-0.5 rounded-full font-mono" style="background:rgba(0,200,150,0.1);color:#00C896">✓ Sent in Dutch</span></div></div><div class="flex gap-3"><div class="flex-shrink-0 rounded-xl px-4 py-3 text-left" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07);min-width:240px"><div class="text-xs font-mono mb-1" style="color:#5A6785">incoming</div><div class="text-sm font-500 mb-2">"Where is my order #4521?"</div><span class="text-xs px-2 py-0.5 rounded-full font-mono" style="background:rgba(0,200,150,0.1);color:#00C896">✓ Sent automatically</span></div><div class="flex-shrink-0 rounded-xl px-4 py-3 text-left" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07);min-width:240px"><div class="text-xs font-mono mb-1" style="color:#5A6785">incoming</div><div class="text-sm font-500 mb-2">"Do you ship to Germany?"</div><span class="text-xs px-2 py-0.5 rounded-full font-mono" style="background:rgba(0,200,150,0.1);color:#00C896">✓ Sent automatically</span></div><div class="flex-shrink-0 rounded-xl px-4 py-3 text-left" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07);min-width:240px"><div class="text-xs font-mono mb-1" style="color:#5A6785">review needed</div><div class="text-sm font-500 mb-2">"Refund request #3918"</div><span class="text-xs px-2 py-0.5 rounded-full font-mono" style="background:rgba(240,165,0,0.1);color:#F0A500">⚑ Paused for review</span></div><div class="flex-shrink-0 rounded-xl px-4 py-3 text-left" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07);min-width:240px"><div class="text-xs font-mono mb-1" style="color:#5A6785">incoming</div><div class="text-sm font-500 mb-2">"Waar is mijn pakket?"</div><span class="text-xs px-2 py-0.5 rounded-full font-mono" style="background:rgba(0,200,150,0.1);color:#00C896">✓ Sent in Dutch</span></div></div></div></div>
     </div>
   </div>
 </section>
-
-<!-- COST COMPARISON -->
-<section class="cost-section" id="cost-section">
-  <div class="cost-inner">
-    <div>
-      <p class="section-label reveal">THE MATH</p>
-      <h2 class="cost-heading reveal reveal-delay-1">A full support team,<br>from <span>$29/mo.</span></h2>
-      <p class="cost-desc reveal reveal-delay-2">Replace expensive agents and messy shared inboxes. <strong>Respondro costs a fraction</strong> — and it works around the clock.</p>
-      <div class="cost-cta reveal reveal-delay-3">
-        <a href="#pricing" class="btn-primary-lp" style="text-decoration:none">Install on Shopify →</a>
-        <span class="cost-cta-note">4-day free trial</span>
-      </div>
-    </div>
-    <div>
-      <p class="reveal" style="font-size:11px;font-family:'JetBrains Mono',monospace;color:#4A5568;letter-spacing:0.1em;margin-bottom:20px">MONTHLY COST COMPARISON</p>
-      <div class="cost-bar-card reveal">
-        <div class="cost-bar-top">
-          <div><div class="cost-bar-name">Full-time CS agent</div><div class="cost-bar-sub">1 person · 40h / week</div></div>
-          <div class="cost-bar-price" style="color:#F87171">$2,500<span class="cost-bar-period"> /mo</span></div>
-        </div>
-        <div class="cost-bar-track"><div class="cost-bar-fill" style="--bar-w:100%;background:#F87171"></div></div>
-      </div>
-      <div class="cost-bar-card reveal reveal-delay-1" style="margin-top:16px">
-        <div class="cost-bar-top">
-          <div><div class="cost-bar-name">Overseas CS agent</div><div class="cost-bar-sub">Shared team · lower quality</div></div>
-          <div class="cost-bar-price" style="color:#F0A500">$800<span class="cost-bar-period"> /mo</span></div>
-        </div>
-        <div class="cost-bar-track"><div class="cost-bar-fill" style="--bar-w:32%;background:#F0A500"></div></div>
-      </div>
-      <div class="cost-bar-card reveal reveal-delay-2" style="margin-top:16px">
-        <div class="cost-bar-top">
-          <div><div class="cost-bar-name">Gorgias / Zendesk + agent time</div><div class="cost-bar-sub">You still reply every email</div></div>
-          <div class="cost-bar-price" style="color:#8B96B0">$1,000<span class="cost-bar-period"> /mo</span></div>
-        </div>
-        <div class="cost-bar-track"><div class="cost-bar-fill" style="--bar-w:40%;background:#5A6785"></div></div>
-      </div>
-      <div class="cost-bar-card active reveal reveal-delay-3" style="margin-top:16px">
-        <div class="cost-bar-tag" style="background:rgba(0,200,150,0.12);color:#00C896">RESPONDRO</div>
-        <div class="cost-bar-top">
-          <div><div class="cost-bar-name" style="color:#00C896">Respondro · Growth plan</div><div class="cost-bar-sub" style="color:#00C896">750 emails · 24/7</div></div>
-          <div class="cost-bar-price" style="color:#00C896">$79<span class="cost-bar-period"> /mo</span></div>
-        </div>
-        <div class="cost-bar-track"><div class="cost-bar-fill" style="--bar-w:3.2%;background:#00C896"></div></div>
-      </div>
-      <div class="cost-bar-bottom reveal reveal-delay-4" style="margin-top:16px">
-        <span style="color:#00C896;font-weight:700">97% cheaper</span><span style="color:#4A5568"> than hiring · pays for itself in </span><span style="color:#00C896;font-weight:700">a few days</span>
-      </div>
+<section class="py-12" style="background:#0B1120;border-top:1px solid rgba(255,255,255,0.05)">
+  <div class="max-w-5xl mx-auto px-6">
+    <p class="text-center text-xs font-mono mb-7" style="color:#3A4760;letter-spacing:0.1em">COST OF CUSTOMER SERVICE</p>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="rounded-2xl p-5 text-center fade-up" style="background:#151E30;border:1px solid rgba(255,255,255,0.07)"><div class="text-2xl font-display font-800 mb-1" style="color:#F87171">$400–$1k</div><div class="text-xs font-500 mb-1">/ month</div><div class="text-xs" style="color:#5A6785">Overseas CS agent</div></div>
+      <div class="rounded-2xl p-5 text-center fade-up" style="background:#151E30;border:1px solid rgba(255,255,255,0.07);animation-delay:0.1s"><div class="text-2xl font-display font-800 mb-1" style="color:#F87171">$2,500+</div><div class="text-xs font-500 mb-1">/ month</div><div class="text-xs" style="color:#5A6785">Full-time CS hire</div></div>
+      <div class="rounded-2xl p-5 text-center fade-up" style="background:#151E30;border:1px solid rgba(255,255,255,0.07);animation-delay:0.2s"><div class="text-2xl font-display font-800 mb-1" style="color:#F0A500">€1,000+</div><div class="text-xs font-500 mb-1">/ month</div><div class="text-xs" style="color:#5A6785">Wilmo / Gorgias</div></div>
+      <div class="rounded-2xl p-5 text-center fade-up" style="background:rgba(0,200,150,0.07);border:1px solid rgba(0,200,150,0.25);animation-delay:0.3s"><div class="text-2xl font-display font-800 mb-1" style="color:#00C896">€19–199</div><div class="text-xs font-500 mb-1">/ month</div><div class="text-xs" style="color:#00C896">Respondro</div></div>
     </div>
   </div>
 </section>
-
-<!-- HOW IT WORKS -->
-<section id="how-it-works" class="section" style="background:#060B18">
-  <div class="section-inner">
-    <div style="text-align:center;margin-bottom:60px">
-      <p class="section-label reveal">HOW IT WORKS</p>
-      <h2 class="section-title reveal reveal-delay-1">Three steps. Then it runs itself.</h2>
-      <p class="section-desc section-desc-center reveal reveal-delay-2">Connect your store, connect your email, set your rules. Respondro handles the rest.</p>
-    </div>
-    <div class="steps-grid">
-      <div class="step-card reveal">
-        <div class="step-num">STEP 01 · SHOPIFY</div>
-        <h3>Connect your store</h3>
-        <p>One-click install from the Shopify App Store. Respondro pulls live order status, tracking, fulfillment, and refund data — before every reply.</p>
-        <div class="step-mini">
-          <div class="step-mini-row"><span style="color:#00C896;font-family:'JetBrains Mono',monospace;font-size:11px">Order #3336</span><span class="step-mini-badge" style="background:rgba(0,200,150,0.1);color:#00C896">IN TRANSIT</span></div>
-          <div class="step-mini-row"><span style="color:#6B7A99;font-size:11px">Xhale Starter Pack · DHL Express</span></div>
-          <div class="step-mini-row"><span style="color:#00C896;font-size:11px">ETA: Thu, Apr 18</span></div>
-        </div>
-      </div>
-      <div class="step-card reveal reveal-delay-1">
-        <div class="step-num">STEP 02 · EMAIL</div>
-        <h3>Connect your inbox</h3>
-        <p>Gmail, Outlook, or any IMAP provider. Respondro reads from your existing support address — no migration, no new inbox to manage.</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div class="step-mini" style="text-align:center;padding:12px"><div style="font-size:13px;font-weight:600;color:#E8EBF2">Gmail</div><div style="font-size:10px;color:#4A5568">OAuth or IMAP</div></div>
-          <div class="step-mini" style="text-align:center;padding:12px"><div style="font-size:13px;font-weight:600;color:#E8EBF2">Outlook</div><div style="font-size:10px;color:#4A5568">IMAP</div></div>
-          <div class="step-mini" style="text-align:center;padding:12px"><div style="font-size:13px;font-weight:600;color:#E8EBF2">Any IMAP</div><div style="font-size:10px;color:#4A5568">Fastmail, Zoho...</div></div>
-          <div class="step-mini" style="text-align:center;padding:12px"><div style="font-size:13px;font-weight:600;color:#E8EBF2">PrivateEmail</div><div style="font-size:10px;color:#4A5568">Namecheap</div></div>
-        </div>
-      </div>
-      <div class="step-card reveal reveal-delay-2">
-        <div class="step-num">STEP 03 · RULEBOOK</div>
-        <h3>Train it on your store</h3>
-        <p>Paste your return policy, shipping rules, VIP logic, and brand voice. The AI replies like you would — consistently, every time.</p>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <div class="step-mini"><span class="step-mini-badge" style="background:rgba(0,200,150,0.1);color:#00C896;margin-right:8px">RETURNS</span><span style="color:#8B96B0;font-size:11px">Free 30-day returns on unopened items</span></div>
-          <div class="step-mini"><span class="step-mini-badge" style="background:rgba(0,200,150,0.1);color:#00C896;margin-right:8px">SHIPPING</span><span style="color:#8B96B0;font-size:11px">EU orders ship within 24h via DHL</span></div>
-          <div class="step-mini"><span class="step-mini-badge" style="background:rgba(248,113,113,0.1);color:#F87171;margin-right:8px">ESCALATE</span><span style="color:#8B96B0;font-size:11px">Mentions of "lawyer" → flag for human</span></div>
-        </div>
-      </div>
+<section id="features" class="py-16">
+  <div class="max-w-5xl mx-auto px-6">
+    <h2 class="font-display font-700 text-4xl mb-9 text-center fade-up">Built for how DTC stores actually work.</h2>
+    <div class="grid md:grid-cols-3 gap-5">
+      <div class="card p-6 fade-up"><div class="text-xl mb-3">⚡</div><h3 class="font-display font-700 mb-2">100 emails in 15 seconds</h3><p class="text-sm" style="color:#5A6785">All fired to Claude API in parallel — not one by one.</p></div>
+      <div class="card p-6 fade-up" style="animation-delay:0.1s"><div class="text-xl mb-3">📋</div><h3 class="font-display font-700 mb-2">Custom rules engine</h3><p class="text-sm" style="color:#5A6785">Add rules like "15% refund if not shipped in 10 days" — AI follows them automatically.</p></div>
+      <div class="card p-6 fade-up" style="animation-delay:0.15s"><div class="text-xl mb-3">🎙</div><h3 class="font-display font-700 mb-2">Learns your tone of voice</h3><p class="text-sm" style="color:#5A6785">Upload 5-10 past CS emails — AI analyses and replicates your exact style.</p></div>
+      <div class="card p-6 fade-up" style="animation-delay:0.2s"><div class="text-xl mb-3">📦</div><h3 class="font-display font-700 mb-2">Live Shopify data</h3><p class="text-sm" style="color:#5A6785">Real tracking and order info pulled before every reply.</p></div>
+      <div class="card p-6 fade-up" style="animation-delay:0.25s"><div class="text-xl mb-3">🌍</div><h3 class="font-display font-700 mb-2">40+ languages</h3><p class="text-sm" style="color:#5A6785">Detects and replies in the customer's language.</p></div>
+      <div class="card p-6 fade-up" style="animation-delay:0.3s"><div class="text-xl mb-3">🛡</div><h3 class="font-display font-700 mb-2">GDPR compliant</h3><p class="text-sm" style="color:#5A6785">EU-hosted. DPA available. Email data never trained on.</p></div>
     </div>
   </div>
 </section>
-
-<!-- FEATURES -->
-<section id="features" class="section" style="background:#0A1020">
-  <div class="section-inner">
-    <div style="text-align:center;margin-bottom:60px">
-      <p class="section-label reveal">FEATURES</p>
-      <h2 class="section-title reveal reveal-delay-1">Built for how DTC stores actually work.</h2>
+<section id="pricing" class="py-16" style="background:#0B1120">
+  <div class="max-w-5xl mx-auto px-6">
+    <div class="text-center mb-9"><h2 class="font-display font-700 text-4xl mb-3 fade-up">Pricing that makes the math easy.</h2><p class="fade-up" style="color:#5A6785;animation-delay:0.1s">Overseas CS agent = $400–$1,000/month. Respondro = from €19.</p></div>
+    <div class="grid md:grid-cols-4 gap-4">
+      <div class="card p-6 fade-up"><div class="text-sm font-display font-700 mb-3" style="color:#5A6785">Starter</div><div class="text-3xl font-display font-800 mb-1">€19<span class="text-sm font-400" style="color:#5A6785">/mo</span></div><p class="text-xs mb-4" style="color:#3A4760">200 emails/month</p><button class="btn-ghost w-full text-sm" style="padding:9px;border-radius:10px" onclick="openAuth('signup')">Start free</button></div>
+      <div class="card p-6 fade-up" style="animation-delay:0.1s"><div class="text-sm font-display font-700 mb-3" style="color:#5A6785">Growth</div><div class="text-3xl font-display font-800 mb-1">€49<span class="text-sm font-400" style="color:#5A6785">/mo</span></div><p class="text-xs mb-4" style="color:#3A4760">750 emails/month</p><button class="btn-ghost w-full text-sm" style="padding:9px;border-radius:10px" onclick="openAuth('signup')">Start free</button></div>
+      <div class="p-6 rounded-2xl relative fade-up" style="background:rgba(0,200,150,0.06);border:1px solid rgba(0,200,150,0.3);animation-delay:0.2s"><div class="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-mono px-3 py-1 rounded-full" style="background:#00C896;color:#080D1A">Popular</div><div class="text-sm font-display font-700 mb-3" style="color:#00C896">Scale</div><div class="text-3xl font-display font-800 mb-1" style="color:#00C896">€99<span class="text-sm font-400" style="color:#5A6785">/mo</span></div><p class="text-xs mb-4" style="color:#3A4760">2,500 emails/month</p><button class="btn-primary w-full text-sm justify-center" style="padding:9px;border-radius:10px" onclick="openAuth('signup')">Start free</button></div>
+      <div class="card p-6 fade-up" style="animation-delay:0.3s"><div class="text-sm font-display font-700 mb-3" style="color:#5A6785">Pro</div><div class="text-3xl font-display font-800 mb-1">€199<span class="text-sm font-400" style="color:#5A6785">/mo</span></div><p class="text-xs mb-4" style="color:#3A4760">Unlimited</p><button class="btn-ghost w-full text-sm" style="padding:9px;border-radius:10px" onclick="openAuth('signup')">Talk to us</button></div>
     </div>
-    <div class="features-grid">
-      <div class="feature-card reveal"><span class="feature-icon">⚡</span><h3>Fully automatic replies</h3><p>Emails with high AI confidence are auto-sent after a 5-minute delay. The rest land on your Review Board, pre-drafted and ready to approve.</p></div>
-      <div class="feature-card reveal reveal-delay-1"><span class="feature-icon">📦</span><h3>Live Shopify data</h3><p>Real order status, tracking numbers, and fulfillment info pulled before every reply. No stale copy-paste — always current.</p></div>
-      <div class="feature-card reveal reveal-delay-2"><span class="feature-icon">💰</span><h3>Auto-refund &amp; auto-cancel</h3><p>Set a max refund amount and the AI handles the rest — processes the refund in Shopify and notifies the customer.</p></div>
-      <div class="feature-card reveal reveal-delay-1"><span class="feature-icon">📋</span><h3>Custom rulebook</h3><p>Add rules like "15% refund if not shipped in 10 days" or "always escalate chargebacks." The AI follows them consistently.</p></div>
-      <div class="feature-card reveal reveal-delay-2"><span class="feature-icon">🌍</span><h3>40+ languages</h3><p>Auto-detects the customer's language and replies in the same language. No translation tools needed — works out of the box.</p></div>
-      <div class="feature-card reveal reveal-delay-3"><span class="feature-icon">🛡</span><h3>GDPR compliant</h3><p>Customer data is never used for AI training. Full GDPR compliance with data request, redaction, and shop erasure webhooks.</p></div>
-    </div>
+    <p class="text-center text-sm mt-5" style="color:#3A4760">14-day free trial · No credit card · Cancel anytime</p>
   </div>
 </section>
-
-<!-- ALWAYS ON -->
-<section class="section" style="background:#060B18">
-  <div class="section-inner">
-    <div class="always-grid">
-      <div>
-        <p class="section-label reveal">ALWAYS ON</p>
-        <h2 class="section-title reveal reveal-delay-1">Works while<br>you <span style="color:#00C896">sleep.</span></h2>
-        <p class="section-desc reveal reveal-delay-2" style="margin-bottom:32px">Respondro runs 24/7. Most emails go out automatically. The ones that need your judgment land on the Review Board, pre-drafted and ready to send.</p>
-        <div class="always-stats reveal reveal-delay-3">
-          <div><div class="always-stat-num">24/7</div><div class="always-stat-label">Zero downtime</div></div>
-          <div><div class="always-stat-num">5 min</div><div class="always-stat-label">Auto-reply delay</div></div>
-        </div>
-      </div>
-      <div class="activity-card reveal reveal-delay-2">
-        <div class="activity-header">
-          <span style="font-size:14px;font-weight:600;color:#E8EBF2">Recent activity</span>
-          <span class="activity-live">LIVE</span>
-        </div>
-        <div class="activity-row" style="background:rgba(0,200,150,0.03);border:1px solid rgba(0,200,150,0.08)"><span class="activity-time">03:12</span><span class="activity-badge" style="background:rgba(0,200,150,0.12);color:#00C896">AUTO</span><span class="activity-text">Replied to sarah.k · order #3336</span><span style="color:#00C896">✓</span></div>
-        <div class="activity-row" style="background:rgba(0,200,150,0.03);border:1px solid rgba(0,200,150,0.08)"><span class="activity-time">03:41</span><span class="activity-badge" style="background:rgba(0,200,150,0.12);color:#00C896">AUTO</span><span class="activity-text">Refunded m.chen · $24.99</span><span style="color:#00C896">✓</span></div>
-        <div class="activity-row" style="background:rgba(240,165,0,0.03);border:1px solid rgba(240,165,0,0.1)"><span class="activity-time">04:18</span><span class="activity-badge" style="background:rgba(240,165,0,0.12);color:#F0A500">REVIEW</span><span class="activity-text">Draft ready for j.ortiz · damaged item</span><span style="color:#F0A500">⚑</span></div>
-      </div>
-    </div>
-  </div>
+<section class="py-14 text-center" style="background:#080D1A;border-top:1px solid rgba(255,255,255,0.05)">
+  <h2 class="font-display font-800 mb-5 fade-up" style="font-size:clamp(30px,5vw,52px)">Your inbox is full.<br><span style="color:#00C896">Let's fix that.</span></h2>
+  <button class="btn-primary fade-up" style="font-size:16px;padding:14px 30px;animation-delay:0.1s" onclick="openAuth('signup')">Start free trial →</button>
 </section>
-
-<!-- PRICING -->
-<section id="pricing" class="section" style="background:#0A1020">
-  <div class="section-inner">
-    <div style="text-align:center;margin-bottom:16px">
-      <p class="section-label reveal">PRICING</p>
-      <h2 class="section-title reveal reveal-delay-1">Simple, transparent pricing.</h2>
-      <p class="section-desc section-desc-center reveal reveal-delay-2" style="margin-bottom:40px">All plans include a 4-day free trial. No credit card required.</p>
-    </div>
-    <div class="pricing-toggle reveal">
-      <div class="pricing-toggle-inner">
-        <button onclick="setLpPricing('monthly')" id="lp-t-monthly" class="pricing-toggle-btn active">Monthly</button>
-        <button onclick="setLpPricing('annual')" id="lp-t-annual" class="pricing-toggle-btn">Annual <span style="color:#00C896">(-20%)</span></button>
-      </div>
-    </div>
-    <div class="pricing-grid">
-      <div class="plan-card reveal">
-        <div class="plan-name">Starter</div>
-        <div><span class="plan-price lp-price" data-m="$29" data-a="$23">$29</span><span class="plan-period">/mo</span></div>
-        <div class="plan-emails">150 emails/month</div>
-        <ul class="plan-features"><li>Semi-automatic mode</li><li>Shopify order data</li><li>Custom rulebook</li><li>40+ languages</li><li>Email signature + logo</li></ul>
-        <a href="#" class="btn-ghost-lp" style="width:100%;text-align:center;display:block;padding:10px;border-radius:12px;text-decoration:none">Start free trial</a>
-      </div>
-      <div class="plan-card reveal reveal-delay-1">
-        <div class="plan-name">Essential</div>
-        <div><span class="plan-price lp-price" data-m="$49" data-a="$39">$49</span><span class="plan-period">/mo</span></div>
-        <div class="plan-emails">400 emails/month</div>
-        <ul class="plan-features"><li>Everything in Starter</li><li><strong>Full auto-reply</strong> (5-min delay)</li><li>AI confidence scoring</li><li>Spam detection</li><li>Bulk send drafts</li></ul>
-        <a href="#" class="btn-ghost-lp" style="width:100%;text-align:center;display:block;padding:10px;border-radius:12px;text-decoration:none">Start free trial</a>
-      </div>
-      <div class="plan-card popular reveal reveal-delay-2">
-        <div class="plan-popular-badge">Most popular</div>
-        <div class="plan-name">Growth</div>
-        <div><span class="plan-price lp-price" data-m="$79" data-a="$63">$79</span><span class="plan-period">/mo</span></div>
-        <div class="plan-emails">750 emails/month</div>
-        <ul class="plan-features"><li>Everything in Essential</li><li><strong>Auto-refund</strong> (up to $50)</li><li><strong>Auto-cancel</strong> orders</li><li>AI reasoning per ticket</li><li>Human Action Queue</li></ul>
-        <a href="#" class="btn-primary-lp" style="width:100%;text-align:center;display:block;padding:10px;border-radius:12px;text-decoration:none">Start free trial</a>
-      </div>
-      <div class="plan-card reveal reveal-delay-3">
-        <div class="plan-name">Scale</div>
-        <div><span class="plan-price lp-price" data-m="$199" data-a="$159">$199</span><span class="plan-period">/mo</span></div>
-        <div class="plan-emails">2,500 emails/month</div>
-        <ul class="plan-features"><li>Everything in Growth</li><li><strong>Unlimited refund amounts</strong></li><li>Auto address change</li><li>Multiple AI agents</li><li>Chat-based rulebook updates</li></ul>
-        <a href="#" class="btn-ghost-lp" style="width:100%;text-align:center;display:block;padding:10px;border-radius:12px;text-decoration:none">Start free trial</a>
-      </div>
-    </div>
-    <p class="reveal" style="text-align:center;font-size:12px;color:#3A4760;margin-top:28px">Need more? <a href="mailto:support@respondro.ai" style="color:#00C896;text-decoration:none">Contact us</a> for Enterprise pricing starting at $699/mo.</p>
-  </div>
-</section>
-
-<!-- CTA -->
-<section class="cta-section">
-  <h2 class="section-title reveal" style="margin-bottom:12px">Your inbox is full.<br><span style="color:#00C896">Let's fix that.</span></h2>
-  <p class="reveal reveal-delay-1" style="font-size:14px;color:#6B7A99;margin-bottom:32px;max-width:380px;margin-left:auto;margin-right:auto;line-height:1.7">Install Respondro from the Shopify App Store. Set up takes under 5 minutes.</p>
-  <a href="#pricing" class="btn-primary-lp reveal reveal-delay-2" style="font-size:15px;padding:14px 28px;text-decoration:none">Start your free trial →</a>
-</section>
-
-<!-- FOOTER -->
-<footer class="lp-footer">
-  <div class="lp-footer-inner">
-    <img src="https://cdn.shopify.com/s/files/1/0995/4213/9257/files/respondro_500_x_200_px.png?v=1776578108" style="height:20px" alt="Respondro">
-    <div class="lp-footer-links">
-      <a href="/privacy">Privacy</a>
-      <a href="/terms">Terms</a>
-      <a href="mailto:support@respondro.ai">Contact</a>
-    </div>
-    <p style="font-size:11px;color:#3A4760">Made in Copenhagen 🇩🇰 · © 2026</p>
+<footer style="background:#060A14;border-top:1px solid rgba(255,255,255,0.05);padding:28px 24px">
+  <div class="max-w-5xl mx-auto flex justify-between items-center gap-3">
+    <div class="flex items-center gap-2 font-display font-700"><span style="color:#00C896">▸</span> Respondro</div>
+    <p class="text-xs" style="color:#3A4760">Made in Copenhagen 🇩🇰 · © 2026</p>
   </div>
 </footer>
-
 </div>
 
 <!-- ═══════ DASHBOARD ═══════ -->
 <div id="dashboard">
   <div class="dash-nav">
     <button id="mobile-menu-btn" onclick="toggleMobileSidebar()" class="mobile-menu-btn" style="display:none;background:none;border:none;color:#6B7280;font-size:22px;cursor:pointer;padding:4px 8px;margin-right:8px">☰</button>
-    <div class="mr-auto"><img id="nav-logo-dark" src="https://cdn.shopify.com/s/files/1/0995/4213/9257/files/respondro_500_x_200_px.png?v=1776578108" style="height:28px;display:none" alt="Respondro"><img id="nav-logo-light" src="https://cdn.shopify.com/s/files/1/0995/4213/9257/files/respondro_500_x_200_px_1.png?v=1776578238" style="height:28px" alt="Respondro"></div>
+    <div class="mr-auto"><img id="nav-logo-dark" src="https://i.ibb.co/5xf5tGBY/dark-mode-logo.png" style="height:28px;display:none" alt="Respondro"><img id="nav-logo-light" src="https://i.ibb.co/JjBmc7bK/light-mode-logo.png" style="height:28px" alt="Respondro"></div>
     <div class="flex items-center gap-2 text-xs font-mono hidden md:flex" id="api-status-container" style="display:none"><div class="api-dot" id="api-dot" style="background:#3A4760"></div><span id="api-status-txt" style="color:#5A6785"></span></div>
     <div class="flex items-center gap-3 ml-4">
       <div style="position:relative;cursor:pointer" onclick="toggleNotifications()">
@@ -5609,50 +5229,6 @@ function closeMobileSidebar() {
     item.addEventListener('click', closeMobileSidebar);
   });
 })();
-
-// ═══ LANDING PAGE: Scroll Reveal Animations ═══
-var lpObs = new IntersectionObserver(function(entries) {
-  entries.forEach(function(e) {
-    if (e.isIntersecting) {
-      e.target.classList.add('visible');
-      e.target.querySelectorAll('.cost-bar-fill').forEach(function(bar) {
-        setTimeout(function() { bar.classList.add('animate'); }, 200);
-      });
-      lpObs.unobserve(e.target);
-    }
-  });
-}, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
-document.querySelectorAll('.reveal').forEach(function(el) { lpObs.observe(el); });
- 
-// ═══ LANDING PAGE: Cost Bar Animations ═══
-var costObs = new IntersectionObserver(function(entries) {
-  entries.forEach(function(e) {
-    if (e.isIntersecting) {
-      document.querySelectorAll('.cost-bar-fill').forEach(function(bar, i) {
-        setTimeout(function() { bar.classList.add('animate'); }, i * 200);
-      });
-      costObs.unobserve(e.target);
-    }
-  });
-}, { threshold: 0.2 });
-var costEl = document.getElementById('cost-section');
-if (costEl) costObs.observe(costEl);
- 
-// ═══ LANDING PAGE: Nav Background on Scroll ═══
-window.addEventListener('scroll', function() {
-  var nav = document.getElementById('lp-navbar');
-  if (nav) nav.classList.toggle('scrolled', window.scrollY > 60);
-});
- 
-// ═══ LANDING PAGE: Pricing Toggle ═══
-function setLpPricing(interval) {
-  var isA = interval === 'annual';
-  document.getElementById('lp-t-monthly').classList.toggle('active', !isA);
-  document.getElementById('lp-t-annual').classList.toggle('active', isA);
-  document.querySelectorAll('.lp-price').forEach(function(el) {
-    el.textContent = isA ? el.dataset.a : el.dataset.m;
-  });
-}
 
 </script>
 <div id="review-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] items-center justify-center p-4">
