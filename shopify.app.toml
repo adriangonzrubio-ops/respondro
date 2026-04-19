@@ -1,5 +1,5 @@
+client_id = "b8dac1505617bff2043d38bcc7a6f6c2"
 name = "Respondro"
-client_id = "794bd0222ac93bd88a19cc739db8a6c8"
 application_url = "https://respondro.ai"
 embedded = false
 
@@ -14,20 +14,10 @@ redirect_urls = [
 [webhooks]
 api_version = "2026-04"
 
-  [[webhooks.subscriptions]]
-  topics = [ "customers/data_request" ]
-  uri = "/api/shopify/webhooks/gdpr/customers-data-request"
-  compliance_topics = [ "customers/data_request" ]
-
-  [[webhooks.subscriptions]]
-  topics = [ "customers/redact" ]
-  uri = "/api/shopify/webhooks/gdpr/customers-redact"
-  compliance_topics = [ "customers/redact" ]
-
-  [[webhooks.subscriptions]]
-  topics = [ "shop/redact" ]
-  uri = "/api/shopify/webhooks/gdpr/shop-redact"
-  compliance_topics = [ "shop/redact" ]
+  [webhooks.privacy_compliance]
+  customer_deletion_url = "https://respondro.ai/api/shopify/webhooks/gdpr/customers-redact"
+  customer_data_request_url = "https://respondro.ai/api/shopify/webhooks/gdpr/customers-data-request"
+  shop_deletion_url = "https://respondro.ai/api/shopify/webhooks/gdpr/shop-redact"
 
   [[webhooks.subscriptions]]
   topics = [ "app/uninstalled" ]
