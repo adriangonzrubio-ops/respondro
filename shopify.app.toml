@@ -1,13 +1,38 @@
 name = "Respondro"
 client_id = "794bd0222ac93bd88a19cc739db8a6c8"
-application_url = "https://respondro.vercel.app"
+application_url = "https://respondro.ai"
 embedded = false
 
 [access_scopes]
 scopes = "read_orders,write_orders,read_customers,write_customers,read_fulfillments,read_products,read_inventory"
 
 [auth]
-redirect_urls = ["https://respondro.vercel.app/api/shopify-callback"]
+redirect_urls = [
+  "https://respondro.ai/api/shopify-callback"
+]
 
 [webhooks]
 api_version = "2026-04"
+
+  [[webhooks.subscriptions]]
+  topics = [ "customers/data_request" ]
+  uri = "/api/shopify/webhooks/gdpr/customers-data-request"
+  compliance_topics = [ "customers/data_request" ]
+
+  [[webhooks.subscriptions]]
+  topics = [ "customers/redact" ]
+  uri = "/api/shopify/webhooks/gdpr/customers-redact"
+  compliance_topics = [ "customers/redact" ]
+
+  [[webhooks.subscriptions]]
+  topics = [ "shop/redact" ]
+  uri = "/api/shopify/webhooks/gdpr/shop-redact"
+  compliance_topics = [ "shop/redact" ]
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/api/shopify/webhooks/app-uninstalled"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app_subscriptions/update" ]
+  uri = "/api/shopify/webhooks/app-subscriptions-update"
