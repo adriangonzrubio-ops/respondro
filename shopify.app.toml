@@ -1,6 +1,6 @@
 client_id = "b8dac1505617bff2043d38bcc7a6f6c2"
 name = "Respondro"
-application_url = "https://respondro.ai"
+application_url = "https://www.respondro.ai"
 embedded = false
 
 [access_scopes]
@@ -8,21 +8,21 @@ scopes = "read_orders,write_orders,read_customers,write_customers,read_fulfillme
 
 [auth]
 redirect_urls = [
-  "https://respondro.ai/api/shopify-callback"
+  "https://www.respondro.ai/api/shopify-callback"
 ]
 
 [webhooks]
 api_version = "2026-04"
 
   [webhooks.privacy_compliance]
-  customer_deletion_url = "https://respondro.ai/api/shopify/webhooks/gdpr/customers-redact"
-  customer_data_request_url = "https://respondro.ai/api/shopify/webhooks/gdpr/customers-data-request"
-  shop_deletion_url = "https://respondro.ai/api/shopify/webhooks/gdpr/shop-redact"
+  customer_deletion_url = "https://www.respondro.ai/api/webhooks/gdpr/customers-redact"
+  customer_data_request_url = "https://www.respondro.ai/api/webhooks/gdpr/customers-data-request"
+  shop_deletion_url = "https://www.respondro.ai/api/webhooks/gdpr/shop-redact"
 
   [[webhooks.subscriptions]]
   topics = [ "app/uninstalled" ]
-  uri = "/api/shopify/webhooks/app-uninstalled"
+  uri = "/api/webhooks/app-uninstalled"
 
   [[webhooks.subscriptions]]
   topics = [ "app_subscriptions/update" ]
-  uri = "/api/shopify/webhooks/app-subscriptions-update"
+  uri = "/api/webhooks/app-subscriptions-update"
