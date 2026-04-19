@@ -14,7 +14,16 @@ export async function verifyShopifyWebhook(request: Request) {
         .update(rawBody, 'utf8')
         .digest('base64');
 
-    return crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(generatedHmac));
+    // Both buffers must be base64-decoded bytes with identical length,
+    // otherwise timingSafeEqual throws.
+    try {
+        const hmacBuffer = Buffer.from(hmac, 'base64');
+        const generatedBuffer = Buffer.from(generatedHmac, 'base64');
+        if (hmacBuffer.length !== generatedBuffer.length) return false;
+        return crypto.timingSafeEqual(hmacBuffer, generatedBuffer);
+    } catch {
+        return false;
+    }
 }
 
 /**
