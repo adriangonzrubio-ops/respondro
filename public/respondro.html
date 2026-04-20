@@ -325,11 +325,11 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
   .mobile-overlay.show { display:block }
   #rb-shopify-sidebar { display:none !important }
   #view-review-board .flex.flex-1.overflow-hidden > .flex.flex-col.border-r { width:100% !important;min-width:100% !important }
-  #rb-workspace { display:none;position:fixed;inset:0;top:56px;z-index:80;background:#F7F8FA;flex-direction:column }
-  #rb-workspace.mobile-ticket-open { display:flex !important;overflow-y:auto !important;-webkit-overflow-scrolling:touch }
-  #rb-workspace.mobile-ticket-open .flex-1.overflow-y-auto { overflow-y:visible !important }
-  #rb-workspace.mobile-ticket-open .flex.gap-2.p-4.border-t { position:sticky;bottom:0;z-index:10 }
-  #rb-active-ticket.flex-1 { position:fixed;inset:0;top:56px;z-index:80 }
+  #rb-workspace { display:none;position:fixed;inset:0;top:56px;z-index:80;background:#F7F8FA;flex-direction:column;overflow:hidden }
+  #rb-workspace.mobile-ticket-open { display:flex !important }
+  #rb-active-ticket { flex:1 !important;min-height:0 !important;overflow:hidden !important;position:relative !important;inset:auto !important }
+  #rb-active-ticket > .flex-1.overflow-y-auto { flex:1 !important;min-height:0 !important;overflow-y:auto !important;-webkit-overflow-scrolling:touch !important;overscroll-behavior:contain !important }
+  #rb-active-ticket > .flex.gap-2.p-4.border-t { flex-shrink:0 !important;position:sticky !important;bottom:0 !important;z-index:10 !important }
   body.light #rb-active-ticket { background:#F7F8FA }
   #view-review-board .flex.flex-1.overflow-hidden { flex-direction:column }
   .dash-nav { padding:0 12px }
