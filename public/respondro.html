@@ -13,7 +13,8 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
-body{background:#080D1A;color:#E8EBF2;font-family:'Inter',sans-serif;overflow-x:hidden}
+body{background:#080D1A;color:#E8EBF2;font-family:'Inter',sans-serif;overflow-x:hidden;visibility:hidden}
+body.ready{visibility:visible}
 .grid-bg{background-image:linear-gradient(rgba(0,200,150,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,150,0.03) 1px,transparent 1px);background-size:60px 60px}
 @keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 .ticker-track{animation:ticker 28s linear infinite;display:flex;width:max-content}
@@ -65,6 +66,8 @@ select.form-input option{background:#0F1623}
 /* DASHBOARD */
 #dashboard{display:none;height:100vh;overflow:hidden;flex-direction:column}
 #dashboard.active{display:flex}
+#landing{display:none}
+#landing.show{display:block}
 #landing.hidden{display:none}
 .dash-nav{background:#0B1120;border-bottom:1px solid rgba(255,255,255,0.06);height:56px;display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0}
 .sidebar{background:#0B1120;border-right:1px solid rgba(255,255,255,0.06);width:215px;flex-shrink:0;display:flex;flex-direction:column}
@@ -1614,6 +1617,7 @@ async function checkAuth() {
     const nameNav = document.getElementById('user-name-nav');
     if (nameNav && session.user.email) nameNav.textContent = session.user.email.split('@')[0];
 
+    document.body.classList.add('ready');
     return true;
   } else {
     // Not logged in — show auth gate (it lives inside #dashboard so dashboard must be active)
@@ -1626,6 +1630,7 @@ async function checkAuth() {
     }
     if (app) app.style.display = 'none';
     if (gate) gate.style.display = 'flex';
+    document.body.classList.add('ready');
     return false;
   }
 }
