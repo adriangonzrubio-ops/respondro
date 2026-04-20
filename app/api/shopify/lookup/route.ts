@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { decrypt } from '@/lib/encryption';
 import { getShopifyContext, extractOrderNumber } from '@/lib/shopify';
 
 export async function POST(req: Request) {
@@ -64,7 +65,7 @@ export async function POST(req: Request) {
 
         const orders = await getShopifyContext(
             storeInfo.shopify_url,
-            storeInfo.shopify_token,
+            decrypt(storeInfo.shopify_token),
             senderEmail || '',
             orderNumber,
             senderName

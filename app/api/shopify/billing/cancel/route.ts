@@ -1,3 +1,4 @@
+import { decrypt } from '@/lib/encryption';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { cancelCharge } from '@/lib/shopify-billing';
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
         }
 
         // Cancel with Shopify
-        const result = await cancelCharge(shop, store.shopify_token, settings.shopify_charge_id);
+        const result = await cancelCharge(shop, decrypt(store.shopify_token), settings.shopify_charge_id);
 
         if (!result.success) {
             return NextResponse.json({ error: result.error }, { status: 500 });

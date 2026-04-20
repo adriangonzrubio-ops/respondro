@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { decrypt } from '@/lib/encryption';
 
 export async function POST(req: Request) {
   try {
@@ -15,7 +16,7 @@ export async function POST(req: Request) {
     }
 
     const shop = store.shopify_url.replace(/^https?:\/\//, '').replace(/\/$/, '').trim();
-    const token = store.shopify_token;
+    const token = decrypt(store.shopify_token);
 
     let shopifyOrderId = order_id;
 

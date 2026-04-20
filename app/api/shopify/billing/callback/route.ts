@@ -1,3 +1,4 @@
+import { decrypt } from '@/lib/encryption';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { activateCharge } from '@/lib/shopify-billing';
@@ -40,7 +41,7 @@ export async function GET(request: Request) {
         }
 
         // Verify and activate the charge
-        const result = await activateCharge(shop, store.shopify_token, parseInt(chargeId, 10));
+        const result = await activateCharge(shop, decrypt(store.shopify_token), parseInt(chargeId, 10));
 
         if (!result.success) {
             console.error('Charge activation failed:', result.error);

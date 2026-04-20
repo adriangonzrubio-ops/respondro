@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { generateAiDraft } from '@/lib/ai-generator';
 import { getShopifyContext, extractOrderNumber } from '@/lib/shopify';
+import { decrypt } from '@/lib/encryption';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
@@ -37,7 +38,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             const { data: store } = await supabaseAdmin.from('stores').select('shopify_url, shopify_token').eq('id', storeId).single();
             if (store?.shopify_url && store?.shopify_token) {
                 shopUrl = store.shopify_url;
-                shopToken = store.shopify_token;
+                shopToken = decrypt(store.shopify_token);
             }
         }
 

@@ -1,3 +1,4 @@
+import { decrypt } from '@/lib/encryption';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createRecurringCharge, cancelCharge } from '@/lib/shopify-billing';
@@ -52,15 +53,15 @@ export async function POST(request: Request) {
             .eq('store_id', store.id)
             .single();
 
+        const decryptedToken = decrypt(store.shopify_token);
         if (settings?.shopify_charge_id) {
-            await cancelCharge(shop, store.shopify_token, settings.shopify_charge_id);
+            await cancelCharge(shop, decryptedToken, settings.shopify_charge_id);
             console.log(`♻️ Cancelled existing charge ${settings.shopify_charge_id} for ${shop}`);
         }
-
         // Create the new charge
         const result = await createRecurringCharge({
             shop,
-            token: store.shopify_token,
+            token: decryptedToken,
             tier,
             interval
         });

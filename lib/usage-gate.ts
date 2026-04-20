@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════
 
 import { supabaseAdmin } from './supabase';
+import { decrypt } from './encryption';
 
 export interface UsageDecision {
     canProcess: boolean;
@@ -63,6 +64,9 @@ export async function checkUsageAllowed(storeId: string): Promise<UsageDecision>
         .eq('id', storeId)
         .single();
 
+    // Decrypt the token once — all downstream usages get the plaintext
+    const decryptedShopifyToken = store?.shopify_token ? decrypt(store.shopify_token) : undefined;
+
     // 3. Auto-reset counters if needed
     await resetCountersIfNeeded(storeId, settings);
 
@@ -87,7 +91,7 @@ export async function checkUsageAllowed(storeId: string): Promise<UsageDecision>
             rulebook: s.rulebook,
             signature: s.signature,
             shopifyUrl: store?.shopify_url,
-            shopifyToken: store?.shopify_token,
+            shopifyToken: decryptedShopifyToken,
             reason: `Subscription is ${status}`
         };
     }
@@ -107,7 +111,7 @@ export async function checkUsageAllowed(storeId: string): Promise<UsageDecision>
                 rulebook: s.rulebook,
                 signature: s.signature,
                 shopifyUrl: store?.shopify_url,
-                shopifyToken: store?.shopify_token,
+                shopifyToken: decryptedShopifyToken,
                 reason: 'Trial expired — no active subscription'
             };
         }
@@ -146,7 +150,7 @@ export async function checkUsageAllowed(storeId: string): Promise<UsageDecision>
                 rulebook: s.rulebook,
                 signature: s.signature,
                 shopifyUrl: store?.shopify_url,
-                shopifyToken: store?.shopify_token
+                shopifyToken: decryptedShopifyToken
             };
         }
         plan = dbPlan;
@@ -175,7 +179,7 @@ export async function checkUsageAllowed(storeId: string): Promise<UsageDecision>
             rulebook: s.rulebook,
             signature: s.signature,
             shopifyUrl: store?.shopify_url,
-            shopifyToken: store?.shopify_token
+            shopifyToken: decryptedShopifyToken
         };
     }
 
@@ -199,7 +203,7 @@ export async function checkUsageAllowed(storeId: string): Promise<UsageDecision>
                 rulebook: s.rulebook,
                 signature: s.signature,
                 shopifyUrl: store?.shopify_url,
-                shopifyToken: store?.shopify_token
+                shopifyToken: decryptedShopifyToken
             };
         }
     }
@@ -229,7 +233,7 @@ export async function checkUsageAllowed(storeId: string): Promise<UsageDecision>
         rulebook: s.rulebook,
         signature: s.signature,
         shopifyUrl: store?.shopify_url,
-        shopifyToken: store?.shopify_token
+        shopifyToken: decryptedShopifyToken
     };
 }
 
