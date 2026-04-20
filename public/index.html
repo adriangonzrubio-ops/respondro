@@ -161,6 +161,34 @@ body{background:#060B18;color:#E8EBF2;font-family:'Inter',sans-serif;overflow-x:
 .plan-features li::before{content:'✓';color:#00C896;font-weight:700;flex-shrink:0;margin-top:1px}
 .plan-features li strong{color:#C8D0E0}
 
+/* RACE SECTION */
+.race-section{background:#0A1020;border-top:1px solid rgba(255,255,255,0.04);border-bottom:1px solid rgba(255,255,255,0.04)}
+.race-card{background:#0D1424;border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:32px;margin-bottom:20px;transition:all 0.4s cubic-bezier(0.16,1,0.3,1)}
+.race-card:hover{border-color:rgba(255,255,255,0.12)}
+.race-card-label{font-size:11px;font-family:'JetBrains Mono',monospace;color:#00C896;letter-spacing:0.15em;margin-bottom:24px}
+.race-rows{display:flex;flex-direction:column;gap:20px}
+.race-row{display:flex;flex-direction:column;gap:8px}
+.race-row-header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.race-row-name{display:flex;flex-direction:column;gap:4px;min-width:0}
+.race-row-badge{display:inline-flex;align-items:center;font-size:10px;font-family:'JetBrains Mono',monospace;padding:3px 10px;border-radius:100px;font-weight:700;width:fit-content;letter-spacing:0.05em}
+.race-row-badge.respondro{background:rgba(0,200,150,0.12);color:#00C896}
+.race-row-badge.human{background:rgba(248,113,113,0.12);color:#F87171}
+.race-row-badge.warm{background:rgba(240,165,0,0.12);color:#F0A500}
+.race-row-label{font-size:12px;color:#6B7A99;line-height:1.4}
+.race-row-time{font-size:24px;font-weight:800;font-family:'JetBrains Mono',monospace;letter-spacing:-0.02em;white-space:nowrap;color:#E8EBF2}
+.race-track{height:8px;background:rgba(255,255,255,0.04);border-radius:4px;overflow:hidden;position:relative}
+.race-fill{height:100%;border-radius:4px;width:0;transition:width 1.8s cubic-bezier(0.22,1,0.36,1)}
+.race-fill.respondro{background:linear-gradient(90deg,#00C896,#00D9A3)}
+.race-fill.human{background:linear-gradient(90deg,#F87171,#FB8585)}
+.race-fill.warm{background:linear-gradient(90deg,#F0A500,#FFB827)}
+.race-fill.animate{width:var(--race-w)}
+.race-verdict{margin-top:24px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.05);font-size:13px;font-family:'JetBrains Mono',monospace;text-align:center}
+@media(max-width:768px){
+  .race-card{padding:24px 20px}
+  .race-row-header{flex-direction:column;align-items:flex-start;gap:8px}
+  .race-row-time{font-size:18px;align-self:flex-end}
+}
+
 /* CTA */
 .cta-section{text-align:center;padding:100px 24px;position:relative;overflow:hidden}
 .cta-section::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:600px;height:400px;background:radial-gradient(ellipse,rgba(0,200,150,0.06),transparent 70%);pointer-events:none}
@@ -293,6 +321,115 @@ body{background:#060B18;color:#E8EBF2;font-family:'Inter',sans-serif;overflow-x:
       <div class="cost-bar-bottom reveal reveal-delay-4">
         <span style="color:#00C896;font-weight:700">97% cheaper</span><span style="color:#4A5568"> than hiring · pays for itself in </span><span style="color:#00C896;font-weight:700">a few days</span>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- RACE SECTION -->
+<section class="section race-section" id="race-section">
+  <div class="section-inner">
+    <div style="text-align:center;margin-bottom:60px">
+      <p class="section-label reveal">THE RACE</p>
+      <h2 class="section-title reveal reveal-delay-1">Your customers can't wait.<br><span style="color:#00C896">Respondro doesn't make them.</span></h2>
+      <p class="section-desc section-desc-center reveal reveal-delay-2">Watch how long it takes to answer one email, handle 100 emails, and what it costs.</p>
+    </div>
+
+    <!-- RACE 1: SINGLE EMAIL -->
+    <div class="race-card reveal">
+      <div class="race-card-label">01 · ONE EMAIL, START TO SEND</div>
+      <div class="race-rows">
+        <div class="race-row">
+          <div class="race-row-header">
+            <div class="race-row-name">
+              <span class="race-row-badge respondro">RESPONDRO</span>
+              <span class="race-row-label">Reads order, drafts reply, sends</span>
+            </div>
+            <div class="race-row-time" id="r1-respondro-time">0s</div>
+          </div>
+          <div class="race-track"><div class="race-fill respondro" data-target="4"></div></div>
+        </div>
+        <div class="race-row">
+          <div class="race-row-header">
+            <div class="race-row-name">
+              <span class="race-row-badge human">HUMAN AGENT</span>
+              <span class="race-row-label">Opens inbox, looks up order, writes</span>
+            </div>
+            <div class="race-row-time" id="r1-human-time">0:00</div>
+          </div>
+          <div class="race-track"><div class="race-fill human" data-target="100"></div></div>
+        </div>
+      </div>
+      <div class="race-verdict"><span style="color:#00C896;font-weight:700">27× faster</span> <span style="color:#4A5568">· Respondro replies in seconds, not minutes</span></div>
+    </div>
+
+    <!-- RACE 2: 100 EMAILS (TIME) -->
+    <div class="race-card reveal reveal-delay-1">
+      <div class="race-card-label">02 · 100 EMAILS, TOTAL TIME</div>
+      <div class="race-rows">
+        <div class="race-row">
+          <div class="race-row-header">
+            <div class="race-row-name">
+              <span class="race-row-badge respondro">RESPONDRO</span>
+              <span class="race-row-label">Runs in parallel · instant</span>
+            </div>
+            <div class="race-row-time" id="r2-respondro-time">0m</div>
+          </div>
+          <div class="race-track"><div class="race-fill respondro" data-target="4"></div></div>
+        </div>
+        <div class="race-row">
+          <div class="race-row-header">
+            <div class="race-row-name">
+              <span class="race-row-badge human">HUMAN AGENT</span>
+              <span class="race-row-label">One at a time · full work day</span>
+            </div>
+            <div class="race-row-time" id="r2-human-time">0h 0m</div>
+          </div>
+          <div class="race-track"><div class="race-fill human" data-target="100"></div></div>
+        </div>
+      </div>
+      <div class="race-verdict"><span style="color:#00C896;font-weight:700">~8 hours saved per 100 emails</span> <span style="color:#4A5568">· every day, on autopilot</span></div>
+    </div>
+
+    <!-- RACE 3: COST -->
+    <div class="race-card reveal reveal-delay-2">
+      <div class="race-card-label">03 · WHAT 100 EMAILS/DAY COSTS YOU</div>
+      <div class="race-rows">
+        <div class="race-row">
+          <div class="race-row-header">
+            <div class="race-row-name">
+              <span class="race-row-badge human">FULL-TIME CS AGENT</span>
+              <span class="race-row-label">1 person · 40h/week · salary + overhead</span>
+            </div>
+            <div class="race-row-time" id="r3-agent-cost">$0</div>
+          </div>
+          <div class="race-track"><div class="race-fill human" data-target="100"></div></div>
+        </div>
+        <div class="race-row">
+          <div class="race-row-header">
+            <div class="race-row-name">
+              <span class="race-row-badge warm">OVERSEAS CS VA</span>
+              <span class="race-row-label">Shared team · variable quality</span>
+            </div>
+            <div class="race-row-time" id="r3-va-cost">$0</div>
+          </div>
+          <div class="race-track"><div class="race-fill warm" data-target="32"></div></div>
+        </div>
+        <div class="race-row">
+          <div class="race-row-header">
+            <div class="race-row-name">
+              <span class="race-row-badge respondro">RESPONDRO · GROWTH</span>
+              <span class="race-row-label">750 emails/mo · 24/7 · no sick days</span>
+            </div>
+            <div class="race-row-time" id="r3-respondro-cost">$0</div>
+          </div>
+          <div class="race-track"><div class="race-fill respondro" data-target="3.2"></div></div>
+        </div>
+      </div>
+      <div class="race-verdict"><span style="color:#00C896;font-weight:700">97% cheaper than hiring</span> <span style="color:#4A5568">· pays for itself in a few days</span></div>
+    </div>
+
+    <div style="text-align:center;margin-top:40px" class="reveal reveal-delay-3">
+      <a href="#pricing" class="btn-primary-lp" style="font-size:15px;padding:14px 28px;text-decoration:none">Start your free trial →</a>
     </div>
   </div>
 </section>
@@ -488,6 +625,62 @@ window.addEventListener('scroll', function() {
   var nav = document.getElementById('lp-navbar');
   if (nav) nav.classList.toggle('scrolled', window.scrollY > 60);
 });
+
+// Race section animation — triggers once on scroll
+(function() {
+  var raceSection = document.getElementById('race-section');
+  if (!raceSection) return;
+  function animateValue(el, start, end, duration, formatter) {
+    var startTime = performance.now();
+    function tick(now) {
+      var elapsed = now - startTime;
+      var progress = Math.min(elapsed / duration, 1);
+      var eased = 1 - Math.pow(1 - progress, 3);
+      var current = start + (end - start) * eased;
+      el.textContent = formatter(current);
+      if (progress < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+  function startRace() {
+    document.querySelectorAll('.race-fill').forEach(function(fill) {
+      var target = fill.getAttribute('data-target');
+      fill.style.setProperty('--race-w', target + '%');
+      fill.classList.add('animate');
+    });
+    var r1r = document.getElementById('r1-respondro-time');
+    var r1h = document.getElementById('r1-human-time');
+    if (r1r) animateValue(r1r, 0, 11, 1800, function(v) { return Math.round(v) + 's'; });
+    if (r1h) animateValue(r1h, 0, 300, 1800, function(v) {
+      var mins = Math.floor(v / 60);
+      var secs = Math.round(v % 60);
+      return mins + ':' + (secs < 10 ? '0' : '') + secs;
+    });
+    var r2r = document.getElementById('r2-respondro-time');
+    var r2h = document.getElementById('r2-human-time');
+    if (r2r) animateValue(r2r, 0, 18, 1800, function(v) { return Math.round(v) + 'm'; });
+    if (r2h) animateValue(r2h, 0, 500, 1800, function(v) {
+      var hours = Math.floor(v / 60);
+      var mins = Math.round(v % 60);
+      return hours + 'h ' + mins + 'm';
+    });
+    var r3a = document.getElementById('r3-agent-cost');
+    var r3v = document.getElementById('r3-va-cost');
+    var r3r = document.getElementById('r3-respondro-cost');
+    if (r3a) animateValue(r3a, 0, 2500, 1800, function(v) { return '$' + Math.round(v).toLocaleString() + '/mo'; });
+    if (r3v) animateValue(r3v, 0, 800, 1800, function(v) { return '$' + Math.round(v).toLocaleString() + '/mo'; });
+    if (r3r) animateValue(r3r, 0, 79, 1800, function(v) { return '$' + Math.round(v) + '/mo'; });
+  }
+  var raceObserver = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        startRace();
+        raceObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.3 });
+  raceObserver.observe(raceSection);
+})();
 
 // Pricing toggle
 function setLpPricing(interval) {
