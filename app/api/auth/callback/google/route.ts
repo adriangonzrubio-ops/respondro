@@ -1,3 +1,4 @@
+import { encrypt } from '@/lib/encryption';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -45,8 +46,8 @@ export async function GET(request: Request) {
       .from('user_connections')
       .upsert({
         email: userData.email,
-        gmail_access_token: tokens.access_token,
-        gmail_refresh_token: tokens.refresh_token,
+        gmail_access_token: encrypt(tokens.access_token),
+        gmail_refresh_token: tokens.refresh_token ? encrypt(tokens.refresh_token) : null,
         gmail_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
         updated_at: new Date().toISOString(),
       }, { onConflict: 'email' });

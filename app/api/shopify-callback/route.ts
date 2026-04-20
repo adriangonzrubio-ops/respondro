@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { verifyShopifyOAuth } from '@/lib/shopify-security';
+import { encrypt } from '@/lib/encryption';
 import crypto from 'crypto';
 
 const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_CLIENT_ID;
@@ -119,7 +120,7 @@ export async function GET(request: Request) {
     // 4. Save or update the store record
     const { data: store, error: storeError } = await supabaseAdmin.from('stores').upsert({
         shopify_url: shop,
-        shopify_token: access_token,
+        shopify_token: encrypt(access_token),
         email: shopOwnerEmail, // Link store to auth user by email
         store_name: shopName,
         plan: 'trial',

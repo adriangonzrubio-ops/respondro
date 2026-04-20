@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { encrypt } from '@/lib/encryption';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '300936447986-8sop293gjemropbnibsqa7m9mdp4bco7.apps.googleusercontent.com';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
@@ -86,8 +87,8 @@ export async function GET(request: Request) {
             imap_user: gmailAddress,
             smtp_host: 'smtp.gmail.com',
             smtp_port: 465,
-            gmail_access_token: tokens.access_token,
-            gmail_refresh_token: tokens.refresh_token || null,
+            gmail_access_token: encrypt(tokens.access_token),
+            gmail_refresh_token: tokens.refresh_token ? encrypt(tokens.refresh_token) : null,
             updated_at: new Date().toISOString()
         };
 
