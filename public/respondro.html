@@ -314,6 +314,9 @@ body.light .dash-nav .font-display{color:#1A1D26!important}
 body.light #user-name-nav{color:#1A1D26!important}
 body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!important}
 /* ═══ MOBILE RESPONSIVE ═══ */
+@media (min-width: 769px) {
+  #rb-timeline-container { max-height:260px; overflow-y:auto }
+}
 @media (max-width: 768px) {
   html, body { overflow-x:hidden !important;max-width:100vw !important }
   #app-container, .flex[style*="height:calc"] { overflow-x:hidden !important;max-width:100vw !important }
@@ -325,12 +328,14 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
   .mobile-overlay.show { display:block }
   #rb-shopify-sidebar { display:none !important }
   #view-review-board .flex.flex-1.overflow-hidden > .flex.flex-col.border-r { width:100% !important;min-width:100% !important }
-  #rb-workspace { display:none;position:fixed;inset:0;top:56px;z-index:80;background:#F7F8FA;flex-direction:column;overflow:hidden }
+  #rb-workspace { display:none;position:fixed;left:0;right:0;top:56px;bottom:0;z-index:80;background:#F7F8FA;flex-direction:column;overflow:hidden }
+  body:not(.light) #rb-workspace { background:#080D1A }
   #rb-workspace.mobile-ticket-open { display:flex !important }
-  #rb-active-ticket { flex:1 !important;min-height:0 !important;overflow:hidden !important;position:relative !important;inset:auto !important }
-  #rb-active-ticket > .flex-1.overflow-y-auto { flex:1 !important;min-height:0 !important;overflow-y:auto !important;-webkit-overflow-scrolling:touch !important;overscroll-behavior:contain !important }
-  #rb-active-ticket > .flex.gap-2.p-4.border-t { flex-shrink:0 !important;position:sticky !important;bottom:0 !important;z-index:10 !important }
-  body.light #rb-active-ticket { background:#F7F8FA }
+  #rb-active-ticket { flex:1 1 auto !important;min-height:0 !important;display:flex !important;flex-direction:column !important;position:relative !important;inset:auto !important;overflow:hidden !important }
+  #rb-active-ticket > .px-6.py-4.border-b { flex-shrink:0 !important }
+  #rb-active-ticket > .flex-1.overflow-y-auto { flex:1 1 auto !important;min-height:0 !important;overflow-y:auto !important;-webkit-overflow-scrolling:touch !important;overscroll-behavior:contain !important }
+  #rb-active-ticket > .flex.gap-2.p-4.border-t { flex-shrink:0 !important }
+  #rb-timeline-container { max-height:none !important;overflow:visible !important }
   #view-review-board .flex.flex-1.overflow-hidden { flex-direction:column }
   .dash-nav { padding:0 12px }
   #main-content > div { padding:16px !important }
@@ -844,7 +849,7 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
         <div class="flex-1 overflow-y-auto p-6 space-y-4">
           <div>
             <p class="text-[10px] font-mono text-gray-600 mb-2 uppercase tracking-wider">Conversation</p>
-            <div id="rb-timeline-container" class="rounded-xl p-3 overflow-y-auto mb-2" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07);max-height:260px"><span id="rb-ticket-body">—</span></div>
+            <div id="rb-timeline-container" class="rounded-xl p-3 mb-2" style="background:#0F1623;border:1px solid rgba(255,255,255,0.07)"><span id="rb-ticket-body">—</span></div>
           </div>
           <div>
             <div class="flex items-center justify-between mb-2">
