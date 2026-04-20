@@ -389,48 +389,6 @@ body{background:#060B18;color:#E8EBF2;font-family:'Inter',sans-serif;overflow-x:
       </div>
       <div class="race-verdict"><span style="color:#00C896;font-weight:700">~8 hours saved per 100 emails</span> <span style="color:#4A5568">· every day, on autopilot</span></div>
     </div>
-
-    <!-- RACE 3: COST -->
-    <div class="race-card reveal reveal-delay-2">
-      <div class="race-card-label">03 · WHAT 100 EMAILS/DAY COSTS YOU</div>
-      <div class="race-rows">
-        <div class="race-row">
-          <div class="race-row-header">
-            <div class="race-row-name">
-              <span class="race-row-badge human">FULL-TIME CS AGENT</span>
-              <span class="race-row-label">1 person · 40h/week · salary + overhead</span>
-            </div>
-            <div class="race-row-time" id="r3-agent-cost">$0</div>
-          </div>
-          <div class="race-track"><div class="race-fill human" data-target="100"></div></div>
-        </div>
-        <div class="race-row">
-          <div class="race-row-header">
-            <div class="race-row-name">
-              <span class="race-row-badge warm">OVERSEAS CS VA</span>
-              <span class="race-row-label">Shared team · variable quality</span>
-            </div>
-            <div class="race-row-time" id="r3-va-cost">$0</div>
-          </div>
-          <div class="race-track"><div class="race-fill warm" data-target="32"></div></div>
-        </div>
-        <div class="race-row">
-          <div class="race-row-header">
-            <div class="race-row-name">
-              <span class="race-row-badge respondro">RESPONDRO · GROWTH</span>
-              <span class="race-row-label">750 emails/mo · 24/7 · no sick days</span>
-            </div>
-            <div class="race-row-time" id="r3-respondro-cost">$0</div>
-          </div>
-          <div class="race-track"><div class="race-fill respondro" data-target="3.2"></div></div>
-        </div>
-      </div>
-      <div class="race-verdict"><span style="color:#00C896;font-weight:700">97% cheaper than hiring</span> <span style="color:#4A5568">· pays for itself in a few days</span></div>
-    </div>
-
-    <div style="text-align:center;margin-top:40px" class="reveal reveal-delay-3">
-      <a href="#pricing" class="btn-primary-lp" style="font-size:15px;padding:14px 28px;text-decoration:none">Start your free trial →</a>
-    </div>
   </div>
 </section>
 
@@ -664,12 +622,6 @@ window.addEventListener('scroll', function() {
       var mins = Math.round(v % 60);
       return hours + 'h ' + mins + 'm';
     });
-    var r3a = document.getElementById('r3-agent-cost');
-    var r3v = document.getElementById('r3-va-cost');
-    var r3r = document.getElementById('r3-respondro-cost');
-    if (r3a) animateValue(r3a, 0, 2500, 1800, function(v) { return '$' + Math.round(v).toLocaleString() + '/mo'; });
-    if (r3v) animateValue(r3v, 0, 800, 1800, function(v) { return '$' + Math.round(v).toLocaleString() + '/mo'; });
-    if (r3r) animateValue(r3r, 0, 79, 1800, function(v) { return '$' + Math.round(v) + '/mo'; });
   }
   var raceObserver = new IntersectionObserver(function(entries) {
     entries.forEach(function(entry) {
