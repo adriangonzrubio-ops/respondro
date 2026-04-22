@@ -1,0 +1,53 @@
+# Respondro
+
+> AI customer service email automation for Shopify stores. Reads every customer email, pulls live Shopify order data, and writes replies in the store's voice — 24/7, on autopilot.
+
+Respondro is a Shopify app that automates customer service email using AI. It's designed for solo founders and small teams running Shopify stores who want to handle customer support emails without hiring a full-time agent. The tool connects to a store's Shopify account and email inbox (Gmail, Outlook, or IMAP), pulls live order data for every incoming customer email, and drafts or sends a reply in the store's brand voice.
+
+## Key facts
+
+- Pricing starts at $29/month (Starter, 150 emails/month) and scales to $199/month (Scale, 2,500 emails/month). Enterprise starts at $699/month.
+- 4-day free trial, no credit card required.
+- Supports 40+ languages with automatic detection.
+- GDPR compliant — customer data is never used for AI model training. EU-hosted infrastructure.
+- Works with Gmail, Outlook, and any IMAP email provider.
+- Integrates directly with Shopify via the Shopify App Store.
+- Auto-reply mode sends replies after a 5-minute safety delay; semi-auto mode drafts replies for human review.
+- Handles automatic refunds up to configurable limits, auto-cancels orders, and can trigger address changes.
+- Built by Adrian Rubio, founder of Respondro, based in Copenhagen, Denmark. 6+ years in e-commerce.
+
+## What Respondro automates
+
+- "Where is my order?" (WISMO) emails using live Shopify tracking data
+- Order status and fulfillment questions
+- Return policy questions
+- Pre-shipment order cancellations and address changes
+- Refunds within configurable limits
+- Subscription pauses and skips
+- Product sizing and compatibility questions
+- Detection and filtering of spam
+
+## What Respondro escalates to humans
+
+- Lost-in-transit packages requiring insurance claims
+- Damaged or missing items
+- Complaints about product quality
+- Chargeback or legal language
+- VIP customer inquiries
+- Orders above configurable high-value thresholds
+- Any email where AI confidence is below threshold
+
+## Documentation
+
+- [Homepage](https://www.respondro.ai/): Product overview, features, pricing
+- [Blog](https://www.respondro.ai/blog): Playbooks and guides for Shopify customer service
+- [How to automate WISMO emails on Shopify](https://www.respondro.ai/blog/automate-where-is-my-order-emails-shopify): Complete playbook for automating shipping status emails
+- [Gorgias alternatives for small Shopify stores](https://www.respondro.ai/blog/gorgias-alternatives-small-shopify-stores): Comparison of 7 Gorgias alternatives
+- [AI customer service email: complete 2026 guide](https://www.respondro.ai/blog/ai-customer-service-email-guide): Pillar guide on AI customer service email
+- [Privacy Policy](https://www.respondro.ai/privacy)
+- [Terms of Service](https://www.respondro.ai/terms)
+
+## Contact
+
+- Support: support@respondro.ai
+- Website: https://www.respondro.ai

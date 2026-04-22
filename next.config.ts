@@ -11,6 +11,8 @@ const nextConfig: NextConfig = {
       { source: '/terms', destination: '/terms.html' },
       { source: '/pricing', destination: '/pricing.html' },
       { source: '/onboarding', destination: '/onboarding.html' },
+      { source: '/blog', destination: '/blog/index.html' },
+      { source: '/blog/:slug', destination: '/blog/:slug.html' },
     ]
   },
 }
