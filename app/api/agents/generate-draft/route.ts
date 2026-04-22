@@ -41,13 +41,35 @@ export async function POST(req: Request) {
       }
     }
 
+    // ─── TONE OF VOICE TEMPLATES ──────────────────────────
+    const TONE_TEMPLATES: Record<string, string> = {
+      professional: "Use a polished, formal tone. Write in complete sentences with proper grammar. Avoid contractions, emojis, and casual language. Be courteous and measured.",
+      friendly: "Use a warm, conversational tone. Contractions like 'I'm' and 'we've' are welcome. Occasional emojis are fine when they fit naturally (maximum 1-2 per email). Sound approachable and human.",
+      warm: "Use an enthusiastic, genuinely caring tone. Show real excitement about helping the customer. Use natural exclamation points where appropriate. Make the customer feel valued.",
+      caring: "Use a calm, empathetic tone. ALWAYS acknowledge the customer's feelings first before jumping to solutions. Use phrases like 'I completely understand' and 'I'm so sorry to hear that.' Be patient and reassuring.",
+      playful: "Use a casual, upbeat tone with personality. Emojis are welcome and encouraged where they fit naturally (2-4 per email). Short, punchy sentences. Write like you're texting a friend — but still professional.",
+      luxury: "Use a refined, confident tone. Keep sentences short and deliberate. Sophisticated vocabulary without pretension. Minimal emojis. Every word should feel chosen on purpose."
+    };
+    // ─────────────────────────────────────────────────────
+
     let rulebook = settings?.rulebook || 'Be helpful, professional and empathetic.';
+    let toneGuidance = TONE_TEMPLATES.friendly; // default
 
     if (storeId) {
-      const { data: agents } = await supabaseAdmin.from('support_agents').select('agent_type, rulebook, is_enabled').eq('store_id', storeId);
+      const { data: agents } = await supabaseAdmin.from('support_agents').select('agent_type, rulebook, is_enabled, tone_preset, custom_tone_description').eq('store_id', storeId);
       if (agents && agents.length > 0) {
         const agentRules = agents.filter(a => a.is_enabled && a.rulebook).map(a => `[${a.agent_type.toUpperCase()} AGENT]:\n${a.rulebook}`).join('\n\n');
         if (agentRules) rulebook += '\n\n' + agentRules;
+
+        // Determine tone (prefer customer_service agent, fallback to any enabled agent)
+        const toneAgent = agents.find(a => a.agent_type === 'customer_service' && a.is_enabled)
+          || agents.find(a => a.is_enabled);
+
+        if (toneAgent?.tone_preset === 'custom' && toneAgent.custom_tone_description) {
+          toneGuidance = toneAgent.custom_tone_description;
+        } else if (toneAgent?.tone_preset && TONE_TEMPLATES[toneAgent.tone_preset]) {
+          toneGuidance = TONE_TEMPLATES[toneAgent.tone_preset];
+        }
       }
       const { data: policies } = await supabaseAdmin.from('store_policies').select('policy_type, policy_content').eq('store_id', storeId);
       if (policies && policies.length > 0) {
@@ -62,6 +84,8 @@ export async function POST(req: Request) {
       messages: [{
         role: 'user',
         content: `You are a support agent for ${storeName}. Write a reply to this customer email.
+
+TONE OF VOICE: ${toneGuidance}
 
 RULEBOOK: ${rulebook}
 

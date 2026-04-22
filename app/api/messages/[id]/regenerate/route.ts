@@ -69,9 +69,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         // Load agent rulebooks for richer context
         let agents: any[] = [];
         if (storeId) {
-            const { data: agentData } = await supabaseAdmin.from('support_agents').select('agent_type, rulebook, is_enabled').eq('store_id', storeId);
+            const { data: agentData } = await supabaseAdmin.from('support_agents').select('agent_type, rulebook, is_enabled, tone_preset, custom_tone_description').eq('store_id', storeId);
             agents = agentData || [];
         }
+
+        // Find tone settings (prefer customer_service agent, fallback to first enabled)
+        const toneAgent = agents.find(a => a.agent_type === 'customer_service' && a.is_enabled)
+            || agents.find(a => a.is_enabled);
 
         const aiDraft = await generateAiDraft({
             category: message.category || 'General Inquiry',
@@ -79,7 +83,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             rulebook: finalRulebook,
             agents: agents,
             shopifyData: shopifyForAI,
-            toneExamples: finalSignature
+            toneExamples: finalSignature,
+            tonePreset: toneAgent?.tone_preset,
+            customToneDescription: toneAgent?.custom_tone_description
         });
 
         await supabaseAdmin.from('messages').update({ ai_draft: aiDraft }).eq('id', id);

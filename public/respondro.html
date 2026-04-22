@@ -180,6 +180,14 @@ body.light [style*="color:#8B96B0"]{color:#6B7280!important}
 body.light [style*="color:#3A4760"]{color:#9CA3AF!important}
 body.light [style*="color:#C8D0E0"]{color:#374151!important}
 body.light [style*="border-color:rgba(255,255,255"]{border-color:#E5E7EB!important}
+/* Tone of Voice textarea — dark mode default */
+.tone-textarea{background:#0F1216;color:#E8EBF2;border:1px solid rgba(255,255,255,0.08)}
+.tone-textarea::placeholder{color:#5A6785}
+.tone-textarea:focus{border-color:rgba(5,150,105,0.5)}
+/* Tone of Voice textarea — light mode */
+body.light .tone-textarea{background:#FFFFFF!important;color:#1A1D26!important;border:1px solid #D1D5DB!important}
+body.light .tone-textarea::placeholder{color:#9CA3AF!important}
+
 /* Light mode: Agent config cards */
 body.light .bg-\[\#16191f\]{background:#FFFFFF!important;border-color:#E5E7EB!important}
 body.light .bg-\[\#0f1115\]{background:#FFFFFF!important}
@@ -1060,7 +1068,86 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
                     </div>
                 </div>
             </div>
+<!-- SECTION 2.5: Tone of Voice -->
+            <div class="bg-[#16191f] border border-white/5 rounded-2xl overflow-hidden">
+                <button onclick="toggleToneSection()" class="w-full flex items-center justify-between p-6 hover:bg-white/5 transition-all">
+                    <div class="flex items-center gap-2">
+                        <span>🎤</span>
+                        <h4 class="text-white font-bold text-sm">Tone of Voice</h4>
+                        <span id="tone-current-badge" class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full">friendly</span>
+                    </div>
+                    <span id="tone-toggle-icon" class="text-gray-500 text-sm transition-transform">▼</span>
+                </button>
 
+                <div id="tone-section-body" class="hidden px-6 pb-6">
+                    <p class="text-gray-500 text-xs mb-4">Choose how your AI agent should sound when replying to customers. Pick a template or write your own.</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
+                        <label class="tone-option flex items-start gap-3 p-3 bg-black/20 border border-white/5 rounded-xl cursor-pointer hover:border-emerald-500/50 transition-all">
+                            <input type="radio" name="tone-preset" value="professional" class="mt-1">
+                            <div>
+                                <div class="text-white text-xs font-bold">Professional & polished</div>
+                                <div class="text-gray-500 text-[10px] mt-0.5">Formal, complete sentences, no contractions or emojis</div>
+                            </div>
+                        </label>
+
+                        <label class="tone-option flex items-start gap-3 p-3 bg-black/20 border border-white/5 rounded-xl cursor-pointer hover:border-emerald-500/50 transition-all">
+                            <input type="radio" name="tone-preset" value="friendly" class="mt-1" checked>
+                            <div>
+                                <div class="text-white text-xs font-bold">Friendly & conversational</div>
+                                <div class="text-gray-500 text-[10px] mt-0.5">Warm, contractions OK, occasional emoji</div>
+                            </div>
+                        </label>
+
+                        <label class="tone-option flex items-start gap-3 p-3 bg-black/20 border border-white/5 rounded-xl cursor-pointer hover:border-emerald-500/50 transition-all">
+                            <input type="radio" name="tone-preset" value="warm" class="mt-1">
+                            <div>
+                                <div class="text-white text-xs font-bold">Warm & enthusiastic</div>
+                                <div class="text-gray-500 text-[10px] mt-0.5">Genuinely caring, upbeat, makes customers feel valued</div>
+                            </div>
+                        </label>
+
+                        <label class="tone-option flex items-start gap-3 p-3 bg-black/20 border border-white/5 rounded-xl cursor-pointer hover:border-emerald-500/50 transition-all">
+                            <input type="radio" name="tone-preset" value="caring" class="mt-1">
+                            <div>
+                                <div class="text-white text-xs font-bold">Calm & caring</div>
+                                <div class="text-gray-500 text-[10px] mt-0.5">Empathetic, acknowledges feelings, patient — great for complaints</div>
+                            </div>
+                        </label>
+
+                        <label class="tone-option flex items-start gap-3 p-3 bg-black/20 border border-white/5 rounded-xl cursor-pointer hover:border-emerald-500/50 transition-all">
+                            <input type="radio" name="tone-preset" value="playful" class="mt-1">
+                            <div>
+                                <div class="text-white text-xs font-bold">Playful</div>
+                                <div class="text-gray-500 text-[10px] mt-0.5">Casual, fun, more emojis — fits younger audiences</div>
+                            </div>
+                        </label>
+
+                        <label class="tone-option flex items-start gap-3 p-3 bg-black/20 border border-white/5 rounded-xl cursor-pointer hover:border-emerald-500/50 transition-all">
+                            <input type="radio" name="tone-preset" value="luxury" class="mt-1">
+                            <div>
+                                <div class="text-white text-xs font-bold">Luxury</div>
+                                <div class="text-gray-500 text-[10px] mt-0.5">Refined, confident, minimal emojis — premium brands</div>
+                            </div>
+                        </label>
+
+                        <label class="tone-option flex items-start gap-3 p-3 bg-black/20 border border-white/5 rounded-xl cursor-pointer hover:border-emerald-500/50 transition-all md:col-span-2">
+                            <input type="radio" name="tone-preset" value="custom" class="mt-1">
+                            <div class="flex-1">
+                                <div class="text-white text-xs font-bold">Custom</div>
+                                <div class="text-gray-500 text-[10px] mt-0.5 mb-2">Write your own tone description</div>
+                                <textarea id="custom-tone-input" class="w-full rounded-lg p-2 text-xs outline-none focus:border-emerald-500 resize-none tone-textarea" rows="2" placeholder="e.g. 'Use UK English. Mention our brand name once per email. Keep replies under 3 sentences.'"></textarea>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="flex justify-end gap-2">
+                        <button onclick="saveTone()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-all">Save Tone</button>
+                    </div>
+
+                    <div id="tone-save-status" class="hidden mt-2 text-xs text-emerald-400"></div>
+                </div>
+            </div>
             <!-- SECTION 3: Chat with Agent -->
             <div class="bg-[#16191f] border border-white/5 rounded-2xl flex flex-col h-[400px] overflow-hidden">
                 <div class="p-4 border-b border-white/5">
@@ -1901,6 +1988,91 @@ function togglePoliciesSection() {
     icon.style.transform = body.classList.contains('hidden') ? '' : 'rotate(180deg)';
 }
 
+// ─── TONE OF VOICE FUNCTIONS ──────────────────────────────
+function toggleToneSection() {
+    const body = document.getElementById('tone-section-body');
+    const icon = document.getElementById('tone-toggle-icon');
+    body.classList.toggle('hidden');
+    icon.style.transform = body.classList.contains('hidden') ? '' : 'rotate(180deg)';
+}
+
+async function loadToneForAgent(agentType) {
+    if (!ST.settings?.store_id) return;
+
+    try {
+        const res = await fetch(`/api/agents/tone?storeId=${ST.settings.store_id}&agentType=${agentType}`);
+        const data = await res.json();
+
+        const preset = data.tonePreset || 'friendly';
+        const custom = data.customToneDescription || '';
+
+        const radio = document.querySelector(`input[name="tone-preset"][value="${preset}"]`);
+        if (radio) radio.checked = true;
+
+        const customInput = document.getElementById('custom-tone-input');
+        if (customInput) customInput.value = custom;
+
+        const badge = document.getElementById('tone-current-badge');
+        if (badge) badge.innerText = preset;
+    } catch (err) {
+        console.error('Failed to load tone:', err);
+    }
+}
+
+async function saveTone() {
+    if (!ST.settings?.store_id) { showToast('Settings still loading, please wait...'); return; }
+
+    const agentType = currentConfigAgent || 'customer_service';
+
+    const selectedRadio = document.querySelector('input[name="tone-preset"]:checked');
+    if (!selectedRadio) {
+        showToast('Please select a tone.');
+        return;
+    }
+
+    const tonePreset = selectedRadio.value;
+    const customToneDescription = document.getElementById('custom-tone-input').value.trim();
+
+    if (tonePreset === 'custom' && !customToneDescription) {
+        showToast('Please write a custom tone description or choose a template.');
+        return;
+    }
+
+    const statusEl = document.getElementById('tone-save-status');
+    statusEl.classList.remove('hidden');
+    statusEl.innerText = 'Saving...';
+    statusEl.className = 'mt-2 text-xs text-gray-400';
+
+    try {
+        const res = await fetch('/api/agents/tone', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                storeId: ST.settings.store_id,
+                agentType,
+                tonePreset,
+                customToneDescription
+            })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            statusEl.innerText = '✓ Tone saved';
+            statusEl.className = 'mt-2 text-xs text-emerald-400';
+            document.getElementById('tone-current-badge').innerText = tonePreset;
+            setTimeout(() => statusEl.classList.add('hidden'), 3000);
+        } else {
+            statusEl.innerText = '❌ ' + (data.error || 'Failed to save');
+            statusEl.className = 'mt-2 text-xs text-red-400';
+        }
+    } catch (err) {
+        statusEl.innerText = '❌ Network error';
+        statusEl.className = 'mt-2 text-xs text-red-400';
+    }
+}
+// ──────────────────────────────────────────────────────────
+
 async function fetchPolicy(policyType) {
     const urlInput = document.getElementById('policy-url-' + policyType);
     const statusEl = document.getElementById('policy-status-' + policyType);
@@ -1979,7 +2151,6 @@ async function configureAgent(type) {
     
     switchView('agent-config');
     loadPoliciesSummary();
-
     // Fetch rules - removing .single() to avoid the 406 error if not found
     const { data, error } = await sb
         .from('support_agents')

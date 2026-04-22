@@ -4,6 +4,22 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
 });
 
+// ─── TONE OF VOICE TEMPLATES ──────────────────────────────
+const TONE_TEMPLATES: Record<string, string> = {
+  professional: "Use a polished, formal tone. Write in complete sentences with proper grammar. Avoid contractions, emojis, and casual language. Be courteous and measured. Use phrases like 'Thank you for reaching out' and 'We appreciate your patience.'",
+  
+  friendly: "Use a warm, conversational tone. Contractions like 'I'm' and 'we've' are welcome. Occasional emojis are fine when they fit naturally (maximum 1-2 per email). Sound approachable and human, not robotic.",
+  
+  warm: "Use an enthusiastic, genuinely caring tone. Show real excitement about helping the customer. Use natural exclamation points where appropriate (not excessively). Make the customer feel valued and important.",
+  
+  caring: "Use a calm, empathetic tone. ALWAYS acknowledge the customer's feelings or situation first before jumping to solutions. Use phrases like 'I completely understand' and 'I'm so sorry to hear that.' Be patient, reassuring, and never rushed.",
+  
+  playful: "Use a casual, upbeat tone with personality. Emojis are welcome and encouraged where they fit naturally (2-4 per email). Short, punchy sentences. Write like you're texting a friend — but still professional. Energetic and fun.",
+  
+  luxury: "Use a refined, confident tone. Keep sentences short and deliberate. Sophisticated vocabulary without pretension. Minimal emojis (rare or none). Every word should feel chosen on purpose. Reflect premium brand values."
+};
+// ──────────────────────────────────────────────────────────
+
 export async function generateAiDraft(params: {
     category: string;
     body: string;
@@ -12,8 +28,10 @@ export async function generateAiDraft(params: {
     shopifyData: any;
     toneExamples?: string;
     logoUrl?: string;
+    tonePreset?: string;          // NEW: tone template key
+    customToneDescription?: string; // NEW: merchant's custom tone (if preset = 'custom')
 }) {
-    const { category, body, rulebook, agents, shopifyData, toneExamples, logoUrl } = params;
+    const { category, body, rulebook, agents, shopifyData, toneExamples, logoUrl, tonePreset, customToneDescription } = params;
 
   // 1. SaaS Resilient Shopify Context
   let shopifyContext = "No specific Shopify order data found for this customer.";
@@ -37,6 +55,17 @@ export async function generateAiDraft(params: {
         `AGENT [${a.agent_type.toUpperCase()}]: ${a.rulebook}`
     ).join('\n');
 
+    // 1.6 Build Tone of Voice Guidance
+    let toneGuidance = "";
+    if (tonePreset === 'custom' && customToneDescription) {
+        toneGuidance = customToneDescription;
+    } else if (tonePreset && TONE_TEMPLATES[tonePreset]) {
+        toneGuidance = TONE_TEMPLATES[tonePreset];
+    } else {
+        // Default to 'friendly' if nothing set
+        toneGuidance = TONE_TEMPLATES.friendly;
+    }
+
     const systemPrompt = `
     You are an elite AI Support Team for a professional Shopify store.
 
@@ -45,6 +74,9 @@ export async function generateAiDraft(params: {
 
     SPECIALIZED AGENT KNOWLEDGE:
     ${agentContext || "No specialized agents active currently."}
+
+    TONE OF VOICE:
+    ${toneGuidance}
 
     CURRENT CASE CONTEXT:
     Category: ${category}
