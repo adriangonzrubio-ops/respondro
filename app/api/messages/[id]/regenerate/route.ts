@@ -89,6 +89,27 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         });
 
         await supabaseAdmin.from('messages').update({ ai_draft: aiDraft }).eq('id', id);
+
+        // Log the AI action (fails silently)
+        if (storeId) {
+            try {
+                const { logAiAction, extractEmail, extractName } = await import('@/lib/ai-action-logger');
+                await logAiAction({
+                    storeId,
+                    messageId: id,
+                    actionType: 'draft_generated',
+                    summary: `Regenerated draft for ${extractName(message.sender) || 'customer'}`,
+                    customerEmail: extractEmail(message.sender),
+                    customerName: extractName(message.sender),
+                    subject: message.subject,
+                    aiModel: 'claude-sonnet-4-6',
+                    details: { trigger: 'manual_regenerate' }
+                });
+            } catch (logErr) {
+                console.error('Logging error (non-blocking):', logErr);
+            }
+        }
+
         return NextResponse.json({ draft: aiDraft });
 
     } catch (error: any) {
