@@ -138,6 +138,26 @@ Output ONLY the email body text. Nothing else.`
 
     await supabaseAdmin.from('messages').update({ ai_draft: draft, status: 'needs_review' }).eq('id', messageId);
 
+    // Log AI action (fails silently, never blocks flow)
+    if (storeId) {
+      try {
+        const { logAiAction, extractEmail, extractName } = await import('@/lib/ai-action-logger');
+        await logAiAction({
+          storeId,
+          messageId,
+          actionType: 'draft_generated',
+          summary: `Drafted reply for ${extractName(message.sender) || 'customer'}`,
+          customerEmail: extractEmail(message.sender),
+          customerName: extractName(message.sender),
+          subject: message.subject,
+          aiModel: 'claude-sonnet-4-6',
+          details: { trigger: 'initial_draft' }
+        });
+      } catch (logErr) {
+        console.error('Logging error (non-blocking):', logErr);
+      }
+    }
+
     return NextResponse.json({ draft });
 
   } catch (error: any) {

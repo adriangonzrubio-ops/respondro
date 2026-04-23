@@ -10,7 +10,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'order_id or order_number required' }, { status: 400 });
     }
 
-    const { data: store } = await supabaseAdmin.from('stores').select('shopify_url, shopify_token').limit(1).single();
+    const { data: store } = await supabaseAdmin.from('stores').select('id, shopify_url, shopify_token').limit(1).single();
     if (!store?.shopify_url || !store?.shopify_token) {
       return NextResponse.json({ error: 'Shopify not connected' }, { status: 400 });
     }
@@ -126,6 +126,42 @@ export async function POST(req: Request) {
       await supabaseAdmin.from('messages').update({
         ai_reasoning: `Refund of ${refundCurrency} ${actualRefundAmount.toFixed(2)} (${refund_percentage ? refund_percentage + '%' : 'custom amount'}) processed via Shopify.`
       }).eq('id', message_id);
+    }
+
+    // Log AI action (fails silently, never blocks flow)
+    if (store?.id) {
+      try {
+        const { logAiAction, extractEmail, extractName } = await import('@/lib/ai-action-logger');
+        let customerEmail: string | undefined;
+        let customerName: string | undefined;
+        let subject: string | undefined;
+        if (message_id) {
+          const { data: msg } = await supabaseAdmin.from('messages').select('sender, subject').eq('id', message_id).single();
+          if (msg) {
+            customerEmail = extractEmail(msg.sender);
+            customerName = extractName(msg.sender);
+            subject = msg.subject || undefined;
+          }
+        }
+        await logAiAction({
+          storeId: store.id,
+          messageId: message_id || undefined,
+          actionType: 'refund_issued',
+          summary: `Issued refund ${refundCurrency} ${actualRefundAmount.toFixed(2)}${order.order_number ? ` for Order #${order.order_number}` : ''}`,
+          customerEmail,
+          customerName,
+          subject,
+          details: {
+            amount: actualRefundAmount,
+            currency: refundCurrency,
+            order_number: order.order_number || null,
+            percentage: refund_percentage || null,
+            reason: reason || null
+          }
+        });
+      } catch (logErr) {
+        console.error('Logging error (non-blocking):', logErr);
+      }
     }
 
     return NextResponse.json({

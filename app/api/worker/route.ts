@@ -437,9 +437,47 @@ async function sendQueuedEmails(): Promise<number> {
                 sent++;
                 const actionTag = msg.ai_action ? ` [${msg.ai_action}]` : '';
                 console.log(`📤 Auto-sent${actionTag}: ${msg.subject} → ${cleanEmail}`);
+
+                // Log AI action (fails silently, never blocks automation)
+                if (msg.store_id) {
+                    try {
+                        const { logAiAction, extractEmail, extractName } = await import('@/lib/ai-action-logger');
+                        await logAiAction({
+                            storeId: msg.store_id,
+                            messageId: msg.id,
+                            actionType: 'auto_reply_sent',
+                            summary: `Auto-replied to ${extractName(msg.sender) || cleanEmail || 'customer'}`,
+                            customerEmail: cleanEmail || extractEmail(msg.sender),
+                            customerName: extractName(msg.sender),
+                            subject: msg.subject,
+                            details: { ai_action: msg.ai_action || null }
+                        });
+                    } catch (logErr) {
+                        console.error('Logging error (non-blocking):', logErr);
+                    }
+                }
             } else {
                 await supabaseAdmin.from('messages').update({ status: 'needs_review' }).eq('id', msg.id);
                 console.warn(`⚠️ Send failed for ${msg.id}, moved to review`);
+
+                // Log escalation (fails silently, never blocks automation)
+                if (msg.store_id) {
+                    try {
+                        const { logAiAction, extractEmail, extractName } = await import('@/lib/ai-action-logger');
+                        await logAiAction({
+                            storeId: msg.store_id,
+                            messageId: msg.id,
+                            actionType: 'escalated_to_human',
+                            summary: `Escalated to human: ${extractName(msg.sender) || cleanEmail || 'customer'}`,
+                            customerEmail: cleanEmail || extractEmail(msg.sender),
+                            customerName: extractName(msg.sender),
+                            subject: msg.subject,
+                            details: { reason: 'auto_send_failed' }
+                        });
+                    } catch (logErr) {
+                        console.error('Logging error (non-blocking):', logErr);
+                    }
+                }
             }
         } catch (err: any) {
             console.error(`❌ Queue send error for ${msg.id}: ${err.message}`);
