@@ -276,6 +276,9 @@ body.light #dash-action-queue [style*="background:rgba(0,200,150"]{background:#F
 body.light #dash-action-queue .text-white{color:#1A1D26!important}
 .ai-activity-summary{color:#E5E7EB}
 body.light .ai-activity-summary{color:#1A1D26}
+body.light #btn-sync-products{background:#059669!important;color:#FFFFFF!important;border:1px solid #047857!important}
+body.light #btn-sync-products:hover{background:#047857!important;color:#FFFFFF!important}
+body.light #btn-sync-products:disabled{background:#6B7280!important;color:#FFFFFF!important;border-color:#4B5563!important}
 
 /* ═══ LIGHT MODE: Refund modal ═══ */
 body.light #refund-modal > div > div{background:#FFFFFF!important;border-color:#E5E7EB!important}
@@ -1009,6 +1012,29 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- LEFT COLUMN: Rulebook Upload + Chat -->
         <div class="lg:col-span-2 flex flex-col gap-6">
+            <!-- SECTION 0: Shopify Products (only shown for Product Agent) -->
+            <div id="section-shopify-products" class="bg-[#16191f] border border-white/5 rounded-2xl p-6" style="display:none">
+                <div class="flex items-start justify-between mb-1 gap-3 flex-wrap">
+                    <div>
+                        <h4 class="text-white font-bold text-sm flex items-center gap-2"><span>🛍️</span> Shopify Products</h4>
+                        <p class="text-gray-500 text-xs mt-1">Your product catalog, synced from Shopify. The agent uses this to recommend products and answer product-specific questions.</p>
+                    </div>
+                    <button onclick="syncShopifyProducts()" id="btn-sync-products" class="px-4 py-2 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white text-xs font-semibold rounded-lg transition-all flex items-center gap-2 shrink-0">
+                        <span id="btn-sync-products-icon">🔄</span>
+                        <span id="btn-sync-products-label">Sync Now</span>
+                    </button>
+                </div>
+                <div class="mt-4 grid grid-cols-2 gap-3">
+                    <div class="bg-black/20 border border-white/5 rounded-lg p-4">
+                        <div class="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Products synced</div>
+                        <div id="shopify-products-count" class="text-2xl font-bold">—</div>
+                    </div>
+                    <div class="bg-black/20 border border-white/5 rounded-lg p-4">
+                        <div class="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Last synced</div>
+                        <div id="shopify-products-last-synced" class="text-sm font-semibold">Never</div>
+                    </div>
+                </div>
+            </div>
 
             <!-- SECTION 1: Rulebook Upload -->
             <div class="bg-[#16191f] border border-white/5 rounded-2xl p-6">
@@ -2162,6 +2188,15 @@ async function configureAgent(type) {
     if (policiesSection) policiesSection.style.display = hideGlobalSections ? 'none' : '';
     if (toneSection) toneSection.style.display = hideGlobalSections ? 'none' : '';
 
+    // Show Shopify Products section only for Product Agent
+    const shopifyProductsSection = document.getElementById('section-shopify-products');
+    if (shopifyProductsSection) {
+        shopifyProductsSection.style.display = (type === 'product') ? '' : 'none';
+    }
+    if (type === 'product' && typeof loadShopifyProductsStatus === 'function') {
+        loadShopifyProductsStatus();
+    }
+
     switchView('agent-config');
     loadPoliciesSummary();
     // Fetch rules - removing .single() to avoid the 406 error if not found
@@ -2180,6 +2215,87 @@ async function configureAgent(type) {
             rulebookArea.value = "Inheriting primary store rules. Talk to me to add specific rules for " + type + ".";
         }
     }
+}
+
+// ─── SHOPIFY PRODUCT SYNC ───────────────────────────
+async function syncShopifyProducts() {
+    const btn = document.getElementById('btn-sync-products');
+    const icon = document.getElementById('btn-sync-products-icon');
+    const label = document.getElementById('btn-sync-products-label');
+    if (!btn) return;
+
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+    btn.style.cursor = 'wait';
+    if (icon) icon.textContent = '⏳';
+    if (label) label.textContent = 'Syncing...';
+
+    try {
+        const storeId = ST.settings && ST.settings.store_id;
+        const res = await fetch('/api/shopify/sync-products', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(storeId ? { storeId: storeId } : {})
+        });
+        const json = await res.json();
+
+        if (json.success) {
+            if (typeof showToast === 'function') {
+                showToast('Synced ' + json.synced + ' product' + (json.synced === 1 ? '' : 's'));
+            }
+            await loadShopifyProductsStatus();
+        } else {
+            if (typeof showToast === 'function') {
+                showToast('Sync failed: ' + (json.error || 'Unknown error'), 'error');
+            }
+        }
+    } catch (err) {
+        console.error('Sync error:', err);
+        if (typeof showToast === 'function') {
+            showToast('Sync failed. Please try again.', 'error');
+        }
+    } finally {
+        btn.disabled = false;
+        btn.style.opacity = '';
+        btn.style.cursor = '';
+        if (icon) icon.textContent = '🔄';
+        if (label) label.textContent = 'Sync Now';
+    }
+}
+
+async function loadShopifyProductsStatus() {
+    const countEl = document.getElementById('shopify-products-count');
+    const timeEl = document.getElementById('shopify-products-last-synced');
+    if (!countEl || !timeEl) return;
+
+    try {
+        const storeId = ST.settings && ST.settings.store_id;
+        const url = '/api/shopify/sync-products' + (storeId ? '?storeId=' + encodeURIComponent(storeId) : '');
+        const res = await fetch(url);
+        const json = await res.json();
+        countEl.textContent = (json.count !== undefined && json.count !== null) ? json.count : '—';
+        timeEl.textContent = json.lastSyncedAt ? formatTimeAgo(json.lastSyncedAt) : 'Never';
+    } catch (err) {
+        console.error('Status load error:', err);
+        countEl.textContent = '—';
+        timeEl.textContent = 'Unknown';
+    }
+}
+
+function formatTimeAgo(iso) {
+    if (!iso) return 'Never';
+    const then = new Date(iso).getTime();
+    if (isNaN(then)) return 'Never';
+    const diffSec = Math.floor((Date.now() - then) / 1000);
+    if (diffSec < 60) return 'Just now';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return diffMin + 'm ago';
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return diffHr + 'h ago';
+    const diffDay = Math.floor(diffHr / 24);
+    if (diffDay < 30) return diffDay + 'd ago';
+    const diffMo = Math.floor(diffDay / 30);
+    return diffMo + 'mo ago';
 }
 
 // Fixes the "manualSaveRules is not defined" error
