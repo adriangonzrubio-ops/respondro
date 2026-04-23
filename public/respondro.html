@@ -1032,7 +1032,7 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
             </div>
 
             <!-- SECTION 2: Store Policies (Collapsible) -->
-            <div class="bg-[#16191f] border border-white/5 rounded-2xl overflow-hidden">
+            <div id="section-store-policies" class="bg-[#16191f] border border-white/5 rounded-2xl overflow-hidden">
                 <button onclick="togglePoliciesSection()" class="w-full flex items-center justify-between p-6 hover:bg-white/5 transition-all">
                     <div class="flex items-center gap-2">
                         <span>📋</span>
@@ -1073,8 +1073,8 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
                     </div>
                 </div>
             </div>
-<!-- SECTION 2.5: Tone of Voice -->
-            <div class="bg-[#16191f] border border-white/5 rounded-2xl overflow-hidden">
+            <!-- SECTION 2.5: Tone of Voice -->
+            <div id="section-tone-of-voice" class="bg-[#16191f] border border-white/5 rounded-2xl overflow-hidden">
                 <button onclick="toggleToneSection()" class="w-full flex items-center justify-between p-6 hover:bg-white/5 transition-all">
                     <div class="flex items-center gap-2">
                         <span>🎤</span>
@@ -2153,7 +2153,15 @@ async function configureAgent(type) {
     
     document.getElementById('config-agent-name').innerText = type.replace('_', ' ').toUpperCase() + " Agent";
     document.getElementById('chat-agent-type').innerText = type.replace('_', ' ');
-    
+
+    // Hide Store Policies and Tone of Voice for Product Agent
+    // (they're configured globally via the Customer Service Agent)
+    const policiesSection = document.getElementById('section-store-policies');
+    const toneSection = document.getElementById('section-tone-of-voice');
+    const hideGlobalSections = (type === 'product');
+    if (policiesSection) policiesSection.style.display = hideGlobalSections ? 'none' : '';
+    if (toneSection) toneSection.style.display = hideGlobalSections ? 'none' : '';
+
     switchView('agent-config');
     loadPoliciesSummary();
     // Fetch rules - removing .single() to avoid the 406 error if not found
