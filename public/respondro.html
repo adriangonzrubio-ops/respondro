@@ -274,6 +274,8 @@ body.light #view-dashboard .text-2xl{color:#1A1D26!important}
 body.light #dash-action-queue [style*="background:rgba(240,165,0"]{background:#FFFBEB!important;border-color:#FDE68A!important}
 body.light #dash-action-queue [style*="background:rgba(0,200,150"]{background:#F0FDF4!important;border-color:#BBF7D0!important}
 body.light #dash-action-queue .text-white{color:#1A1D26!important}
+.ai-activity-summary{color:#E5E7EB}
+body.light .ai-activity-summary{color:#1A1D26}
 
 /* ═══ LIGHT MODE: Refund modal ═══ */
 body.light #refund-modal > div > div{background:#FFFFFF!important;border-color:#E5E7EB!important}
@@ -789,6 +791,9 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
   <div id="dash-time-filter" class="flex justify-end mb-3"></div>
   <div id="dash-action-queue" class="space-y-3">
     <div class="text-xs text-center py-6" style="color:#5A6785">Loading action queue...</div>
+  </div>
+  <div id="dash-ai-activity" class="mt-6">
+    <div class="text-xs text-center py-6" style="color:#5A6785">Loading AI activity...</div>
   </div>
   <div id="dash-recent" class="hidden"></div>
 </div>
@@ -5404,8 +5409,149 @@ async function loadDashboardView() {
       + '<div style="max-height:500px;overflow-y:auto">' + resolvedHTML + '</div>'
       + '</div>'
       + '</div></div>';
+
+    // Refresh AI Activity feed alongside the action queue
+    if (typeof loadAiActivity === 'function') {
+      loadAiActivity(window.__aiActivityRange || '7d');
+    }
   }
   }
+
+// ─── AI ACTIVITY FEED ──────────────────────────────────
+async function loadAiActivity(range) {
+  const container = document.getElementById('dash-ai-activity');
+  if (!container) return;
+
+  const storeId = ST.settings && ST.settings.store_id;
+  if (!storeId) {
+    container.innerHTML = '<div class="settings-card text-xs text-center py-6" style="margin:0;color:#5A6785">Connect a store to see AI activity</div>';
+    return;
+  }
+
+  const activeRange = range || window.__aiActivityRange || '7d';
+  window.__aiActivityRange = activeRange;
+
+  const ranges = [
+    { key: 'today', label: 'Today' },
+    { key: '7d', label: 'Last 7 days' },
+    { key: 'month', label: 'This month' }
+  ];
+  const filterHtml = ranges.map(function(r) {
+    const isActive = r.key === activeRange;
+    return '<button onclick="loadAiActivity(\'' + r.key + '\')" class="text-[10px] px-3 py-1.5 rounded-full font-600 transition-all" style="background:' + (isActive ? 'rgba(0,200,150,0.15)' : 'rgba(255,255,255,0.03)') + ';color:' + (isActive ? '#00C896' : '#8B96B0') + ';border:1px solid ' + (isActive ? 'rgba(0,200,150,0.3)' : 'rgba(255,255,255,0.08)') + '">' + r.label + '</button>';
+  }).join('');
+
+  // Loading state
+  container.innerHTML = ''
+    + '<div class="settings-card" style="margin:0">'
+    + '<div class="flex items-center justify-between mb-4 flex-wrap gap-2">'
+    + '<h3 class="font-display font-600 text-sm">🤖 AI Activity</h3>'
+    + '<div class="flex gap-2">' + filterHtml + '</div>'
+    + '</div>'
+    + '<div class="text-xs text-center py-6" style="color:#5A6785">Loading...</div>'
+    + '</div>';
+
+  try {
+    const res = await fetch('/api/ai-actions?storeId=' + encodeURIComponent(storeId) + '&range=' + activeRange + '&limit=100');
+    const json = await res.json();
+    const actions = json.actions || [];
+
+    const iconMap = {
+      draft_generated: '🤖',
+      auto_reply_sent: '✉️',
+      refund_issued: '💰',
+      order_cancelled: '🚫',
+      address_changed: '📍',
+      escalated_to_human: '⚠️'
+    };
+    const colorMap = {
+      draft_generated: '#8B96B0',
+      auto_reply_sent: '#00C896',
+      refund_issued: '#F0A500',
+      order_cancelled: '#F87171',
+      address_changed: '#60A5FA',
+      escalated_to_human: '#F0A500'
+    };
+
+    const itemsHtml = actions.length === 0
+      ? '<div class="text-xs text-center py-8" style="color:#5A6785">No AI activity in this period</div>'
+      : actions.map(function(a) {
+        const dt = new Date(a.created_at);
+        const timeStr = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        const dateStr = dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        const icon = iconMap[a.action_type] || '•';
+        const color = colorMap[a.action_type] || '#8B96B0';
+        const labelText = String(a.action_type || '').replace(/_/g, ' ');
+        const subjectLine = a.subject ? ' · <span style="color:#5A6785">' + aiActivityEscapeHtml(a.subject) + '</span>' : '';
+        const viewBtn = a.message_id
+          ? '<button onclick="aiActivityOpenTicket(\'' + a.message_id + '\')" class="text-[10px] px-3 py-1 rounded-lg font-600 flex-shrink-0" style="background:rgba(0,200,150,0.08);color:#00C896;border:1px solid rgba(0,200,150,0.15)">View Ticket →</button>'
+          : '';
+        return '<div class="flex items-start gap-3 py-3 border-b" style="border-color:rgba(255,255,255,0.05)">'
+          + '<span style="font-size:18px;flex-shrink:0;line-height:1.2">' + icon + '</span>'
+          + '<div class="flex-1 min-w-0">'
+          + '<div class="flex items-center gap-2 mb-1 flex-wrap">'
+          + '<span class="text-[10px] font-mono" style="color:#5A6785">' + timeStr + ' · ' + dateStr + '</span>'
+          + '<span class="text-[9px] font-mono px-1.5 py-0.5 rounded" style="background:rgba(255,255,255,0.03);color:' + color + '">' + labelText + '</span>'
+          + '</div>'
+          + '<div class="text-xs ai-activity-summary">' + aiActivityEscapeHtml(a.summary || '') + subjectLine + '</div>'
+          + '</div>'
+          + viewBtn
+          + '</div>';
+      }).join('');
+
+    container.innerHTML = ''
+      + '<div class="settings-card" style="margin:0">'
+      + '<div class="flex items-center justify-between mb-4 flex-wrap gap-2">'
+      + '<div><h3 class="font-display font-600 text-sm">🤖 AI Activity</h3>'
+      + '<p class="text-[10px] mt-0.5" style="color:#5A6785">' + actions.length + ' action' + (actions.length === 1 ? '' : 's') + '</p></div>'
+      + '<div class="flex gap-2">' + filterHtml + '</div>'
+      + '</div>'
+      + '<div style="max-height:500px;overflow-y:auto">' + itemsHtml + '</div>'
+      + '</div>';
+  } catch (err) {
+    console.error('AI Activity load error:', err);
+    container.innerHTML = ''
+      + '<div class="settings-card" style="margin:0">'
+      + '<div class="flex items-center justify-between mb-4 flex-wrap gap-2">'
+      + '<h3 class="font-display font-600 text-sm">🤖 AI Activity</h3>'
+      + '<div class="flex gap-2">' + filterHtml + '</div>'
+      + '</div>'
+      + '<div class="text-xs text-center py-6" style="color:#F87171">Failed to load. Refresh and try again.</div>'
+      + '</div>';
+  }
+}
+
+// HTML escape helper for AI activity feed (namespaced to avoid collisions)
+function aiActivityEscapeHtml(str) {
+  if (str == null) return '';
+  return String(str).replace(/[&<>"']/g, function(c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+// Jump to a ticket in the Review Board from the activity feed
+function aiActivityOpenTicket(msgId) {
+  try {
+    if (typeof switchView === 'function') switchView('review-board');
+    setTimeout(function() {
+      if (typeof rbOpenTicket === 'function') rbOpenTicket(msgId);
+    }, 200);
+  } catch (e) {
+    console.error('Failed to open ticket:', e);
+  }
+}
+
+// Also refresh AI activity when user clicks the Dashboard nav link
+document.addEventListener('DOMContentLoaded', function() {
+  const dashLink = document.getElementById('link-dashboard');
+  if (dashLink) {
+    dashLink.addEventListener('click', function() {
+      setTimeout(function() {
+        if (typeof loadAiActivity === 'function') loadAiActivity();
+      }, 300);
+    });
+  }
+});
 
 async function showActionSummary(msgId) {
   const { data: msg } = await sb.from('messages').select('subject, sender, body_text, ai_reasoning, ai_draft, category, priority, shopify_data, received_at').eq('id', msgId).single();
