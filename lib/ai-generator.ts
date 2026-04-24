@@ -30,8 +30,10 @@ export async function generateAiDraft(params: {
     logoUrl?: string;
     tonePreset?: string;          // NEW: tone template key
     customToneDescription?: string; // NEW: merchant's custom tone (if preset = 'custom')
+    storeId?: string;             // NEW: needed for Product Agent lookup
+    subject?: string;             // NEW: used as additional product search context
 }) {
-    const { category, body, rulebook, agents, shopifyData, toneExamples, logoUrl, tonePreset, customToneDescription } = params;
+    const { category, body, rulebook, agents, shopifyData, toneExamples, logoUrl, tonePreset, customToneDescription, storeId, subject } = params;
 
   // 1. SaaS Resilient Shopify Context
   let shopifyContext = "No specific Shopify order data found for this customer.";
@@ -66,6 +68,35 @@ export async function generateAiDraft(params: {
         toneGuidance = TONE_TEMPLATES.friendly;
     }
 
+    // 1.7 PRODUCT KNOWLEDGE (Product Agent)
+    // Only runs when Product Agent is enabled. Fails silently — never blocks drafting.
+    let productSection = '';
+    const productAgentActive = !!activeAgents.find(a => a.agent_type === 'product' && a.is_enabled);
+    if (storeId && productAgentActive) {
+        try {
+            const { searchProducts, formatProductsForPrompt } = await import('./product-search');
+            const searchQuery = `${subject || ''} ${body || ''}`.trim();
+            const matches = await searchProducts(storeId, searchQuery, 5);
+            if (matches.length > 0) {
+                const productContext = formatProductsForPrompt(matches);
+                productSection = `
+
+    RELEVANT PRODUCTS FROM YOUR STORE (from Product Agent):
+    ${productContext}
+
+    PRODUCT RECOMMENDATION RULES:
+    - If the customer is asking about products, recommend from the list above — not generic products.
+    - Mention stock availability and price naturally when relevant.
+    - Share the product URL if it helps the customer find it.
+    - If nothing in the list fits their need, say so honestly — don't push irrelevant products.
+    - Keep recommendations concise — 1–3 products max per reply.`;
+                console.log(`🛍️ Product Agent: injected ${matches.length} product(s) via ai-generator`);
+            }
+        } catch (prodErr: any) {
+            console.error('Product context lookup failed (non-blocking):', prodErr?.message || prodErr);
+        }
+    }
+
     const systemPrompt = `
     You are an elite AI Support Team for a professional Shopify store.
 
@@ -80,7 +111,7 @@ export async function generateAiDraft(params: {
 
     CURRENT CASE CONTEXT:
     Category: ${category}
-    ${shopifyContext}
+    ${shopifyContext}${productSection}
 
     INSTRUCTIONS:
     1. Determine which agent knowledge (Shipping, Product, or General) is most relevant.

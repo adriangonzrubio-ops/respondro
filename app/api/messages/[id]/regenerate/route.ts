@@ -85,7 +85,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             shopifyData: shopifyForAI,
             toneExamples: finalSignature,
             tonePreset: toneAgent?.tone_preset,
-            customToneDescription: toneAgent?.custom_tone_description
+            customToneDescription: toneAgent?.custom_tone_description,
+            storeId: storeId,
+            subject: message.subject
         });
 
         await supabaseAdmin.from('messages').update({ ai_draft: aiDraft }).eq('id', id);
