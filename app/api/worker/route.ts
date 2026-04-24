@@ -244,7 +244,8 @@ async function fetchAndProcess(conn: any) {
             const triage = await classifyAndDraft(
                 email.subject, email.body, fullRulebook,
                 decision.storeName, shopifyData, decision.signature,
-                previousCategory, previousStatus
+                previousCategory, previousStatus,
+                conn.store_id
             );
 
             // ═══ Apply plan gating on top of AI's decision ═══

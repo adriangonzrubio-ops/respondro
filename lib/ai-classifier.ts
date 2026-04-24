@@ -27,7 +27,8 @@ export async function classifyAndDraft(
   shopifyData: any,
   signature?: string,
   previousCategory?: string | null,
-  previousStatus?: string | null
+  previousStatus?: string | null,
+  storeId?: string | null
 ): Promise<ClassificationResult> {
     try {
         let escalationContext = '';
@@ -37,6 +38,48 @@ PREVIOUS TICKET: Category was "${previousCategory}" (status: ${previousStatus}).
         }
 
         const hasShopifyData = shopifyData && JSON.stringify(shopifyData).length > 20;
+
+        // ─── PRODUCT KNOWLEDGE (Product Agent) ───────────────────
+        // Only runs when Product Agent is enabled for this store.
+        // Triple-wrapped: any failure is silently swallowed, prompt is unchanged.
+        let productSection = '';
+        if (storeId) {
+            try {
+                const { supabaseAdmin } = await import('./supabase');
+                const { data: productAgent } = await supabaseAdmin
+                    .from('support_agents')
+                    .select('is_enabled')
+                    .eq('store_id', storeId)
+                    .eq('agent_type', 'product')
+                    .maybeSingle();
+
+                if (productAgent?.is_enabled) {
+                    try {
+                        const { searchProducts, formatProductsForPrompt } = await import('./product-search');
+                        const searchQuery = `${subject || ''} ${body || ''}`.trim();
+                        const matches = await searchProducts(storeId, searchQuery, 5);
+                        if (matches.length > 0) {
+                            productSection = `
+
+RELEVANT PRODUCTS FROM YOUR STORE (from Product Agent):
+${formatProductsForPrompt(matches)}
+
+PRODUCT RECOMMENDATION RULES:
+- If the customer is asking about products, recommend from the list above — not generic products.
+- Mention stock availability and price naturally when relevant.
+- Share the product URL if it helps the customer find it.
+- If nothing in the list fits their need, say so honestly — don't push irrelevant products.
+- Keep recommendations concise — 1–3 products max per reply.`;
+                            console.log(`🛍️ Product Agent: injected ${matches.length} product(s) into classifier for ${storeName}`);
+                        }
+                    } catch (searchErr: any) {
+                        console.error('Product search failed (non-blocking):', searchErr?.message || searchErr);
+                    }
+                }
+            } catch (agentCheckErr: any) {
+                console.error('Product agent check failed (non-blocking):', agentCheckErr?.message || agentCheckErr);
+            }
+        }
 
         const response = await anthropic.messages.create({
             model: 'claude-sonnet-4-6',
@@ -52,7 +95,7 @@ EMAIL SUBJECT: ${subject}
 EMAIL BODY: ${body}
 
 SHOPIFY ORDER DATA: ${JSON.stringify(shopifyData)}
-${escalationContext}
+${escalationContext}${productSection}
 
 ═══ YOUR TASKS ═══
 
