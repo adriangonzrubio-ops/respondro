@@ -78,6 +78,36 @@ export async function POST(req: Request) {
       }
     }
 
+    // ─── PRODUCT KNOWLEDGE (Product Agent) ───────────────────
+    // Only runs when Product Agent is enabled. Fails silently — never blocks drafting.
+    let productContext = '';
+    if (storeId) {
+      try {
+        const { data: productAgent } = await supabaseAdmin
+          .from('support_agents')
+          .select('is_enabled')
+          .eq('store_id', storeId)
+          .eq('agent_type', 'product')
+          .maybeSingle();
+
+        if (productAgent?.is_enabled) {
+          const { searchProducts, formatProductsForPrompt } = await import('@/lib/product-search');
+          const searchQuery = `${message.subject || ''} ${message.body_text || ''}`.trim();
+          const matches = await searchProducts(storeId, searchQuery, 5);
+          if (matches.length > 0) {
+            productContext = formatProductsForPrompt(matches);
+            console.log(`🛍️ Product Agent: injected ${matches.length} product(s) into draft for message ${messageId}`);
+          }
+        }
+      } catch (prodErr: any) {
+        console.error('Product context lookup failed (non-blocking):', prodErr?.message || prodErr);
+      }
+    }
+
+    const productSection = productContext
+      ? `\nRELEVANT PRODUCTS FROM YOUR STORE (from Product Agent):\n${productContext}\n\nPRODUCT RECOMMENDATION RULES:\n- If the customer is asking about products, recommend from the list above — not generic products.\n- Mention stock availability and price naturally when relevant.\n- Share the product URL if it helps the customer find it.\n- If nothing in the list fits their need, say so honestly — don't push irrelevant products.\n- Keep recommendations concise — 1–3 products max per reply.\n`
+      : '';
+
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1200,
@@ -91,7 +121,7 @@ RULEBOOK: ${rulebook}
 
 CUSTOMER EMAIL: ${message.body_text}
 
-SHOPIFY DATA: ${JSON.stringify(message.shopify_data || {})}
+SHOPIFY DATA: ${JSON.stringify(message.shopify_data || {})}${productSection}
 
 CRITICAL RULES:
 1. Output ONLY the email text you would send to the customer
