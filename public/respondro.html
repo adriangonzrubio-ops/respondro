@@ -863,6 +863,10 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
               <h3 id="rb-ticket-subject" class="font-display font-600 text-sm text-white truncate"></h3>
               <p id="rb-ticket-from" class="text-xs text-gray-500 mt-0.5"></p>
             </div>
+            <button onclick="rbDownloadPdf()" class="text-gray-600 hover:text-white transition text-sm px-2 py-1 rounded mr-2 inline-flex items-center gap-1.5" style="background:transparent" title="Download conversation as PDF (for chargeback disputes, record-keeping)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export PDF
+            </button>
             <button onclick="rbCloseTicket()" class="text-gray-600 hover:text-white transition text-sm px-2 py-1 rounded" style="background:rgba(255,255,255,0.04)">← Close</button>
           </div>
         </div>
@@ -5264,6 +5268,16 @@ async function rbMarkSpam() {
   }
   rbAllMessages = rbAllMessages.filter(function(m) { return m.id !== rbActiveMessage.id; });
   renderRbTicketList(rbAllMessages); rbCloseTicket(); updateRbPendingCount(); showToast('Marked as spam');
+}
+
+// Export current ticket's conversation as a PDF (for chargeback disputes, record-keeping, etc.)
+// Full implementation added in Step 2.
+function rbDownloadPdf() {
+    if (typeof showToast === 'function') {
+        showToast('PDF export coming in next update — button is working!');
+    } else {
+        alert('PDF export coming in next update — button is working!');
+    }
 }
 
 function rbCloseTicket() {
