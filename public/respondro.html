@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>tailwind.config={theme:{extend:{colors:{navy:'#080D1A',surface:'#0F1623',surface2:'#151E30',accent:'#00C896',warm:'#F0A500',muted:'#5A6785'},fontFamily:{display:['Inter','sans-serif'],body:['Inter','sans-serif'],mono:['JetBrains Mono','monospace']}}}}</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -5271,12 +5272,220 @@ async function rbMarkSpam() {
 }
 
 // Export current ticket's conversation as a PDF (for chargeback disputes, record-keeping, etc.)
-// Full implementation added in Step 2.
-function rbDownloadPdf() {
-    if (typeof showToast === 'function') {
-        showToast('PDF export coming in next update — button is working!');
-    } else {
-        alert('PDF export coming in next update — button is working!');
+async function rbDownloadPdf() {
+    if (!rbActiveMessage) {
+        if (typeof showToast === 'function') showToast('No ticket selected');
+        return;
+    }
+
+    // Check library loaded
+    if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
+        if (typeof showToast === 'function') showToast('PDF library still loading — please try again in a moment');
+        return;
+    }
+
+    try {
+        if (typeof showToast === 'function') showToast('Generating PDF…');
+
+        // Fetch conversation history (same logic as rbOpenTicket)
+        const msg = rbActiveMessage;
+        const senderEmail = msg.sender && msg.sender.includes('<') ? msg.sender.split('<')[1].replace('>','').trim() : msg.sender;
+        const emailUser = senderEmail ? senderEmail.split('@')[0] : 'noreply';
+        const { data: history } = await sb.from('messages')
+            .select('id, subject, body_text, sender, received_at, sent_reply, sent_at, ai_reasoning, status')
+            .ilike('sender', '%' + emailUser + '%')
+            .order('received_at', { ascending: true })
+            .limit(20);
+
+        const thread = history && history.length > 0 ? history : [msg];
+
+        // ─── BUILD PDF ─────────────────────────────────────
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 48;
+        const contentWidth = pageWidth - (margin * 2);
+        let y = margin;
+
+        // Helper: add a new page if we don't have room for `neededHeight`
+        function ensureRoom(neededHeight) {
+            if (y + neededHeight > pageHeight - margin) {
+                doc.addPage();
+                y = margin;
+            }
+        }
+
+        // Helper: draw wrapped text
+        function drawText(text, opts) {
+            opts = opts || {};
+            const fontSize = opts.fontSize || 10;
+            const color = opts.color || [30, 30, 30];
+            const fontStyle = opts.fontStyle || 'normal';
+            const lineHeight = fontSize * 1.4;
+            doc.setFontSize(fontSize);
+            doc.setFont('helvetica', fontStyle);
+            doc.setTextColor(color[0], color[1], color[2]);
+            const lines = doc.splitTextToSize(String(text || ''), contentWidth);
+            lines.forEach(function(line) {
+                ensureRoom(lineHeight);
+                doc.text(line, margin, y);
+                y += lineHeight;
+            });
+        }
+
+        function drawDivider() {
+            ensureRoom(12);
+            doc.setDrawColor(220, 220, 220);
+            doc.setLineWidth(0.5);
+            doc.line(margin, y, pageWidth - margin, y);
+            y += 12;
+        }
+
+        function formatDateTime(d) {
+            if (!d) return '—';
+            try {
+                return new Date(d).toLocaleString('en-GB', {
+                    day: 'numeric', month: 'short', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                });
+            } catch (e) { return String(d); }
+        }
+
+        // ─── HEADER ─────────────────────────────────────────
+        const storeName = (ST.settings && ST.settings.store_name) || 'Store';
+        drawText(storeName, { fontSize: 18, fontStyle: 'bold', color: [20, 20, 20] });
+        drawText('Customer Conversation Record', { fontSize: 11, color: [100, 100, 100] });
+        y += 6;
+        drawDivider();
+
+        // ─── TICKET INFO ────────────────────────────────────
+        drawText('TICKET DETAILS', { fontSize: 9, fontStyle: 'bold', color: [120, 120, 120] });
+        y += 2;
+        const customerName = (msg.sender || '').split('<')[0].replace(/"/g,'').trim() || 'Customer';
+        const customerEmail = senderEmail || '—';
+        drawText('Subject: ' + (msg.subject || '—'), { fontSize: 11, fontStyle: 'bold' });
+        drawText('Customer: ' + customerName + ' <' + customerEmail + '>', { fontSize: 10 });
+        drawText('Status: ' + (msg.status || '—') + '   ·   Category: ' + (msg.category || '—'), { fontSize: 10, color: [90, 90, 90] });
+        drawText('Opened: ' + formatDateTime(msg.received_at || msg.inserted_at), { fontSize: 10, color: [90, 90, 90] });
+        y += 8;
+
+        // ─── SHOPIFY ORDER INFO ─────────────────────────────
+        let shopifyOrders = [];
+        if (msg.shopify_data) {
+            try {
+                const sd = typeof msg.shopify_data === 'string' ? JSON.parse(msg.shopify_data) : msg.shopify_data;
+                shopifyOrders = Array.isArray(sd) ? sd : [sd];
+            } catch (e) { /* ignore */ }
+        }
+
+        if (shopifyOrders.length > 0 && shopifyOrders[0] && (shopifyOrders[0].order_number || shopifyOrders[0].name)) {
+            drawDivider();
+            drawText('SHOPIFY ORDER', { fontSize: 9, fontStyle: 'bold', color: [120, 120, 120] });
+            y += 2;
+            shopifyOrders.slice(0, 3).forEach(function(o) {
+                const orderNum = o.order_number || o.name || '—';
+                const orderTotal = o.total_price ? (o.currency || '') + ' ' + o.total_price : '—';
+                const orderStatus = o.financial_status || o.status || '—';
+                const fulfillmentStatus = o.fulfillment_status || 'unfulfilled';
+                const createdAt = o.created_at ? formatDateTime(o.created_at) : '—';
+                drawText('Order #' + orderNum + '   ·   ' + orderTotal + '   ·   Payment: ' + orderStatus + '   ·   Fulfillment: ' + fulfillmentStatus, { fontSize: 10 });
+                drawText('Placed: ' + createdAt, { fontSize: 9, color: [120, 120, 120] });
+                if (o.line_items && o.line_items.length > 0) {
+                    const items = o.line_items.map(function(li) { return (li.quantity || 1) + '× ' + (li.title || 'item'); }).join(', ');
+                    drawText('Items: ' + items, { fontSize: 9, color: [120, 120, 120] });
+                }
+                y += 4;
+            });
+        }
+
+        drawDivider();
+
+        // ─── CONVERSATION ───────────────────────────────────
+        drawText('CONVERSATION', { fontSize: 9, fontStyle: 'bold', color: [120, 120, 120] });
+        y += 6;
+
+        // Build timeline: each `row` in thread can contribute a customer message + an AI reply
+        const timeline = [];
+        thread.forEach(function(m) {
+            if (m.body_text) {
+                timeline.push({
+                    time: new Date(m.received_at || m.inserted_at || 0).getTime(),
+                    type: 'customer',
+                    author: customerName,
+                    date: m.received_at || m.inserted_at,
+                    body: m.body_text
+                });
+            }
+            if (m.sent_reply && m.sent_at) {
+                timeline.push({
+                    time: new Date(m.sent_at).getTime(),
+                    type: 'agent',
+                    author: storeName + ' (AI-assisted)',
+                    date: m.sent_at,
+                    body: m.sent_reply
+                });
+            }
+        });
+        timeline.sort(function(a, b) { return a.time - b.time; });
+
+        if (timeline.length === 0) {
+            drawText('(No conversation content yet)', { fontSize: 10, color: [150, 150, 150] });
+        } else {
+            timeline.forEach(function(item, idx) {
+                ensureRoom(40);
+                // Header row: author + timestamp
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'bold');
+                const authorColor = item.type === 'customer' ? [30, 30, 30] : [0, 120, 90];
+                doc.setTextColor(authorColor[0], authorColor[1], authorColor[2]);
+                doc.text(item.author, margin, y);
+
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(140, 140, 140);
+                doc.setFontSize(9);
+                const dateStr = formatDateTime(item.date);
+                doc.text(dateStr, pageWidth - margin, y, { align: 'right' });
+                y += 14;
+
+                // Body
+                drawText(item.body, { fontSize: 10, color: [50, 50, 50] });
+                y += 10;
+
+                // Soft separator between messages (not after last one)
+                if (idx < timeline.length - 1) {
+                    ensureRoom(12);
+                    doc.setDrawColor(240, 240, 240);
+                    doc.setLineWidth(0.3);
+                    doc.line(margin, y, pageWidth - margin, y);
+                    y += 10;
+                }
+            });
+        }
+
+        // ─── FOOTER (on every page) ─────────────────────────
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(150, 150, 150);
+            const footerText = 'Generated ' + formatDateTime(new Date()) + ' by Respondro · For chargeback disputes and record-keeping · Page ' + i + ' of ' + totalPages;
+            doc.text(footerText, pageWidth / 2, pageHeight - 24, { align: 'center' });
+        }
+
+        // ─── FILENAME + DOWNLOAD ────────────────────────────
+        const safeSubject = (msg.subject || 'ticket').replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-').substring(0, 40);
+        const safeCustomer = customerName.replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-').substring(0, 30).toLowerCase();
+        const today = new Date().toISOString().split('T')[0];
+        const filename = 'Respondro_' + today + '_' + safeSubject + '_' + safeCustomer + '.pdf';
+
+        doc.save(filename);
+        if (typeof showToast === 'function') showToast('PDF downloaded: ' + filename);
+
+    } catch (err) {
+        console.error('PDF export error:', err);
+        if (typeof showToast === 'function') showToast('PDF export failed — check console');
     }
 }
 
