@@ -257,6 +257,10 @@ body.light #rb-refund-btn{background:#FEF2F2!important;color:#DC2626!important;b
 body.light #rb-shopify-sidebar{background:#FAFBFC!important;border-color:#E5E7EB!important}
 body.light #rb-shopify-sidebar .rounded-xl{background:#FFFFFF!important;border-color:#E5E7EB!important}
 body.light #rb-shopify-sidebar .text-white{color:#1A1D26!important}
+body.light #rb-shopify-sidebar textarea{background:#FFFFFF!important;border:1px solid #D1D5DB!important;color:#1A1D26!important}
+body.light #rb-shopify-sidebar textarea::placeholder{color:#9CA3AF!important}
+body.light #rb-shopify-sidebar input[type="text"]{background:#FFFFFF!important;border:1px solid #D1D5DB!important;color:#1A1D26!important}
+body.light #rb-customer-tags-list span{filter:none}
 body.light #rb-shop-avatar{background:#E5E7EB!important;color:#374151!important}
 /* AI Instructions box */
 body.light #rb-agent-chat{border-color:#E5E7EB!important}
@@ -1857,6 +1861,7 @@ async function authLogout() {
 }
 
 var rbAllMessages = [];
+var rbCustomerProfilesMap = {}; // { 'email@x.com': { tag_ids: [...], notes: '...' } }
 var rbCurrentFilter = 'all';
 var rbActiveMessage = null;
 var rbRegenCount = 0;
@@ -4471,6 +4476,7 @@ async function fetchMessages() {
     const { data: messages, error } = await sb.from('messages').select('*').in('status', ['needs_review','automated','pending','done','closed','spam','queued']).order('received_at', { ascending: false }).limit(500);
     if (error) throw error;
     rbAllMessages = messages || [];
+    rbLoadCustomerProfilesMap();
     renderRbTicketList(rbAllMessages);
     updateRbPendingCount();
   } catch(err) {
@@ -4500,9 +4506,72 @@ async function fetchMessages() {
         }
     // Auto-refresh the list after worker finishes
     sb.from('messages').select('*').in('status', ['needs_review','automated','pending','done','closed','spam','queued']).order('received_at', { ascending: false }).limit(500).then(({ data }) => {
-      if (data) { rbAllMessages = data; renderRbTicketList(data); updateRbPendingCount(); }
+      if (data) { rbAllMessages = data; renderRbTicketList(data); updateRbPendingCount(); rbLoadCustomerProfilesMap(); }
     });
   }).catch(() => {});
+}
+
+// Loads all customer profiles for the store into rbCustomerProfilesMap.
+// Then re-renders the ticket list so tag dots appear. Safe to call multiple times.
+async function rbLoadCustomerProfilesMap() {
+  try {
+    const storeId = ST.settings && ST.settings.store_id;
+    if (!storeId) return;
+
+    // Ensure tag definitions are cached so dots can resolve to colors
+    if (typeof rbLoadAllTags === 'function') {
+      try { await rbLoadAllTags(); } catch (e) { /* non-fatal */ }
+    }
+
+    const res = await fetch('/api/customer-profile?storeId=' + encodeURIComponent(storeId) + '&all=1');
+    const json = await res.json();
+    const profiles = json.profiles || [];
+
+    rbCustomerProfilesMap = {};
+    profiles.forEach(function(p) {
+      const key = (p.customer_email || '').toLowerCase().trim();
+      if (key) {
+        rbCustomerProfilesMap[key] = {
+          tag_ids: p.tag_ids || [],
+          notes: p.notes || ''
+        };
+      }
+    });
+
+    // Re-render to show the dots (now that BOTH tags and profiles are loaded)
+    if (typeof rbAllMessages !== 'undefined' && rbAllMessages.length > 0) {
+      renderRbTicketList(rbAllMessages);
+    }
+  } catch (err) {
+    console.error('Profiles map load error:', err);
+  }
+}
+
+// Build small colored dots representing tags for a ticket row
+function buildTicketTagDots(senderRaw) {
+  if (!senderRaw) return '';
+  var email = senderRaw.includes('<') ? senderRaw.split('<')[1].replace('>','').trim().toLowerCase() : (senderRaw || '').toLowerCase().trim();
+  if (!email) return '';
+  var profile = rbCustomerProfilesMap[email];
+  if (!profile || !profile.tag_ids || profile.tag_ids.length === 0) return '';
+  // Resolve tag_ids to actual tag objects via cache
+  var tags = (rbTagCache && rbTagCache.tags) || [];
+  if (tags.length === 0) return '';
+  var resolved = profile.tag_ids
+    .map(function(id) { return tags.find(function(t) { return t.id === id; }); })
+    .filter(function(t) { return !!t; });
+  if (resolved.length === 0) return '';
+  var maxDots = 3;
+  var visible = resolved.slice(0, maxDots);
+  var overflow = resolved.length - visible.length;
+  var dotsHtml = visible.map(function(t) {
+    var safeName = (t.name || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    return '<span class="rounded-full flex-shrink-0" title="' + safeName + '" style="width:6px;height:6px;background:' + t.color + '"></span>';
+  }).join('');
+  if (overflow > 0) {
+    dotsHtml += '<span class="text-[8px] font-mono flex-shrink-0" style="color:#5A6785">+' + overflow + '</span>';
+  }
+  return '<span class="flex items-center gap-0.5 flex-shrink-0">' + dotsHtml + '</span>';
 }
 
 function renderRbTicketList(messages) {
@@ -4641,7 +4710,7 @@ function renderRbTicketList(messages) {
       + checkbox
       + '<div id="rb-ticket-card-' + msg.id + '" class="flex-1 p-3 rounded-xl cursor-pointer transition-all relative" style="background:' + (isActive?'rgba(0,200,150,0.07)':'rgba(255,255,255,0.02)') + ';border:1px solid ' + (isActive?'rgba(0,200,150,0.25)':'rgba(255,255,255,0.05)') + ';margin-bottom:4px;opacity:' + (isArchived?'0.45':'1') + '">'
       + '<div style="position:absolute;left:0;top:8px;bottom:8px;width:2px;border-radius:1px;background:' + priorityColor + ';opacity:0.7"></div>'
-      + '<div class="flex justify-between items-start mb-1 pl-2"><span class="text-[10px] font-600 text-gray-300 truncate" style="max-width:140px">' + cleanName + '</span><span class="text-[9px] font-mono text-gray-600 flex-shrink-0 ml-1">' + timeStr + '</span></div>'
+      + '<div class="flex justify-between items-start mb-1 pl-2"><span class="flex items-center gap-1 min-w-0 flex-1"><span class="text-[10px] font-600 text-gray-300 truncate" style="max-width:140px">' + cleanName + '</span>' + buildTicketTagDots(msg.sender) + '</span><span class="text-[9px] font-mono text-gray-600 flex-shrink-0 ml-1">' + timeStr + '</span></div>'
       + '<div class="text-[11px] text-gray-400 truncate mb-2 pl-2">' + (msg.subject || 'No Subject') + '</div>'
       + '<div class="flex items-center gap-1.5 pl-2 flex-wrap">' + statusBadge + actionBadge + '<span class="text-[9px] font-mono px-1.5 py-0.5 rounded-full" style="' + catStyle + '">' + catLabel + '</span>' + threadBadge + '</div>'
       + '</div></div>';
@@ -5487,7 +5556,7 @@ async function sendMarkedDrafts() {
   showToast('Sent ' + sent + ' replies');
   window.rbMarkedIds.clear();
   var { data: msgs } = await sb.from('messages').select('*').in('status', ['needs_review','automated','pending','done','closed','spam','queued']).order('received_at', { ascending: false }).limit(100);
-  if (msgs) { rbAllMessages = msgs; renderRbTicketList(msgs); updateRbPendingCount(); }
+  if (msgs) { rbAllMessages = msgs; renderRbTicketList(msgs); updateRbPendingCount(); rbLoadCustomerProfilesMap(); }
 }
 
 async function sendAllDrafts() {
@@ -5531,7 +5600,7 @@ async function sendAllDrafts() {
 
   // Refresh the list
   var { data: messages } = await sb.from('messages').select('*').in('status', ['needs_review','automated','pending','done','closed','spam','queued']).order('received_at', { ascending: false }).limit(100);
-  if (messages) { rbAllMessages = messages; renderRbTicketList(messages); updateRbPendingCount(); }
+  if (messages) { rbAllMessages = messages; renderRbTicketList(messages); updateRbPendingCount(); rbLoadCustomerProfilesMap(); }
 }
 
 async function rbApproveSend() {

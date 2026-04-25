@@ -12,6 +12,20 @@ export async function GET(req: Request) {
         const storeId = searchParams.get('storeId');
         const email = searchParams.get('email');
 
+        // If `all=1` is set, return ALL profiles for the store (used by Review Board to show tag dots)
+        if (searchParams.get('all') === '1' && storeId) {
+            const { data: allProfiles, error: allErr } = await supabaseAdmin
+                .from('customer_profiles')
+                .select('customer_email, tag_ids, notes')
+                .eq('store_id', storeId);
+
+            if (allErr) {
+                console.error('❌ customer-profile GET all:', allErr.message);
+                return NextResponse.json({ error: allErr.message }, { status: 500 });
+            }
+            return NextResponse.json({ profiles: allProfiles || [] });
+        }
+
         if (!storeId || !email) {
             return NextResponse.json({ error: 'storeId and email required' }, { status: 400 });
         }
