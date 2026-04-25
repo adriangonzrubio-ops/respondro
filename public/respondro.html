@@ -5909,6 +5909,78 @@ async function rbDownloadPdf() {
             });
         }
 
+        // ─── CUSTOMER PROFILE (notes + tags) ────────────────
+        // Pulled from rbCustomerProfilesMap which is populated when Review Board loads.
+        // Falls back to a fresh fetch if the map is empty (e.g. user opened ticket via deep link).
+        let profileForPdf = null;
+        if (typeof rbCustomerProfilesMap !== 'undefined' && senderEmail) {
+            profileForPdf = rbCustomerProfilesMap[senderEmail.toLowerCase().trim()];
+        }
+        // If we have profile data and any of it is non-empty, render the section
+        const hasNotes = profileForPdf && profileForPdf.notes && profileForPdf.notes.trim().length > 0;
+        const hasTags = profileForPdf && profileForPdf.tag_ids && profileForPdf.tag_ids.length > 0;
+
+        if (hasNotes || hasTags) {
+            drawDivider();
+            drawText('CUSTOMER PROFILE', { fontSize: 9, fontStyle: 'bold', color: [120, 120, 120] });
+            y += 2;
+
+            // Tags rendered as small colored pills
+            if (hasTags) {
+                const tagDefs = (typeof rbTagCache !== 'undefined' && rbTagCache.tags) || [];
+                const assignedTags = profileForPdf.tag_ids
+                    .map(function(id) { return tagDefs.find(function(t) { return t.id === id; }); })
+                    .filter(function(t) { return !!t; });
+
+                if (assignedTags.length > 0) {
+                    ensureRoom(20);
+                    let pillX = margin;
+                    const pillY = y;
+                    const pillH = 14;
+                    doc.setFontSize(9);
+                    doc.setFont('helvetica', 'bold');
+
+                    assignedTags.forEach(function(t) {
+                        const tagName = t.name || '';
+                        const textWidth = doc.getTextWidth(tagName);
+                        const pillW = textWidth + 12;
+
+                        // Wrap to next line if pill won't fit
+                        if (pillX + pillW > pageWidth - margin) {
+                            pillX = margin;
+                            y += pillH + 4;
+                            ensureRoom(pillH + 4);
+                        }
+
+                        // Convert hex color to RGB for pill background (15% opacity approximation)
+                        const hex = (t.color || '#5A6785').replace('#', '');
+                        const r = parseInt(hex.substring(0, 2), 16);
+                        const g = parseInt(hex.substring(2, 4), 16);
+                        const b = parseInt(hex.substring(4, 6), 16);
+
+                        // Pill background (light tint)
+                        doc.setFillColor(Math.min(255, r + (255 - r) * 0.85), Math.min(255, g + (255 - g) * 0.85), Math.min(255, b + (255 - b) * 0.85));
+                        doc.roundedRect(pillX, y - 9, pillW, pillH, 6, 6, 'F');
+
+                        // Pill text (full color)
+                        doc.setTextColor(r, g, b);
+                        doc.text(tagName, pillX + 6, y);
+
+                        pillX += pillW + 6;
+                    });
+                    y += 18;
+                }
+            }
+
+            // Notes
+            if (hasNotes) {
+                if (hasTags) y += 2;
+                drawText('Notes:', { fontSize: 9, fontStyle: 'bold', color: [90, 90, 90] });
+                drawText(profileForPdf.notes, { fontSize: 10, color: [50, 50, 50] });
+                y += 4;
+            }
+        }
+
         drawDivider();
 
         // ─── CONVERSATION ───────────────────────────────────
