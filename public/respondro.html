@@ -929,6 +929,32 @@ body.light .dash-nav .btn-ghost{color:#374151!important;border-color:#D1D5DB!imp
             </div>
           </div>
         </div>
+
+        <!-- Customer Tags -->
+        <div id="rb-customer-tags-block">
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-[10px] font-mono uppercase tracking-widest text-gray-600">Tags</p>
+            <button onclick="rbOpenTagPicker()" class="text-[10px] text-gray-500 hover:text-white transition px-2 py-0.5 rounded" style="background:rgba(255,255,255,0.04)">+ Add</button>
+          </div>
+          <div id="rb-customer-tags-list" class="flex flex-wrap gap-1.5">
+            <span class="text-[10px] text-gray-600">No tags yet</span>
+          </div>
+        </div>
+
+        <!-- Customer Notes -->
+        <div id="rb-customer-notes-block">
+          <p class="text-[10px] font-mono uppercase tracking-widest text-gray-600 mb-2">Notes</p>
+          <textarea
+            id="rb-customer-notes"
+            class="w-full text-xs px-3 py-2 rounded-lg outline-none resize-none"
+            rows="3"
+            style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#E8EBF2"
+            placeholder="Internal notes about this customer (VIP, allergies, chargeback history…). Saves automatically."
+            onblur="rbSaveCustomerNotes()"
+          ></textarea>
+          <div id="rb-notes-status" class="text-[9px] mt-1 h-3" style="color:#5A6785"></div>
+        </div>
+
         <div id="rb-orders-list" class="space-y-3"></div>
         <div id="rb-agent-chat" class="hidden p-4 border-t border-white/5">
         <p class="text-[10px] font-mono uppercase tracking-widest text-gray-600 mb-2">AI Instructions</p>
@@ -4704,6 +4730,9 @@ async function rbOpenTicket(msgId) {
       setTimeout(function() { timelineContainer.scrollTop = timelineContainer.scrollHeight; }, 100);
     }
 
+    // Load customer notes + tags (fails silently, non-blocking)
+    try { rbLoadCustomerProfile(); } catch (e) { console.error('Profile load kick-off failed:', e); }
+
     // Handle draft
     const draftArea = document.getElementById('rb-draft-textarea');
     const draftLoad = document.getElementById('rb-draft-loading');
@@ -4776,6 +4805,284 @@ function buildConversationTimeline(history, currentMsg) {
   return '<div>' + divider + allItems.map(function(i) { return i.html; }).join('') + '</div>';
 }
 
+// ───────────────── CUSTOMER PROFILE (NOTES + TAGS) ─────────────────
+
+// Global cache so we don't refetch tags on every ticket open
+var rbTagCache = { tags: [], loadedAt: 0 };
+var rbCurrentCustomerProfile = null;
+
+function rbGetActiveCustomerEmail() {
+  if (!rbActiveMessage) return null;
+  const s = rbActiveMessage.sender || '';
+  if (s.includes('<')) return s.split('<')[1].replace('>','').trim();
+  return s.includes('@') ? s.trim() : null;
+}
+
+function rbGetActiveCustomerName() {
+  if (!rbActiveMessage) return null;
+  const s = rbActiveMessage.sender || '';
+  const before = s.split('<')[0].replace(/"/g,'').trim();
+  if (before && before !== s) return before;
+  return null;
+}
+
+// Load all store tags (cached for 60 seconds)
+async function rbLoadAllTags(force) {
+  const storeId = ST.settings && ST.settings.store_id;
+  if (!storeId) return [];
+  const age = Date.now() - rbTagCache.loadedAt;
+  if (!force && age < 60000 && rbTagCache.tags.length > 0) {
+    return rbTagCache.tags;
+  }
+  try {
+    const res = await fetch('/api/customer-tags?storeId=' + encodeURIComponent(storeId));
+    const json = await res.json();
+    rbTagCache = { tags: json.tags || [], loadedAt: Date.now() };
+    return rbTagCache.tags;
+  } catch (err) {
+    console.error('Tag load error:', err);
+    return [];
+  }
+}
+
+// Load the profile for the currently open ticket and render notes + tags
+async function rbLoadCustomerProfile() {
+  const storeId = ST.settings && ST.settings.store_id;
+  const email = rbGetActiveCustomerEmail();
+  if (!storeId || !email) return;
+
+  const notesTextarea = document.getElementById('rb-customer-notes');
+  const tagsListEl = document.getElementById('rb-customer-tags-list');
+
+  // Reset UI while loading
+  if (notesTextarea) notesTextarea.value = '';
+  if (tagsListEl) tagsListEl.innerHTML = '<span class="text-[10px] text-gray-600">Loading…</span>';
+
+  try {
+    const [profileRes, allTags] = await Promise.all([
+      fetch('/api/customer-profile?storeId=' + encodeURIComponent(storeId) + '&email=' + encodeURIComponent(email)).then(r => r.json()),
+      rbLoadAllTags()
+    ]);
+
+    rbCurrentCustomerProfile = profileRes.profile || { notes: '', tag_ids: [] };
+
+    if (notesTextarea) notesTextarea.value = rbCurrentCustomerProfile.notes || '';
+    rbRenderCustomerTags(rbCurrentCustomerProfile.tag_ids || [], allTags);
+  } catch (err) {
+    console.error('Profile load error:', err);
+    if (tagsListEl) tagsListEl.innerHTML = '<span class="text-[10px] text-red-400">Failed to load</span>';
+  }
+}
+
+// Render the assigned tags as colored pills
+function rbRenderCustomerTags(assignedIds, allTags) {
+  const el = document.getElementById('rb-customer-tags-list');
+  if (!el) return;
+
+  const assigned = allTags.filter(t => (assignedIds || []).indexOf(t.id) > -1);
+  if (assigned.length === 0) {
+    el.innerHTML = '<span class="text-[10px] text-gray-600">No tags yet</span>';
+    return;
+  }
+
+  el.innerHTML = assigned.map(function(t) {
+    const safe = (t.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return '<span class="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-600"'
+      + ' style="background:' + t.color + '22;color:' + t.color + ';border:1px solid ' + t.color + '55">'
+      + safe
+      + '<button onclick="rbRemoveTagFromCustomer(\'' + t.id + '\')" class="opacity-60 hover:opacity-100 ml-0.5" title="Remove tag">×</button>'
+      + '</span>';
+  }).join('');
+}
+
+// Save notes (called on blur of textarea)
+async function rbSaveCustomerNotes() {
+  const storeId = ST.settings && ST.settings.store_id;
+  const email = rbGetActiveCustomerEmail();
+  if (!storeId || !email) return;
+
+  const textarea = document.getElementById('rb-customer-notes');
+  const status = document.getElementById('rb-notes-status');
+  if (!textarea) return;
+  const notes = textarea.value;
+
+  // Only save if changed
+  if (rbCurrentCustomerProfile && rbCurrentCustomerProfile.notes === notes) return;
+
+  if (status) status.textContent = 'Saving…';
+
+  try {
+    const res = await fetch('/api/customer-profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        storeId: storeId,
+        email: email,
+        customerName: rbGetActiveCustomerName(),
+        notes: notes
+      })
+    });
+    const json = await res.json();
+    if (json.profile) {
+      rbCurrentCustomerProfile = json.profile;
+      if (status) {
+        status.textContent = 'Saved';
+        setTimeout(function() { if (status) status.textContent = ''; }, 1500);
+      }
+    } else {
+      if (status) status.textContent = 'Save failed';
+    }
+  } catch (err) {
+    console.error('Notes save error:', err);
+    if (status) status.textContent = 'Save failed';
+  }
+}
+
+// Open the tag picker — a simple modal listing available tags + option to create new
+async function rbOpenTagPicker() {
+  if (!rbActiveMessage) return;
+  const allTags = await rbLoadAllTags(true);
+  const assignedIds = (rbCurrentCustomerProfile && rbCurrentCustomerProfile.tag_ids) || [];
+  const available = allTags.filter(t => assignedIds.indexOf(t.id) === -1);
+
+  const isLight = document.body.classList.contains('light');
+  const bg = isLight ? '#FFFFFF' : '#16191f';
+  const textPrimary = isLight ? '#1A1D26' : '#E8EBF2';
+  const border = isLight ? '#E5E7EB' : 'rgba(255,255,255,0.08)';
+
+  const tagsHtml = available.length === 0
+    ? '<div class="text-xs text-center py-4" style="color:#5A6785">All available tags are already assigned. Create a new one below.</div>'
+    : available.map(function(t) {
+        const safe = (t.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const desc = t.description ? ' <span class="text-[10px]" style="color:#5A6785">· ' + (t.description || '').replace(/</g, '&lt;') + '</span>' : '';
+        return '<button onclick="rbAssignTagToCustomer(\'' + t.id + '\')" class="w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg hover:opacity-80 transition mb-1" style="background:' + t.color + '15;border:1px solid ' + t.color + '33">'
+          + '<span class="w-2 h-2 rounded-full flex-shrink-0" style="background:' + t.color + '"></span>'
+          + '<span class="text-xs font-600" style="color:' + t.color + '">' + safe + '</span>' + desc
+          + '</button>';
+      }).join('');
+
+  const modalHtml = '<div id="rb-tag-picker-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)rbCloseTagPicker()">'
+    + '<div style="background:' + bg + ';color:' + textPrimary + ';border:1px solid ' + border + ';border-radius:16px;padding:20px;max-width:420px;width:100%;max-height:80vh;overflow-y:auto">'
+    + '<div class="flex items-center justify-between mb-3"><h3 class="text-sm font-700">Add tag to customer</h3><button onclick="rbCloseTagPicker()" class="text-gray-500 hover:text-white text-lg">×</button></div>'
+    + '<div class="mb-3">' + tagsHtml + '</div>'
+    + '<div class="pt-3" style="border-top:1px solid ' + border + '">'
+    + '<p class="text-[10px] uppercase tracking-wider mb-2" style="color:#5A6785">Create new tag</p>'
+    + '<div class="flex gap-2 items-center">'
+    + '<input id="rb-new-tag-name" type="text" maxlength="40" placeholder="Tag name" class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:rgba(255,255,255,0.04);border:1px solid ' + border + ';color:' + textPrimary + '">'
+    + '<input id="rb-new-tag-color" type="color" value="#00C896" class="w-10 h-9 rounded cursor-pointer" style="border:1px solid ' + border + ';background:transparent">'
+    + '<button onclick="rbCreateAndAssignTag()" class="text-xs px-3 py-2 rounded-lg font-600" style="background:rgba(0,200,150,0.15);color:#00C896;border:1px solid rgba(0,200,150,0.3)">Create</button>'
+    + '</div></div></div></div>';
+
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+  setTimeout(function() { const inp = document.getElementById('rb-new-tag-name'); if (inp) inp.focus(); }, 50);
+}
+
+function rbCloseTagPicker() {
+  const m = document.getElementById('rb-tag-picker-modal');
+  if (m) m.remove();
+}
+
+// Add an existing tag to the current customer
+async function rbAssignTagToCustomer(tagId) {
+  const storeId = ST.settings && ST.settings.store_id;
+  const email = rbGetActiveCustomerEmail();
+  if (!storeId || !email || !tagId) return;
+
+  const current = (rbCurrentCustomerProfile && rbCurrentCustomerProfile.tag_ids) || [];
+  if (current.indexOf(tagId) > -1) return;
+  const newIds = current.concat([tagId]);
+
+  try {
+    const res = await fetch('/api/customer-profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        storeId: storeId,
+        email: email,
+        customerName: rbGetActiveCustomerName(),
+        tagIds: newIds
+      })
+    });
+    const json = await res.json();
+    if (json.profile) {
+      rbCurrentCustomerProfile = json.profile;
+      rbRenderCustomerTags(json.profile.tag_ids || [], rbTagCache.tags);
+      rbCloseTagPicker();
+      if (typeof showToast === 'function') showToast('Tag added');
+    }
+  } catch (err) {
+    console.error('Assign tag error:', err);
+    if (typeof showToast === 'function') showToast('Failed to add tag');
+  }
+}
+
+// Remove a tag from current customer
+async function rbRemoveTagFromCustomer(tagId) {
+  const storeId = ST.settings && ST.settings.store_id;
+  const email = rbGetActiveCustomerEmail();
+  if (!storeId || !email || !tagId) return;
+
+  const current = (rbCurrentCustomerProfile && rbCurrentCustomerProfile.tag_ids) || [];
+  const newIds = current.filter(id => id !== tagId);
+
+  try {
+    const res = await fetch('/api/customer-profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        storeId: storeId,
+        email: email,
+        customerName: rbGetActiveCustomerName(),
+        tagIds: newIds
+      })
+    });
+    const json = await res.json();
+    if (json.profile) {
+      rbCurrentCustomerProfile = json.profile;
+      rbRenderCustomerTags(json.profile.tag_ids || [], rbTagCache.tags);
+    }
+  } catch (err) {
+    console.error('Remove tag error:', err);
+  }
+}
+
+// Create a new tag (from the picker) AND assign it to current customer
+async function rbCreateAndAssignTag() {
+  const storeId = ST.settings && ST.settings.store_id;
+  if (!storeId) return;
+  const nameInput = document.getElementById('rb-new-tag-name');
+  const colorInput = document.getElementById('rb-new-tag-color');
+  if (!nameInput) return;
+  const name = (nameInput.value || '').trim();
+  if (!name) {
+    if (typeof showToast === 'function') showToast('Tag name required');
+    return;
+  }
+  const color = (colorInput && colorInput.value) || '#00C896';
+
+  try {
+    const res = await fetch('/api/customer-tags', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storeId: storeId, name: name, color: color })
+    });
+    const json = await res.json();
+    if (json.tag) {
+      // Refresh cache
+      await rbLoadAllTags(true);
+      // Assign to current customer
+      await rbAssignTagToCustomer(json.tag.id);
+    } else if (json.error) {
+      if (typeof showToast === 'function') showToast(json.error);
+    }
+  } catch (err) {
+    console.error('Create tag error:', err);
+    if (typeof showToast === 'function') showToast('Failed to create tag');
+  }
+}
+
+// ───────────────── END CUSTOMER PROFILE ─────────────────
+
 async function rbGenerateDraftForMessage(msg) {
   const draftArea = document.getElementById('rb-draft-textarea');
   const draftLoad = document.getElementById('rb-draft-loading');
@@ -4796,6 +5103,7 @@ async function rbGenerateDraftForMessage(msg) {
     if (draftLoad) draftLoad.classList.add('hidden');
   }
 }
+
 async function rbRegenerateWithInstructions() {
   if (!rbActiveMessage) return;
   if (rbInstructRegenCount >= rbInstructRegenMax) { showToast('Instruction regeneration limit reached (' + rbInstructRegenMax + ' per ticket)'); return; }
