@@ -10,6 +10,50 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- Crisp Chat — only initialized after merchant logs into the dashboard -->
+<script type="text/javascript">
+  window.$crisp = [];
+  window.CRISP_WEBSITE_ID = "1ad33bed-d0c0-492b-ada1-fb89b329ea74";
+  // Don't load the script tag yet — we do that in initCrispForUser() once authenticated.
+  window._crispLoaded = false;
+
+  // Initialize Crisp for an authenticated merchant. Idempotent.
+  window.initCrispForUser = function(opts) {
+    if (!opts || !opts.email) return;
+    try {
+      // Pass merchant identity so YOU see who's chatting
+      window.$crisp.push(["set", "user:email", [opts.email]]);
+      if (opts.nickname) window.$crisp.push(["set", "user:nickname", [opts.nickname]]);
+      // Custom session metadata visible in Crisp dashboard sidebar
+      var sessionData = [];
+      if (opts.storeName) sessionData.push(["store_name", String(opts.storeName)]);
+      if (opts.storeId) sessionData.push(["store_id", String(opts.storeId)]);
+      if (opts.plan) sessionData.push(["plan", String(opts.plan)]);
+      if (sessionData.length > 0) {
+        window.$crisp.push(["set", "session:data", [sessionData]]);
+      }
+      // Load the actual Crisp script (once)
+      if (!window._crispLoaded) {
+        window._crispLoaded = true;
+        var d = document, s = d.createElement('script');
+        s.src = 'https://client.crisp.chat/l.js';
+        s.async = 1;
+        d.getElementsByTagName('head')[0].appendChild(s);
+      }
+    } catch (err) {
+      console.error('Crisp init error:', err);
+    }
+  };
+
+  // Helper to fully sign out of Crisp when merchant logs out (clears their session)
+  window.terminateCrispSession = function() {
+    try {
+      if (window.$crisp && typeof window.$crisp.push === 'function') {
+        window.$crisp.push(["do", "session:reset"]);
+      }
+    } catch (e) { /* ignore */ }
+  };
+</script>
 <script>tailwind.config={theme:{extend:{colors:{navy:'#080D1A',surface:'#0F1623',surface2:'#151E30',accent:'#00C896',warm:'#F0A500',muted:'#5A6785'},fontFamily:{display:['Inter','sans-serif'],body:['Inter','sans-serif'],mono:['JetBrains Mono','monospace']}}}}</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -1778,8 +1822,26 @@ async function checkAuth() {
     if (avatar && session.user.email) avatar.textContent = session.user.email.charAt(0).toUpperCase();
     const nameNav = document.getElementById('user-name-nav');
     if (nameNav && session.user.email) nameNav.textContent = session.user.email.split('@')[0];
-
     document.body.classList.add('ready');
+
+    // Initialize Crisp Chat for this merchant (idempotent — safe to call multiple times)
+    if (typeof window.initCrispForUser === 'function' && session.user.email) {
+      // Wait briefly so ST.settings has had a chance to populate
+      setTimeout(function() {
+        try {
+          window.initCrispForUser({
+            email: session.user.email,
+            nickname: session.user.email.split('@')[0],
+            storeId: (typeof ST !== 'undefined' && ST.settings) ? ST.settings.store_id : null,
+            storeName: (typeof ST !== 'undefined' && ST.settings) ? ST.settings.store_name : null,
+            plan: (typeof ST !== 'undefined' && ST.settings) ? ST.settings.plan : null
+          });
+        } catch (e) {
+          console.error('Crisp init failed:', e);
+        }
+      }, 1500);
+    }
+
     return true;
   } else {
     // Not logged in — show auth gate (it lives inside #dashboard so dashboard must be active)
@@ -1856,6 +1918,10 @@ async function authForgotPassword() {
 }
 
 async function authLogout() {
+  // Clear Crisp session so the next user doesn't see this merchant's chat history
+  if (typeof window.terminateCrispSession === 'function') {
+    window.terminateCrispSession();
+  }
   await sb.auth.signOut();
   window.location.reload();
 }
